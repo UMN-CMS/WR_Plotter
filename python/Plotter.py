@@ -255,10 +255,10 @@ class Plotter:
 
                 for Syst in self.Systematics:
                     if self.DoDebug: print(f"[DEBUG] Trying to make a histogram for Syst = {Syst.Print()}")
+                    print(f"[DEBUG] Trying to make a histogram for Syst = {Syst.Print()}")
                     dirName = Region.Name
                     for SampleGroup in self.SampleGroups:
                         Color = SampleGroup.Color
-                        LegendAdded = False
                         for Sample in SampleGroup.Samples:
                             if self.DoDebug: print(f"[DEBUG] Trying to make histogram for Sample = {Sample}")
                             print(f"[DEBUG] Trying to make histogram for Sample = {Sample}")
@@ -295,11 +295,17 @@ class Plotter:
 
                 hep.style.use("CMS")
                 fig, ax = plt.subplots()
+
+                hep.cms.label(
+                    loc=0,
+                    ax=ax,
+                    data=True,
+                    label="Work in Progress",
+                    lumi=59.74,
+                )
+
                 hep.histplot(y_values, bins=x_bins, xerr=True,  yerr=y_errs, label='Data', color='black', marker='o', markersize=4, histtype='errorbar')
                 hep.histplot(stack_data, bins=x_bins, xerr=True, stack=True, label=labels, color=colors, histtype='fill')
-#                hep.histplot(combined_yValues, bins=x_bins, xerr=True, y_err=combined_yErrors, label="Combined Background", color=green, histtype='fill')
-
-                hep.cms.label(data=False, lumi=59.74, fontsize=17)
 
                 ax.set_xlabel(xtitle)
                 ax.set_ylabel("Events / bin")
@@ -308,7 +314,8 @@ class Plotter:
                 ax.set_xlim(xMin, xMax)
                 plt.legend()
 
-                plt.savefig(f"{Variable.Name}_{Region.Name}.png")
+                plt.savefig(f"{Outdir}/{Variable.Name}_{Region.Name}.png")
+                print(f"Saved {Outdir}/{Variable.Name}_{Region.Name}.png")
                 plt.close()
 
                     
