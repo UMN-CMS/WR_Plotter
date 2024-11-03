@@ -3,48 +3,48 @@ from Plotter import SampleGroup
 
 ## DY
 SampleGroup_DY_2018 = SampleGroup(
-  Name='DY',
+  name='DY',
   Type='Bkgd',
-  Samples=['DYJets'],
-  Year = 2018,
-  Color='#FFFF00',
-  Style=1,
-  TLatexAlias='Z+jets',
-  LatexAlias='ZJets'
+  samples=['DYJets'],
+  year = 2018,
+  color='#5790fc',
+  style=1,
+  tlatex_alias='Z+jets',
+  latex_alias='ZJets'
 )
 
 ## ttbar
 SampleGroup_TT_TW_2018 = SampleGroup(
-  Name='TT_TW',
+  name='TT_TW',
   Type='Bkgd',
-  Samples=['tt+tW'],
-  Year = 2018,
-  Color='#FF0000',
-  Style=1,
-  TLatexAlias=r'$t\bar{t}+tW$',
-  LatexAlias='TT\_TW'
+  samples=['tt+tW'],
+  year = 2018,
+  color='#f89c20',
+  style=1,
+  tlatex_alias=r'$t\bar{t}+tW$',
+  latex_alias='TT\_TW'
 )
 
 ## NonPrompt
 SampleGroup_NonPrompt_2018 = SampleGroup(
-  Name='NonPrompt',
+  name='NonPrompt',
   Type='Bkgd',
-  Samples=['Nonprompt'],
-  Year = 2018,
-  Color='#32CD32',
-  Style=1,
-  TLatexAlias='Nonprompt',
-  LatexAlias='NonPrompt'
+  samples=['Nonprompt'],
+  year = 2018,
+  color='#e42536',
+  style=1,
+  tlatex_alias='Nonprompt',
+  latex_alias='NonPrompt'
 )
 
 ## others
 SampleGroup_Others_2018 = SampleGroup(
-  Name='Other',
+  name='Other',
   Type='Bkgd',
-  Samples=['Other'],
-  Year = 2018,
-  Color='#00BFFF',
-  Style=1,
-  TLatexAlias='Other backgrounds',
-  LatexAlias='Others'
+  samples=['Other'],
+  year = 2018,
+  color='#964a8b',
+  style=1,
+  tlatex_alias='Other backgrounds',
+  latex_alias='Others'
 )

@@ -4,154 +4,129 @@ import mylib
 from array import array
 import matplotlib.pyplot as plt
 import mplhep as hep
+import matplotlib.ticker as mticker
+import logging
+import subprocess
+import tempfile
+from hist import Hist
 
-## SampleGroup ##
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+hep.style.use("CMS")
+
 class SampleGroup:
-  def __init__(self, Name, Type, Samples, Year, Color=0, Style=1, TLatexAlias="", LatexAlias=""):
-    self.Name = Name
-    self.Type = Type
-    self.Samples = Samples
-    self.Year = Year
-    self.Color = Color
-    self.Style = Style
-    self.TLatexAlias = TLatexAlias
-    self.LatexAlias = LatexAlias
+    def __init__(self, name, Type, samples, year, color=0, style=1, tlatex_alias="", latex_alias=""):
+        self.name = name
+        self.type = Type
+        self.samples = samples
+        self.year = year
+        self.color = color
+        self.style = style
+        self.tlatex_alias = tlatex_alias
+        self.latex_alias = latex_alias
 
-  def Print(self):
-    print('Sample group name = '+self.Name)
-    print('  Type = '+self.Type)
-    print('  Samples = ')
-    print(self.Samples)
-    print( '  Year = '+str(self.Year))
-    print( '  Color = '+str(self.Color))
-    print( '  TLatexAlias = '+str(self.TLatexAlias))
-    print( '  LatexAlias = '+str(self.LatexAlias))
+    def print(self):
+        logging.info(f'Sample group name = {self.name}')
+        logging.info(f'  Type = {self.type}')
+        logging.info(f'  Samples = {self.samples}')
+        logging.info(f'  Year = {self.year}')
+        logging.info(f'  Color = {self.color}')
+        logging.info(f'  TLatexAlias = {self.tlatex_alias}')
+        logging.info(f'  LatexAlias = {self.latex_alias}')
 
-## Variable ##
 class Variable:
-    def __init__(self, Name, TLatexAlias, Unit):
-        self.Name = Name
-        self.TLatexAlias = TLatexAlias
-        self.Unit = Unit
-    def Print(self):
-        print(f"{self.Name}, {self.TLatexAlias}, {self.Unit}")
+    def __init__(self, name, tlatex_alias, unit):
+        self.name = name
+        self.tlatex_alias = tlatex_alias
+        self.unit = unit
 
-## Region ##
+    def print(self):
+        logging.info(f"{self.name}, {self.tlatex_alias}, {self.unit}")
+
 class Region:
-    def __init__(self, Name, PrimaryDataset, UnblindData=True, Logy=-1, TLatexAlias=""):
-        self.Name = Name
-        self.PrimaryDataset = PrimaryDataset
-        self.UnblindData = UnblindData
-        self.Logy = Logy
-        self.TLatexAlias = TLatexAlias
+    def __init__(self, name, primary_dataset, unblind_data=True, logy=-1, tlatex_alias=""):
+        self.name = name
+        self.primary_dataset = primary_dataset
+        self.unblind_data = unblind_data
+        self.logy = logy
+        self.tlatex_alias = tlatex_alias
+        self.draw_data = True
+        self.draw_ratio = True
 
-        self.DrawData = True
-        self.DrawRatio = True
+    def print(self):
+        logging.info(f"{self.name}, {self.primary_dataset}, unblind_data={self.unblind_data}, logy={self.logy}, {self.tlatex_alias}")
 
-    def Print(self):
-        print(f"{self.Name}, {self.PrimaryDataset}, UnblindData={self.UnblindData}, Logy={self.Logy}, {self.TLatexAlias}")
-
-## Systematic ##
-class Systematic:
-  def __init__(self, Name, Direction, Year):
-    self.Name = Name
-    self.Direction = Direction
-    self.Year = Year ## if <0, it's correalted
-  def FullName(self):
-    if self.Year>0:
-      return 'Run'+str(self.Year)+'_'+self.Name
-    else:
-      return self.Name
-  def Print(self):
-    str_Direction = 'Up' if self.Direction>0 else 'Down'
-    if self.Direction==0:
-      str_Direction = "Central"
-    print('(%s, %s, %d)'%(self.Name, str_Direction, self.Year))
-
-## Plotter ##
 class Plotter:
-
     def __init__(self):
-
         self.DoDebug = False
-
-        self.DataYear = 2016
-        self.DataDirectory = "2016"
-
-        self.SampleGroups = []
-        self.RegionsToDraw = []
-        self.VariablesToDraw = []
-        self.SignalsToDraw = []
-
-        self.Systematics = []
-        self.InputDirectory = ""
-        self.Filename_prefix = ""
-        self.Filename_suffix = ""
-        self.Filename_skim = ""
-        self.OutputDirectory = ""
-
+        self.data_year = 2018
+        self.data_directory = "2018"
+        self.sample_groups = []
+        self.regions_to_draw = []
+        self.variables_to_draw = []
+        self.input_directory = ""
+        self.filename_prefix = ""
+        self.filename_suffix = ""
+        self.filename_skim = ""
+        self.output_directory = ""
         self.ScaleMC = False
 
-        self.ExtraLines = ""
+    def print_border(self):
+        logging.info('--------------------------------------------------------------------------')
 
-        self.ErrorFromShape = False
-        self.AddErrorLinear = False
+    def print_samples(self):
+        self.print_border()
+        logging.info('[Plotter.print_samples()] Printing samples')
+        for sample_group in self.sample_groups:
+            sample_group.print()
+        self.print_border()
 
-        self.NoErrorBand = False
+    def print_regions(self):
+        self.print_border()
+        logging.info('[Plotter.print_regions()] Printing regions to be drawn')
+        for region in self.regions_to_draw:
+            region.print()
+            self.print_border()
 
-        self.FixedBinWidth = -1 # TeV
+    def print_variables(self):
+        self.print_border()
+        logging.info('[Plotter.print_variables()] Printing variables to be drawn')
+        for variable in self.variables_to_draw:
+            variable.print()
+        self.print_border()
 
-    def PrintBorder(self):
-        print('--------------------------------------------------------------------------')
+    def set_binning_filepath(self, rebin_filepath, xaxis_filepath, yaxis_filepath):
+        self.rebin_filepath = rebin_filepath
+        self.xaxis_filepath = xaxis_filepath
+        self.yaxis_filepath = yaxis_filepath
 
-    def PrintSamples(self):
-        self.PrintBorder()
-        print('[Plotter.PrintSamples()] Printing samples')
-        for s in self.SampleGroups:
-            s.Print()
-        self.PrintBorder()
+    def read_binning_info(self, region):
+        rebins = {}
+        with open(self.rebin_filepath) as f:
+            for line in f:
+                words = line.split()
+                if region != words[0]:
+                    continue
+                rebins[words[1]] = int(words[2])
 
-    def PrintRegions(self):
-        self.PrintBorder()
-        print('[Plotter.PrintRegions()] Printing regions to be drawn')
-        for s in self.RegionsToDraw:
-            s.Print()
-            self.PrintBorder()
+        xaxis_ranges = {}
+        with open(self.xaxis_filepath) as f:
+            for line in f:
+                words = line.split()
+                if region != words[0]:
+                    continue
+                xaxis_ranges[words[1]] = [float(words[2]), float(words[3])]
 
-    def PrintVariables(self):
-        self.PrintBorder()
-        print('[Plotter.PrintVariables()] Printing variables to be drawn')
-        for s in self.VariablesToDraw:
-            s.Print()
-        self.PrintBorder()
+        yaxis_ranges = {}
+        with open(self.yaxis_filepath) as f:
+            for line in f:
+                words = line.split()
+                if region != words[0]:
+                    continue
+                yaxis_ranges[words[1]] = [float(words[2]), float(words[3])]
 
-    ## Binning related
+        return rebins, xaxis_ranges, yaxis_ranges
 
-    def SetBinningFilepath(self, RebinFilepath, XaxisFilepath, YaxisFilepath):
-        self.RebinFilepath = RebinFilepath
-        self.XaxisFilepath = XaxisFilepath
-        self.YaxisFilepath = YaxisFilepath
-
-    def ReadBinningInfo(self, Region):
-        ## Rebin
-        Rebins = dict()
-        for line in open(self.RebinFilepath).readlines():
-            words = line.split()
-            if Region!=words[0]:
-                continue
-            Rebins[words[1]] = int(words[2])
-        ## xaxis
-        XaxisRanges = dict()
-        for line in open(self.XaxisFilepath).readlines():
-            words = line.split()
-            if Region!=words[0]:
-                continue
-            XaxisRanges[words[1]] = [float(words[2]), float(words[3])]
-        return Rebins, XaxisRanges
-
-
-    def load_histogram(self, file, region_name, variable_name, nRebin):
-
+    def load_histogram(self, file, region_name, variable_name, n_rebin, xlim, lum=None):
         hist_path = f"{region_name}/{variable_name}_{region_name}"
         hist = file.Get(hist_path)
         
@@ -160,155 +135,237 @@ class Plotter:
             file.Close()
             return None
 
+        # FIX
+#        hist = mylib.make_overflow_bin(hist, xlim)
+
+        # Scale to the luminosity
+        if lum is not None:
+            lumi = lum*1000
+            hist.Scale(lumi)
+
+        # Rebin mlljj and lead jet pt
         if variable_name=='WRCand_Mass':
-            return mylib.RebinWRMass(hist, region, self.DataYear)
-        elif variable_name=='ToBeCorrected_Jet_Pt':
-            return mylib.RebinJetPt(hist, region, self.DataYear)
-        else:
-            if nRebin>0:
-                hist.Rebin(nRebin)
-                return hist
-            else:
-                return hist
+            return mylib.RebinWRMass(hist)
+        elif variable_name=='Jet_0_Pt':
+            return mylib.RebinJetPt(hist)
+        elif n_rebin > 0:
+            hist.Rebin(n_rebin)
+        return hist
 
     def get_data(self, hist):
-        """
-        Extracts bin contents, errors, and edges from a ROOT histogram using GetBinContent and GetBinError.
+        n_bins = hist.GetNbinsX()
+        y_bins, y_errors, x_bins = [], [], []
 
-        Parameters:
-        - hist: The ROOT histogram (TH1 object).
+        for i in range(1, n_bins + 1):
+            bin_low_edge = hist.GetBinLowEdge(i)
+            bin_up_edge = hist.GetBinLowEdge(i + 1)
+            content, error = hist.GetBinContent(i), hist.GetBinError(i)
 
-        Returns:
-        - yBins: Array of bin contents.
-        - yErrors: Array of bin errors.
-        - xBins: Array of bin edges.
-        """
-        nBins = hist.GetNbinsX()  # Total number of bins along the x-axis
-
-        # Initialize lists to collect bin contents, errors, and edges
-        yBins = []
-        yErrors = []
-        xBins = []
-
-        # Loop through the bins to collect data
-        for i in range(1, nBins + 1):  # ROOT bins are 1-indexed
-            binLowEdge = hist.GetBinLowEdge(i)
-            binUpEdge = hist.GetBinLowEdge(i + 1)
-
-            # Collect bin content and error
-            content = hist.GetBinContent(i)
-            error = hist.GetBinError(i)
-
-            # Append data to lists
-            yBins.append(content)
-            yErrors.append(error)
+            y_bins.append(content)
+            y_errors.append(error)
 
             if self.DoDebug: print(f'[{binLowEdge:.5f}, {binUpEdge:.5f}] : {content:.5f} ± {error:.5f}')
 
-            # Append the bin lower edge; we'll add the last upper edge after the loop
-            if i == 1 or binLowEdge != xBins[-1]:  # Avoid duplicates in edges
-                xBins.append(binLowEdge)
+            if i == 1 or bin_low_edge != x_bins[-1]:  # Figure out exactly what this does
+                x_bins.append(bin_low_edge)
 
-        # Add the final upper edge of the last bin
-        xBins.append(hist.GetBinLowEdge(nBins + 1))
+        x_bins.append(hist.GetBinLowEdge(n_bins + 1)) # Add the final upper edge of the last bin
+        return np.array(y_bins), np.array(y_errors), np.array(x_bins)
 
-        # Convert lists to numpy arrays for consistency
-        return np.array(yBins), np.array(yErrors), np.array(xBins)
 
-    def Draw(self):
-        for Region in self.RegionsToDraw:
-            print('# Drawing '+Region.Name)
-            Rebins, XaxisRanges = self.ReadBinningInfo(Region.Name)
+    def divide_histograms(self, data_hist, bkgd_hist):
+        ratio_hist = data_hist.Clone("ratio_hist")
+        ratio_hist.Divide(bkgd_hist)
+        return ratio_hist
 
-            Indir = self.InputDirectory
-            Outdir = self.OutputDirectory+'/'+Region.Name+'/'
-            os.system('mkdir -p '+Outdir)
+    def create_histograms(self):
+        for region in self.regions_to_draw:
+            logging.info(f'Drawing {region.name}')
+            rebins, xaxis_ranges, yaxis_ranges = self.read_binning_info(region.name)
 
-            ## Data file
-            data_path = f"{Indir}/{self.DataDirectory}/{self.Filename_prefix}{self.Filename_skim}_data_{Region.PrimaryDataset}{self.Filename_suffix}.root"
-            f_Data = ROOT.TFile(data_path)
+            data_path = f"{self.input_directory}/{self.data_directory}/{self.filename_prefix}{self.filename_skim}_data_{region.primary_dataset}{self.filename_suffix}.root"
+            if not os.path.exists(data_path):
+                logging.error(f"Data file '{data_path}' not found")
+                continue
+            data_file = ROOT.TFile(data_path)
 
-            # Loop over variables
-            for Variable in self.VariablesToDraw:
-                if self.DoDebug: print(f"[DEBUG] Trying to draw variable = {Variable.Name}")
-                print(f"[DEBUG] Trying to draw variable = {Variable.Name}")
-                nRebin = Rebins[Variable.Name]
-                xMin, xMax = XaxisRanges[Variable.Name]
-                xtitle = Variable.TLatexAlias
-                HistsToDraw = {}
+            for variable in self.variables_to_draw:
+                n_rebin = rebins[variable.name]
+                xlim = xaxis_ranges[variable.name]
+                ylim = yaxis_ranges[variable.name]
+                data_hist = self.load_histogram(data_file, region.name, variable.name, n_rebin, xlim)
+                if not data_hist:
+                    continue
 
-                # Get data first
-                if self.DoDebug: print(f"[DEBUG] Trying to get data histogram {self.Filename_prefix}{self.Filename_skim}_data_{Region.PrimaryDataset}{self.Filename_suffix}.root")
+                stack_data, labels, colors = [], [], []
+                bkgd_combined_hist = None
 
-                h_Data = self.load_histogram(f_Data, Region.Name, Variable.Name, nRebin)
-                y_values, y_errs, x_bins = self.get_data(h_Data) 
+                for sample_group in self.sample_groups: # e.g. Nonprompt
+                    lumi = mylib.total_lumi(sample_group.year)
+                    for sample in sample_group.samples: # e.g. tt_semi, singletop, WJets
+                        sample_path = f"{self.input_directory}/{sample_group.year}/{self.filename_prefix}{self.filename_skim}_{sample}{self.filename_suffix}.root"
+                        if not os.path.exists(sample_path):
+                            logging.warning(f"Sample file '{sample_path}' not found")
+                            continue
+                        sample_file = ROOT.TFile(sample_path)
 
-                # Prepare background stack
-                stack_data = []
-                labels = []
-                colors = []
-                total_bkgd_yValues = np.zeros_like(y_values)
+                        sample_hist = self.load_histogram(sample_file, region.name, variable.name, n_rebin, xlim, lumi)
+                        if not sample_hist:
+                            sample_file.Close()
+                            continue
 
-                # Prepare background stack
-                stack_Bkgd = ROOT.THStack("stack_Bkgd", "")
-                h_Bkgd = 0
+                        bkgd_combined_hist = mylib.add_histograms(bkgd_combined_hist, sample_hist)
 
-                for Syst in self.Systematics:
-                    if self.DoDebug: print(f"[DEBUG] Trying to make a histogram for Syst = {Syst.Print()}")
-                    dirName = Region.Name
-                    for SampleGroup in self.SampleGroups:
-                        Color = SampleGroup.Color
-                        LegendAdded = False
-                        for Sample in SampleGroup.Samples:
-                            if self.DoDebug: print(f"[DEBUG] Trying to make histogram for Sample = {Sample}")
-                            print(f"[DEBUG] Trying to make histogram for Sample = {Sample}")
-                            sample_path = f"{Indir}/{SampleGroup.Year}/{self.Filename_prefix}{self.Filename_skim}_{Sample}{self.Filename_suffix}.root"
-                            f_Sample = ROOT.TFile(sample_path)
-                            h_Sample = self.load_histogram(f_Sample, Region.Name, Variable.Name, nRebin)
+                        sample_contents, _, _ = self.get_data(sample_hist)
 
-                            sample_yValues, sample_yErrors, _ = self.get_data(h_Sample)
-                            sample_yValues = sample_yValues * 59.74*1000
-                            sample_yErrors = sample_yErrors * 59.74*1000
+                        stack_data.append(sample_contents)
+                        labels.append(sample_group.tlatex_alias)
+                        colors.append(sample_group.color)
 
-                            total_bkgd_yValues += sample_yValues
+                        sample_file.Close()
 
-                            stack_data.append(sample_yValues)
-                            labels.append(SampleGroup.TLatexAlias)
-                            colors.append(Color)
+                ratio_hist = mylib.divide_histograms(data_hist, bkgd_combined_hist)
 
-                            ## AddError option
-                            AddErrorOption = ''
+                self.draw_histogram(data_hist, bkgd_combined_hist, ratio_hist, stack_data, lumi, xlim, ylim, labels, colors, region, variable)
 
-                            ## If central, add to h_Bkgd
-                            stack_Bkgd.Add(h_Sample)
-                            if not h_Bkgd:
-                                h_Bkgd = h_Sample.Clone()
-                            else:
-                                h_Bkgd = mylib.AddHistograms(h_Bkgd, h_Sample, AddErrorOption)
+    def draw_histogram(self, data_hist, bkgd_combined_hist, ratio_hist, stack_data, lumi, xlims, ylims,  labels, colors, region, variable):
+        # Create plot with main and ratio axes
+        fig, (ax, ax_ratio) = plt.subplots(
+                nrows=2,
+                sharex = 'col',
+                gridspec_kw= {"height_ratios": [5, 1], "hspace": 0.07},
+                figsize=(10, 10)
+        )
 
-                            HistsToDraw[Sample] = h_Sample.Clone()
+        # Get combined background data (sum of stack_data)
+        background_contents, background_errors, x_bins = self.get_data(bkgd_combined_hist)
 
-                            ## Close file
-                            f_Sample.Close()
+        # Plot stacked backgrounds
+        hep.histplot(stack_data, bins=x_bins, stack=True, label=labels, color=colors, histtype='fill', ax=ax, edgecolor="none", linewidth=1)
 
-#                combined_yValues, combined_yErrors, _ = self.get_data(h_Bkgd)
+        # Get data
+        data_contents, data_errors, x_bins = self.get_data(data_hist)
 
-                hep.style.use("CMS")
-                fig, ax = plt.subplots()
-                hep.histplot(y_values, bins=x_bins, xerr=True,  yerr=y_errs, label='Data', color='black', marker='o', markersize=4, histtype='errorbar')
-                hep.histplot(stack_data, bins=x_bins, xerr=True, stack=True, label=labels, color=colors, histtype='fill')
-#                hep.histplot(combined_yValues, bins=x_bins, xerr=True, y_err=combined_yErrors, label="Combined Background", color=green, histtype='fill')
+        # Plot data
+        data_label = 'Data'
+        hep.histplot(
+            data_contents, bins=x_bins, xerr=True,  yerr=data_errors, label=data_label,
+            color='black', marker='o', markersize=4, histtype='errorbar', ax=ax
+        )
 
-                hep.cms.label(data=False, lumi=59.74, fontsize=17)
+        # Calculate bin centers and extend background for plotting
+        bin_centers = 0.5 * (x_bins[1:] + x_bins[:-1])
+        background_contents = np.append(background_contents, background_contents[-1])
+        background_errors = np.append(background_errors, background_errors[-1])
 
-                ax.set_xlabel(xtitle)
-                ax.set_ylabel("Events / bin")
-                ax.set_yscale("log" if Region.Logy > 0 else "linear")
-                ax.set_ylim(1e0, 2.5e4)
-                ax.set_xlim(xMin, xMax)
-                plt.legend()
+        # Plot MC uncertainty in the main plot with hatched band
+        uncert_label = 'Stat. uncert.'
+        ax.fill_between(
+                x_bins, 
+                background_contents - background_errors, 
+                background_contents + background_errors,
+                color="none", edgecolor='gray', hatch='////', step='post', label=uncert_label)
 
-                plt.savefig(f"{Variable.Name}_{Region.Name}.png")
-                plt.close()
+        # Get ratio data and apply mask to zero points
+        ratio_contents, ratio_errors, _ = self.get_data(ratio_hist)
+        nonzero_mask = ratio_contents != 0
 
-                    
+        # Plot ratio points
+        ax_ratio.errorbar(
+            bin_centers[nonzero_mask],
+            ratio_contents[nonzero_mask],
+            yerr=ratio_errors[nonzero_mask],
+            fmt='o',
+            linewidth=2,
+            capsize=2,
+            color='black',
+        )
+
+        # Plot the relative MC uncertainty in ratio plot
+        relative_background_uncert = np.zeros_like(background_contents)
+        nonzero_mask = background_contents != 0
+        relative_background_uncert[nonzero_mask] = background_errors[nonzero_mask] / background_contents[nonzero_mask]
+
+        ax_ratio.fill_between(
+            x_bins[nonzero_mask],
+            1 - relative_background_uncert[nonzero_mask],
+            1 + relative_background_uncert[nonzero_mask],
+            color="none", edgecolor="gray", hatch="////", step="post"
+        )
+
+        # Set axis limits and labels for the ratio plot
+        ax_ratio.set_xlim(*xlims)
+        ax_ratio.set_xlabel(f"{variable.tlatex_alias} {f'[{variable.unit}]' if variable.unit else f'{variable.unit}'}")
+        ax_ratio.set_ylabel(r"$\frac{Data}{Bkg}$")
+        ax_ratio.set_yticks([0, 0.5, 1, 1.5, 2])
+        ax_ratio.set_ylim(0, 2)
+        ax_ratio.yaxis.set_major_formatter(mticker.FormatStrFormatter('%.2g'))
+        ax_ratio.axhline(1.5, color='black', linestyle=':')
+        ax_ratio.axhline(1, color='black', linestyle=':')
+        ax_ratio.axhline(0.5, color='black', linestyle=':')
+
+        # Function for changing the y-axis format
+        def custom_log_formatter(y, pos):
+            if y == 1:
+                return '1'
+            elif y == 10:
+                return '10'
+            else:
+                return f"$10^{{{int(np.log10(y))}}}$"
+
+        # Set y-axis scale
+        ax.set_yscale("log" if region.logy > 0 else "linear")
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
+        y_min, y_max = ylims
+        ax.set_ylim(*ylims)
+
+        # Format y-label
+        bin_widths = [round(x_bins[i + 1] - x_bins[i], 1) for i in range(len(x_bins) - 1)]
+        if all(width == bin_widths[0] for width in bin_widths):
+            bin_width = bin_widths[0]
+            formatted_bin_width = int(bin_width) if bin_width.is_integer() else f"{bin_width:.1f}"
+            ax.set_ylabel(f"Events / {formatted_bin_width} {variable.unit}")
+        else:
+            ax.set_ylabel(f"Events / X {variable.unit}")
+
+        # Plot region information and CMS label
+        ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=22, verticalalignment='top')
+        hep.cms.label(loc=0, ax=ax, data=True, label="Work in Progress", lumi=lumi)
+
+        # Format legend
+        handles, all_labels = ax.get_legend_handles_labels()
+        desired_order = [uncert_label, data_label] + labels[::-1]
+        label_order_map = {label: index for index, label in enumerate(desired_order)}
+        sorted_legend = sorted(zip(handles, all_labels), key=lambda x: label_order_map.get(x[1], float('inf')))
+        ordered_handles, ordered_labels = zip(*sorted_legend)
+
+        # Plot legend
+        ax.legend(ordered_handles, ordered_labels, fontsize=20)
+
+        # Save and upload plot
+        eos_path = f"/eos/user/w/wijackso/{self.output_directory}/{region.name}/{variable.name}_{region.name}.pdf"
+        self.save_and_upload_plot(fig, eos_path)
+
+    def save_and_upload_plot(self, fig, eos_path):
+        # Ensure EOS directory exists
+        eos_dir = os.path.dirname(eos_path)
+        try:
+            subprocess.run(["xrdfs", "eosuser.cern.ch", "mkdir", "-p", eos_dir], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to create directory on EOS: {e}")
+            return  # Exit function if directory creation fails
+
+        # Save plot to a temporary PDF file and upload it to EOS
+        with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp_file:
+            fig.savefig(tmp_file.name, format="pdf")  # Save the plot as a PDF
+            tmp_file.flush()  # Ensure all data is written to disk
+
+            # Upload the temporary PDF file to EOS
+            try:
+                subprocess.run(["xrdcp", "-f", tmp_file.name, f"root://eosuser.cern.ch/{eos_path}"], check=True)
+                print(f"File uploaded successfully to EOS at {eos_path}.")
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to upload file to EOS: {e}")
+
+        # Close the plot figure
+        plt.close(fig)
