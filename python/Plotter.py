@@ -26,8 +26,6 @@ class SampleGroup:
         logging.info(f'  MC Campaign = {self.mc_campaign}')
         logging.info(f'  Year = {self.year}')
         logging.info(f'  Color = {self.color}')
-        logging.info(f'  TLatexAlias = {self.tlatex_alias}')
-        logging.info(f'  LatexAlias = {self.latex_alias}')
 
 class Variable:
     def __init__(self, name, tlatex_alias, unit):
