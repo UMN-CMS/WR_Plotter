@@ -1,6 +1,9 @@
 import os,ROOT
 import math
 from array import array
+import subprocess
+import tempfile
+import numpy as np
 
 def add_histograms(bkgd_combined_hist, sample_hist):
     if bkgd_combined_hist is None:
@@ -129,3 +132,49 @@ def ChangeGeVToTeVXaxis(hist):
         hist_new.SetBinError(i, hist.GetBinError(i))
 
     return hist_new
+
+def get_data(hist):
+    n_bins = hist.GetNbinsX()
+    y_bins, y_errors, x_bins = [], [], []
+
+    for i in range(1, n_bins + 1):
+        bin_low_edge = hist.GetBinLowEdge(i)
+        bin_up_edge = hist.GetBinLowEdge(i + 1)
+        content, error = hist.GetBinContent(i), hist.GetBinError(i)
+
+        y_bins.append(content)
+        y_errors.append(error)
+
+        if i == 1 or bin_low_edge != x_bins[-1]:  # Figure out exactly what this does
+            x_bins.append(bin_low_edge)
+
+    x_bins.append(hist.GetBinLowEdge(n_bins + 1)) # Add the final upper edge of the last bin
+    return np.array(y_bins), np.array(y_errors), np.array(x_bins)
+
+def custom_log_formatter(y, pos):
+    if y == 1:
+        return '1'
+    elif y == 10:
+        return '10'
+    else:
+        return f"$10^{{{int(np.log10(y))}}}$"
+
+def save_and_upload_plot(fig, eos_path):
+    # Ensure EOS directory exists
+    eos_dir = os.path.dirname(eos_path)
+    try:
+        subprocess.run(["xrdfs", "eosuser.cern.ch", "mkdir", "-p", eos_dir], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to create directory on EOS: {e}")
+        return  # Exit function if directory creation fails
+
+    # Save plot to a temporary PDF file and upload it to EOS
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp_file:
+        fig.savefig(tmp_file.name, format="pdf")  # Save the plot as a PDF
+        tmp_file.flush()  # Ensure all data is written to disk
+
+        # Upload the temporary PDF file to EOS
+        try:
+            subprocess.run(["xrdcp", "-f", tmp_file.name, f"root://eosuser.cern.ch/{eos_path}"], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to upload file to EOS: {e}")

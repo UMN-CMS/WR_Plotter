@@ -2,9 +2,9 @@ WR_EE_Resolved_DYCR     ZCand_Mass              -999
 WR_EE_Resolved_DYCR     ZCand_Pt                2
 WR_EE_Resolved_DYCR     WRCand_Mass             2
 WR_EE_Resolved_DYCR     WRCand_Pt               2
-WR_EE_Resolved_DYCR     NCand_Lepton_0_Mass     2
+WR_EE_Resolved_DYCR     NCand_Lepton_0_Mass     5
 WR_EE_Resolved_DYCR     NCand_Lepton_0_Pt       2
-WR_EE_Resolved_DYCR     NCand_Lepton_1_Mass     2
+WR_EE_Resolved_DYCR     NCand_Lepton_1_Mass     5
 WR_EE_Resolved_DYCR     NCand_Lepton_1_Pt       2 
 WR_EE_Resolved_DYCR     Lepton_0_Pt             2
 WR_EE_Resolved_DYCR     Lepton_0_Eta            -999
@@ -18,7 +18,7 @@ WR_MuMu_Resolved_DYCR   ZCand_Mass              2
 WR_MuMu_Resolved_DYCR   ZCand_Pt                2       
 WR_MuMu_Resolved_DYCR   WRCand_Mass             2       
 WR_MuMu_Resolved_DYCR   WRCand_Pt               2       
-WR_MuMu_Resolved_DYCR   NCand_Lepton_0_Mass     2       
+WR_MuMu_Resolved_DYCR   NCand_Lepton_0_Mass     5       
 WR_MuMu_Resolved_DYCR   NCand_Lepton_0_Pt       2       
 WR_MuMu_Resolved_DYCR   NCand_Lepton_1_Mass     2       
 WR_MuMu_Resolved_DYCR   NCand_Lepton_1_Pt       2       
