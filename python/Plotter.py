@@ -14,20 +14,16 @@ logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 hep.style.use("CMS")
 
 class SampleGroup:
-    def __init__(self, name, Type, samples, year, color=0, style=1, tlatex_alias="", latex_alias=""):
+    def __init__(self, name, mc_campaign, year, color, tlatex_alias=""):
         self.name = name
-        self.type = Type
-        self.samples = samples
+        self.mc_campaign = mc_campaign
         self.year = year
         self.color = color
-        self.style = style
         self.tlatex_alias = tlatex_alias
-        self.latex_alias = latex_alias
 
     def print(self):
         logging.info(f'Sample group name = {self.name}')
-        logging.info(f'  Type = {self.type}')
-        logging.info(f'  Samples = {self.samples}')
+        logging.info(f'  MC Campaign = {self.mc_campaign}')
         logging.info(f'  Year = {self.year}')
         logging.info(f'  Color = {self.color}')
         logging.info(f'  TLatexAlias = {self.tlatex_alias}')

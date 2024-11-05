@@ -6,7 +6,6 @@ from PredefinedSamples import *
 # Define constants
 WORKING_DIR = '/uscms/home/bjackson/nobackup/WrCoffea/WR_Plotter'
 DATASET = 'Run2UltraLegacy'
-ENV_PLOT_PATH = os.path.join(WORKING_DIR, 'output')
 BINNING_FILE_TEMPLATE = os.path.join(WORKING_DIR, 'data', DATASET, '{year}', 'CR_rebins.txt')
 XAXIS_FILE_TEMPLATE = os.path.join(WORKING_DIR, 'data', DATASET, '{year}', 'CR_xaxis.txt')
 YAXIS_FILE_TEMPLATE = os.path.join(WORKING_DIR, 'data', DATASET, '{year}', 'CR_yaxis.txt')
@@ -67,13 +66,22 @@ plotter.print_regions()
 
 # Define Variables (removed duplicates)
 plotter.variables_to_draw = [
-    Variable('Jet_0_Pt', r'$p_{T}$ of the leading jet', 'GeV'),
-    Variable('Jet_1_Pt', r'$p_{T}$ of the subleading jet', 'GeV'),
+    Variable('ZCand_Mass', r'$m_{ll}$', 'GeV'),
+    Variable('ZCand_Pt', r'$p^{T}_{ll}$', 'GeV'),
+    Variable('WRCand_Mass', r'$m_{lljj}$', 'GeV'),
+    Variable('WRCand_Pt', r'$p^{T}_{lljj}$', 'GeV'),
+    Variable('NCand_Lepton_0_Mass', r'$m_{l_{Lead}jj}$', 'GeV'),
+    Variable('NCand_Lepton_0_Pt', r'$p^{T}_{l_{Lead}jj}$', 'GeV'),
+    Variable('NCand_Lepton_1_Mass', r'$m_{l_{Sublead}jj}$', 'GeV'),
+    Variable('NCand_Lepton_1_Pt', r'$p^{T}_{l_{Sublead}jj}$', 'GeV'),
     Variable('Lepton_0_Pt', r'$p_{T}$ of the leading lepton', 'GeV'),
     Variable('Lepton_0_Eta', r'$\eta$ of the leading lepton', ''),
-    Variable('Lepton_1_Eta', r'$\eta$ of the subleading lepton', ''),
     Variable('Lepton_1_Pt', r'$p_{T}$ of the subleading lepton', 'GeV'),
-    Variable('WRCand_Mass', r'$m_{lljj}$', 'GeV'),
+    Variable('Lepton_1_Eta', r'$\eta$ of the subleading lepton', ''),
+    Variable('Jet_0_Pt', r'$p_{T}$ of the leading jet', 'GeV'),
+    Variable('Jet_0_Eta', r'$\eta$ of the leading jet', ''),
+    Variable('Jet_1_Pt', r'$p_{T}$ of the subleading jet', 'GeV'),
+    Variable('Jet_1_Eta', r'$\eta$ of the subleading jet', ''),
 ]
 plotter.print_variables()
 
