@@ -1,7 +1,6 @@
-output/
 rootfiles/
+*.root
 test/
-
 # Ignore Python cache files
 __pycache__/
 *.pyc
