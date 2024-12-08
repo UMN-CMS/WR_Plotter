@@ -60,20 +60,20 @@ plotter.print_samples()
 # Define Regions
 plotter.regions_to_draw = [
     Region('WR_EE_Resolved_DYCR', 'EGamma', unblind_data=True, logy=1, tlatex_alias='ee\nResolved DY CR'),
-    Region('WR_MuMu_Resolved_DYCR', 'SingleMuon', unblind_data=True, logy=1, tlatex_alias='$\mu\mu$\nResolved DY CR'),
+#    Region('WR_MuMu_Resolved_DYCR', 'SingleMuon', unblind_data=True, logy=1, tlatex_alias='$\mu\mu$\nResolved DY CR'),
 ]
 plotter.print_regions()
 
 # Define Variables (removed duplicates)
 plotter.variables_to_draw = [
-    Variable('ZCand_Mass', r'$m_{ll}$', 'GeV'),
-    Variable('ZCand_Pt', r'$p^{T}_{ll}$', 'GeV'),
-    Variable('WRCand_Mass', r'$m_{lljj}$', 'GeV'),
-    Variable('WRCand_Pt', r'$p^{T}_{lljj}$', 'GeV'),
-    Variable('NCand_Lepton_0_Mass', r'$m_{l_{Lead}jj}$', 'GeV'),
-    Variable('NCand_Lepton_0_Pt', r'$p^{T}_{l_{Lead}jj}$', 'GeV'),
-    Variable('NCand_Lepton_1_Mass', r'$m_{l_{Sublead}jj}$', 'GeV'),
-    Variable('NCand_Lepton_1_Pt', r'$p^{T}_{l_{Sublead}jj}$', 'GeV'),
+#    Variable('ZCand_Mass', r'$m_{ll}$', 'GeV'),
+#    Variable('ZCand_Pt', r'$p^{T}_{ll}$', 'GeV'),
+#    Variable('WRCand_Mass', r'$m_{lljj}$', 'GeV'),
+#    Variable('WRCand_Pt', r'$p^{T}_{lljj}$', 'GeV'),
+#    Variable('NCand_Lepton_0_Mass', r'$m_{l_{Lead}jj}$', 'GeV'),
+#    Variable('NCand_Lepton_0_Pt', r'$p^{T}_{l_{Lead}jj}$', 'GeV'),
+#    Variable('NCand_Lepton_1_Mass', r'$m_{l_{Sublead}jj}$', 'GeV'),
+#    Variable('NCand_Lepton_1_Pt', r'$p^{T}_{l_{Sublead}jj}$', 'GeV'),
     Variable('Lepton_0_Pt', r'$p_{T}$ of the leading lepton', 'GeV'),
     Variable('Lepton_0_Eta', r'$\eta$ of the leading lepton', ''),
     Variable('Lepton_1_Pt', r'$p_{T}$ of the subleading lepton', 'GeV'),
