@@ -14,18 +14,20 @@ logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 hep.style.use("CMS")
 
 class SampleGroup:
-    def __init__(self, name, mc_campaign, year, color, tlatex_alias=""):
+    def __init__(self, name, mc_campaign, year, color, tlatex_alias, samples=""):
         self.name = name
         self.mc_campaign = mc_campaign
         self.year = year
         self.color = color
         self.tlatex_alias = tlatex_alias
+        self.samples = samples
 
     def print(self):
         logging.info(f'Sample group name = {self.name}')
         logging.info(f'  MC Campaign = {self.mc_campaign}')
         logging.info(f'  Year = {self.year}')
         logging.info(f'  Color = {self.color}')
+        logging.info(f'  tLatex alias = {self.tlatex_alias}')
 
 class Variable:
     def __init__(self, name, tlatex_alias, unit):
@@ -176,8 +178,8 @@ class Plotter:
         for region in self.regions_to_draw:
             logging.info(f'Drawing {region.name}')
             rebins, xaxis_ranges, yaxis_ranges = self.read_binning_info(region.name)
-
-            data_path = f"{self.input_directory}/{self.data_directory}/{self.filename_prefix}{self.filename_skim}_data_{region.primary_dataset}{self.filename_suffix}.root"
+#            data_path = f"{self.input_directory}/{self.data_directory}/{self.filename_prefix}{self.filename_skim}_data_{region.primary_dataset}{self.filename_suffix}.root"
+            data_path = f"{self.input_directory}/{self.data_directory}/{self.filename_prefix}{self.filename_skim}_data_{region.primary_dataset}{self.filename_suffix}_test.root"
             if not os.path.exists(data_path):
                 logging.error(f"Data file '{data_path}' not found")
                 continue
@@ -337,7 +339,7 @@ class Plotter:
         ax.legend(ordered_handles, ordered_labels, fontsize=20)
 
         # Save and upload plot
-        eos_path = f"/eos/user/w/wijackso/{self.output_directory}/{region.name}/{variable.name}_{region.name}.pdf"
+        eos_path = f"/eos/user/w/wijackso/{self.output_directory}/{region.name}/{variable.name}_{region.name}_test.pdf"
         self.save_and_upload_plot(fig, eos_path)
 
     def save_and_upload_plot(self, fig, eos_path):

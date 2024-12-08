@@ -24,7 +24,7 @@ def total_lumi(data_year):
   if data_year==2017:
     return 41.53
   if data_year==2018:
-    return 59.74
+    return 6.785
   if data_year<0:
     return 138
   else:
@@ -176,5 +176,6 @@ def save_and_upload_plot(fig, eos_path):
         # Upload the temporary PDF file to EOS
         try:
             subprocess.run(["xrdcp", "-f", tmp_file.name, f"root://eosuser.cern.ch/{eos_path}"], check=True)
+            print(f"Plots saved to {eos_path}")
         except subprocess.CalledProcessError as e:
             print(f"Failed to upload file to EOS: {e}")
