@@ -115,7 +115,7 @@ def main():
 
     plotter.sample_groups = [
         SampleGroup('DYJets', ['Run2UltraLegacy', 'Run3'], ['2018','2022'], ['#5790fc', '#f89c20'], [r'$DY+Jets$ (Run2 UL18)', r'$DY+Jets$ (Run3 22)'], ['DYJets'],),
-#        SampleGroup('tt_tW', ['Run2UltraLegacy', 'Run3'], ['2018','2022'], ['#5790fc', '#f89c20'], [r'$t\bar{t}$ (Run2 UL18)', r'$t\bar{t}$ (Run3 22)'], ['tt'],), #['tt', 'tW', 'tt+tW']
+        SampleGroup('tt_tW', ['Run2UltraLegacy', 'Run3'], ['2018','2022'], ['#5790fc', '#f89c20'], [r'$t\bar{t}$ (Run2 UL18)', r'$t\bar{t}$ (Run3 22)'], ['tt'],), #['tt', 'tW', 'tt+tW']
     ]
     plotter.print_samples()
 
