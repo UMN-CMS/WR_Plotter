@@ -1,4 +1,6 @@
-import os,ROOT
+import os
+import ROOT
+#import uproot
 import math
 from array import array
 import subprocess
@@ -159,23 +161,45 @@ def custom_log_formatter(y, pos):
     else:
         return f"$10^{{{int(np.log10(y))}}}$"
 
-def save_and_upload_plot(fig, eos_path):
-    # Ensure EOS directory exists
-    eos_dir = os.path.dirname(eos_path)
-    try:
-        subprocess.run(["xrdfs", "eosuser.cern.ch", "mkdir", "-p", eos_dir], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Failed to create directory on EOS: {e}")
-        return  # Exit function if directory creation fails
+def save_and_upload_plot(fig, eos_path, umn=False):
+    """
+    Save a plot locally or upload it to EOS based on the UMN flag.
 
-    # Save plot to a temporary PDF file and upload it to EOS
-    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp_file:
-        fig.savefig(tmp_file.name, format="pdf")  # Save the plot as a PDF
-        tmp_file.flush()  # Ensure all data is written to disk
+    Parameters:
+    - fig: The matplotlib figure to save.
+    - eos_path: The path to save the plot on EOS or locally.
+    - umn: Boolean flag to determine whether to save locally (True) or upload to EOS (False).
+    """
+    if umn:
+        # Save the file locally
+        local_path = eos_path  # Use the same path for local saving
+        local_dir = os.path.dirname(local_path)
 
-        # Upload the temporary PDF file to EOS
+        # Ensure the local directory exists
+        os.makedirs(local_dir, exist_ok=True)
+
         try:
-            subprocess.run(["xrdcp", "-f", tmp_file.name, f"root://eosuser.cern.ch/{eos_path}"], check=True)
-            print(f"Plots saved to {eos_path}")
+            fig.savefig(local_path, format="pdf")  # Save the plot as a PDF locally
+            print(f"Plot saved locally to {local_path}")
+        except Exception as e:
+            logging.error(f"Failed to save plot locally: {e}")
+    else:
+        # Save and upload to EOS
+        eos_dir = os.path.dirname(eos_path)
+        try:
+            subprocess.run(["xrdfs", "eosuser.cern.ch", "mkdir", "-p", eos_dir], check=True)
         except subprocess.CalledProcessError as e:
-            print(f"Failed to upload file to EOS: {e}")
+            logging.error(f"Failed to create directory on EOS: {e}")
+            return  # Exit function if directory creation fails
+
+        # Save plot to a temporary PDF file and upload it to EOS
+        with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp_file:
+            fig.savefig(tmp_file.name, format="pdf")  # Save the plot as a PDF
+            tmp_file.flush()  # Ensure all data is written to disk
+
+            # Upload the temporary PDF file to EOS
+            try:
+                subprocess.run(["xrdcp", "-f", tmp_file.name, f"root://eosuser.cern.ch/{eos_path}"], check=True)
+                print(f"Plot uploaded to EOS: {eos_path}")
+            except subprocess.CalledProcessError as e:
+                logging.error(f"Failed to upload file to EOS: {e}")

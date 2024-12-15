@@ -5,7 +5,16 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../python')))
 
 from Plotter import SampleGroup, Variable, Region, Plotter
-import ROOT 
+# Replace "/usr" with the output of `root-config --prefix`
+#os.environ["ROOTSYS"] = "/usr"
+#os.environ["PYTHONPATH"] = "/usr/lib64/root"
+#os.environ["PATH"] += os.pathsep + "/usr/bin"
+#os.environ["LD_LIBRARY_PATH"] = "/usr/lib64/root" + os.pathsep + os.environ.get("LD_LIBRARY_PATH", "")
+
+import ROOT
+
+print(ROOT.__version__)  # Verify that ROOT is working
+#import uproot
 import matplotlib.pyplot as plt
 import mplhep as hep
 import matplotlib.ticker as mticker
@@ -15,6 +24,11 @@ import subprocess
 import tempfile
 import copy
 from pathlib import Path
+
+parser = argparse.ArgumentParser(description="Run2 vs Run3 Histogram Comparison Script")
+parser.add_argument('--umn', action='store_true', default=False,
+                    help="Enable UMN-specific paths and configurations. Default: False")
+args = parser.parse_args()
 
 def load_histogram(file, region_name, variable_name, n_rebin, lum=None):
     """Load and rebin a histogram, with optional luminosity scaling."""
@@ -89,8 +103,11 @@ def draw_histogram(run2_hist, run3_hist, ratio_hist, sample, process, region, va
     ax.legend(fontsize=20)
 
     # Save and upload plot
-    eos_path = f"/eos/user/w/wijackso/plots/Run2UL18_vs_Run3Summer22/{sample.name}/{process}/{region.name}/{variable.name}_{region.name}.pdf"
-    mylib.save_and_upload_plot(fig, eos_path)
+    if not args.umn:
+        file_path = f"/eos/user/w/wijackso/plots/Run2UL18_vs_Run3Summer22/{sample.name}/{process}/{region.name}/{variable.name}_{region.name}.pdf"
+    else:
+        file_path = f"plots/Run2UL18_vs_Run3Summer22/{sample.name}/{process}/{region.name}/{variable.name}_{region.name}.pdf"
+    mylib.save_and_upload_plot(fig, file_path, args.umn)
     plt.close(fig)
 
 def main():
@@ -98,7 +115,7 @@ def main():
 
     plotter.sample_groups = [
         SampleGroup('DYJets', ['Run2UltraLegacy', 'Run3'], ['2018','2022'], ['#5790fc', '#f89c20'], [r'$DY+Jets$ (Run2 UL18)', r'$DY+Jets$ (Run3 22)'], ['DYJets'],),
-        SampleGroup('tt_tW', ['Run2UltraLegacy', 'Run3'], ['2018','2022'], ['#5790fc', '#f89c20'], [r'$t\bar{t}$ (Run2 UL18)', r'$t\bar{t}$ (Run3 22)'], ['tt'],), #['tt', 'tW', 'tt+tW']
+#        SampleGroup('tt_tW', ['Run2UltraLegacy', 'Run3'], ['2018','2022'], ['#5790fc', '#f89c20'], [r'$t\bar{t}$ (Run2 UL18)', r'$t\bar{t}$ (Run3 22)'], ['tt'],), #['tt', 'tW', 'tt+tW']
     ]
     plotter.print_samples()
 
@@ -136,9 +153,9 @@ def main():
 
     plotter.print_variables()
 
-    rebin_filepath = Path('/uscms/home/bjackson/nobackup/WrCoffea/WR_Plotter/data/241120_Run2VSRun3/CR_rebins.txt') 
-    xaxis_filepath = Path('/uscms/home/bjackson/nobackup/WrCoffea/WR_Plotter/data/241120_Run2VSRun3/CR_xaxis.txt')
-    yaxis_filepath = Path('/uscms/home/bjackson/nobackup/WrCoffea/WR_Plotter/data/241120_Run2VSRun3/CR_yaxis.txt')
+    rebin_filepath = Path('data/241120_Run2VSRun3/CR_rebins.txt') 
+    xaxis_filepath = Path('data/241120_Run2VSRun3/CR_xaxis.txt')
+    yaxis_filepath = Path('data/241120_Run2VSRun3/CR_yaxis.txt')
 
     try:
         plotter.set_binning_filepath(str(rebin_filepath), str(xaxis_filepath), str(yaxis_filepath))
@@ -153,7 +170,7 @@ def main():
             for sample in plotter.sample_groups:
                 for process in sample.samples:
                     for i in range(len(sample.mc_campaign)):
-                        file_path = Path(f"/uscms/home/bjackson/nobackup/WrCoffea/WR_Plotter/rootfiles/{sample.mc_campaign[i]}/Regions/{sample.year[i]}/WRAnalyzer_SkimTree_LRSMHighPt_{process}.root")
+                        file_path = Path(f"rootfiles/{sample.mc_campaign[i]}/Regions/{sample.year[i]}/WRAnalyzer_SkimTree_LRSMHighPt_{process}.root")
                         if not file_path.exists():
                             logging.warning(f"File {file_path} does not exist.")
                             continue
