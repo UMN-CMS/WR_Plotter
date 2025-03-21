@@ -108,7 +108,7 @@ def main():
     plotter = Plotter()
 
     plotter.sample_groups = [
-        SampleGroup('signals', 'Run2Legacy', '2018', ['#5790fc', '#f89c20'], [r'$(m_{W_{R}}, m_{N}) = (3200\mathrm{~GeV}, 3000\mathrm{~GeV})$', r'$(m_{W_{R}}, m_{N}) = (3200\mathrm{~GeV}, 800\mathrm{~GeV})$'], ['WR3200_N3000', 'WR3200_N800'],),
+        SampleGroup('signals', 'Run2Legacy', ['2018','2018_3jets'], ['#5790fc', '#f89c20'], [r'$(m_{W_{R}}, m_{N}) = (3200\mathrm{~GeV}, 3000\mathrm{~GeV})$', r'$(m_{W_{R}}, m_{N}) = (3200\mathrm{~GeV}, 800\mathrm{~GeV})$'], 'WR3200_N3000',),
 #        SampleGroup('DYJets', ['Run2UltraLegacy', 'Run3'], ['2018','2022'], ['#5790fc', '#f89c20'], [r'$DY+Jets$ (Run2 UL18)', r'$DY+Jets$ (Run3 22)'], ['DYJets'],),
     ]
     plotter.print_samples()
@@ -162,8 +162,9 @@ def main():
             hists = {}
             n_rebin, xlim, ylim = rebins[variable.name], xaxis_ranges[variable.name], yaxis_ranges[variable.name]
             for sample in plotter.sample_groups:
-                for process in sample.samples:
-                    file_path = Path(f"rootfiles/{sample.mc_campaign}/Regions/{sample.year}/WRAnalyzer_SkimTree_LRSMHighPt_signal_{process}.root")
+                for year in sample.year:
+                    process=sample.samples
+                    file_path = Path(f"rootfiles/{sample.mc_campaign}/Regions/{year}/WRAnalyzer_SkimTree_LRSMHighPt_signal_{process}.root")
                     if not file_path.exists():
                         logging.warning(f"File {file_path} does not exist.")
                         continue
@@ -171,10 +172,7 @@ def main():
                         lumi = 59.74
                         hist = load_histogram(file_run, region.name, variable.name, n_rebin, lumi)
                         if hist:
-                            if process == 'WR3200_N3000':
-                                hists[sample.samples[0]] = copy.deepcopy(hist.Clone(f"{variable.name}_{region.name}_clone"))
-                            else:
-                                hists[sample.samples[1]] = copy.deepcopy(hist.Clone(f"{variable.name}_{region.name}_clone"))
+                            hists[year] = copy.deepcopy(hist.Clone(f"{variable.name}_{region.name}_clone"))
 
                 hist_N3000, hist_N800 = hists['WR3200_N3000'], hists['WR3200_N800']
                 hist_ratio = mylib.divide_histograms(hist_N800, hist_N3000)
