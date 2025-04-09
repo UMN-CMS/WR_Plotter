@@ -31,6 +31,13 @@ def parse_args():
     parser.add_argument('--era', dest='era', type=str,
                         choices=["RunIISummer20UL18", "Run3Summer22"],
                         required=True, help='Specify the era (e.g. RunIISumer20UL18)')
+    parser.add_argument('--cat', dest='category', type=str, 
+                        choices=["DYCR", "EMuCR"], required=True, 
+                        help='Specify the control region (DYCR or EMu Sideband)')
+    parser.add_argument('--dir', type=str, default="",
+                        help='Save histograms to a new directory')
+    parser.add_argument('--name', type=str, default="",
+                        help='Append a suffix to the filenames')
     return parser.parse_args()
 
 def setup_logging():
@@ -40,23 +47,37 @@ def setup_plotter(args) -> Plotter:
     working_dir = Path('/uscms/home/bjackson/nobackup/WrCoffea/WR_Plotter')
 
     era_mapping = {
-        "RunIISummer20UL18": {"run": "RunII", "year": "2018"},
-        "Run3Summer22": {"run": "Run3", "year": "2022"},
+            "RunIISummer20UL18": {"run": "RunII", "year": "2018", "lumi": 59.83},
+            "Run3Summer22": {"run": "Run3", "year": "2022", "lumi": 7.98},
     }
     mapping = era_mapping.get(args.era)
     if mapping is None:
         raise ValueError(f"Unsupported era: {args.era}")
-    run, year = mapping["run"], mapping["year"]
-
-    # File templates for binning, xaxis, and yaxis files
-    binning_file = working_dir / 'data' / run / year / args.era / 'CR_rebins.txt'
-    xaxis_file = working_dir / 'data' / run / year / args.era / 'CR_xaxis.txt'
-    yaxis_file = working_dir / 'data' / run / year / args.era / 'CR_yaxis.txt'
 
     plotter = Plotter()
 
+    plotter.run  = mapping["run"] 
+    plotter.year = mapping["year"]
+    plotter.era = args.era
+
+    plotter.scale = True
+    plotter.lumi = mapping["lumi"]
+
+    # File templates for binning, xaxis, and yaxis files
+    binning_file = working_dir / 'data' / plotter.run / plotter.year / plotter.era / 'CR_rebins.txt'
+    xaxis_file = working_dir / 'data' / plotter.run / plotter.year / plotter.era / 'CR_xaxis.txt'
+    yaxis_file = working_dir / 'data' / plotter.run / plotter.year / plotter.era / 'CR_yaxis.txt'
+     
     # Set directories
-    plotter.input_directory = str(working_dir / 'rootfiles' / run / year / args.era)
+    if args.dir:
+        plotter.input_directory = str(working_dir / 'rootfiles' / plotter.run / plotter.year / plotter.era / args.dir)
+        plotter.output_directory = Path(f"/eos/user/w/wijackso/{plotter.run}/{plotter.year}/{plotter.era}/{args.dir}")
+    else:
+        plotter.input_directory = str(working_dir / 'rootfiles' / plotter.run / plotter.year / plotter.era)
+        plotter.output_directory = f"/eos/user/w/wijackso/{plotter.run}/{plotter.year}/{plotter.era}"
+
+    if args.name:
+        plotter.suffix = args.name
 
     try:
         plotter.set_binning_filepath(str(binning_file), str(xaxis_file), str(yaxis_file))
@@ -64,27 +85,39 @@ def setup_plotter(args) -> Plotter:
         logging.error(f"File path error: {e}")
         raise
 
-    # In order of plotting
-    sample_group_names = [
-        f'SampleGroup_{args.era}_Other',
-        f'SampleGroup_{args.era}_Nonprompt',
-        f'SampleGroup_{args.era}_TTbar',
-        f'SampleGroup_{args.era}_DY',
-        f'SampleGroup_{args.era}_EGamma',
-        f'SampleGroup_{args.era}_Muon',
-    ]
+    if args.category == "DYCR":
+        sample_group_names = [
+            f'SampleGroup_{args.era}_Other',
+            f'SampleGroup_{args.era}_Nonprompt',
+            f'SampleGroup_{args.era}_TTbar',
+            f'SampleGroup_{args.era}_DY',
+            f'SampleGroup_{args.era}_EGamma',
+            f'SampleGroup_{args.era}_Muon',
+        ]
+        plotter.regions_to_draw = [
+            Region('WR_EE_Resolved_DYCR', 'EGamma', unblind_data = True, tlatex_alias='ee\nResolved DY CR'),
+            Region('WR_MuMu_Resolved_DYCR', 'Muon', unblind_data = True, tlatex_alias='$\mu\mu$\nResolved DY CR'),
+        ]
+    elif args.category == "EMuCR":
+        sample_group_names = [
+            f'SampleGroup_{args.era}_Other',
+            f'SampleGroup_{args.era}_Nonprompt',
+            f'SampleGroup_{args.era}_DY',
+            f'SampleGroup_{args.era}_TTbar',
+            f'SampleGroup_{args.era}_EGamma',
+            f'SampleGroup_{args.era}_Muon',
+        ]
+
+        plotter.regions_to_draw = [
+            Region('WR_EMu_Resolved_CR', 'Muon', unblind_data = True, tlatex_alias='ee\nResolved Flavor CR'),
+            Region('WR_EMu_Resolved_Sideband', 'Muon', unblind_data = True, tlatex_alias='ee\nResolved $e\mu$ Sideband'),
+        ]
+
     plotter.sample_groups = [getattr(ps, name) for name in sample_group_names]
 
     # Print for debugging purposes
     plotter.print_samples()
 
-    # Define Regions
-    plotter.regions_to_draw = [
-        Region('WR_EMu_Resolved_CR', 'Muon', tlatex_alias='ee\nResolved Flavor CR', draw_ratio=True),
-        Region('WR_EMu_Resolved_Sideband', 'Muon', tlatex_alias='ee\nResolved $e\mu$ Sideband', draw_ratio=True),
-        Region('WR_EE_Resolved_DYCR', 'EGamma', tlatex_alias='ee\nResolved DY CR', draw_ratio=True),
-        Region('WR_MuMu_Resolved_DYCR', 'Muon', tlatex_alias='$\mu\mu$\nResolved DY CR', draw_ratio=True),
-    ]
     plotter.print_regions()
 
     # Define Variables
@@ -113,8 +146,6 @@ def setup_plotter(args) -> Plotter:
         Variable('WRCand_Pt', r'$p^{T}_{lljj}$', 'GeV'),
     ]
     plotter.print_variables()
-
-    plotter.scale = True
 
     return plotter
 
@@ -169,7 +200,7 @@ def plot_stack(plotter, region, variable):
 
     # Plot region information and CMS label
     ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes, fontsize=22, verticalalignment='top')
-    hep.cms.label(loc=0, ax=ax, data=True, label="Work in Progress", lumi=7.98, fontsize=20)
+    hep.cms.label(loc=0, ax=ax, data=region.unblind_data, label="Work in Progress", lumi=plotter.lumi, fontsize=20)
 
     set_y_label(ax, tot, variable)
 
@@ -199,20 +230,23 @@ def main():
         rebins, xaxis_ranges, yaxis_ranges = plotter.read_binning_info(region.name)
         for variable in plotter.variables_to_draw: # e.g. Lepton_0_Pt
             logging.info(f"Processing variable '{variable.name}' in region '{region.name}'")
+
             hist_key = f"{region.name}/{variable.name}_{region.name}"
 
             # Configure axes using binning information
             plotter.configure_axes(rebins[variable.name], xaxis_ranges[variable.name], yaxis_ranges[variable.name])
             plotter.reset_stack()
             plotter.reset_data()
-            # Loop over each sample group and combine histograms from all samples in that group (e.g. TTbar and tW to tt+tW)
+
+            # Loop over each sample group and combine histograms from all samples in that group (e.g. WJets and SingleTop to Nonprompt)
             for sample_group in plotter.sample_groups: # e.g. tt+tW
                 combined_hist = None
                 combined_data_hist = None
-                if sample_group.name == "EGamma" or  sample_group.name == "SingleMuon" or sample_group.name == "Muon":
+                if sample_group.name in ("EGamma", "SingleMuon", "Muon"):
                     if sample_group.name == region.primary_dataset:
-                        for sample in sample_group.samples: # e.g. Run2018A, Run2018B, ...
-                            file_path = Path(plotter.input_directory) / f"WRAnalyzer_LRSMHighPt_{sample}.root"
+                        for sample in sample_group.samples:
+                            # TO-DO: Make this flexible with argparse
+                            file_path = Path(plotter.input_directory) / f"WRAnalyzer_{sample}.root"
                             logging.info(f"Reading histogram from: {file_path}")
                             try:
                                 with uproot.open(file_path) as file:
@@ -229,7 +263,7 @@ def main():
 
                 else:
                     for sample in sample_group.samples: # e.g. TTbar, tW,
-                        file_path = Path(plotter.input_directory) / f"WRAnalyzer_LRSMHighPt_{sample}.root"
+                        file_path = Path(plotter.input_directory) / f"WRAnalyzer_{sample}.root"
                         logging.info(f"Reading histogram from: {file_path}")
                         try:
                             with uproot.open(file_path) as file:
@@ -252,7 +286,7 @@ def main():
 
             # Plot the specific variable in the specific region
             figure = plot_stack(plotter, region, variable)
-            save_figure(figure, f"/eos/user/w/wijackso/Run3/2022/Run3Summer22/muon_sample/{region.name}/{variable.name}_{region.name}.pdf")
+            save_figure(figure, f"{plotter.output_directory}/{region.name}/{variable.name}_{region.name}.pdf")
             plt.close(figure)
 
 if __name__ == '__main__':

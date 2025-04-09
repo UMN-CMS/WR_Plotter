@@ -44,33 +44,45 @@ class Variable:
         logging.info(f"{self.name}, {self.tlatex_alias}, {self.unit}")
 
 class Region:
-    def __init__(self, name, primary_dataset, tlatex_alias="", draw_ratio=True):
+    def __init__(self, name, primary_dataset,  unblind_data, tlatex_alias=""):
         self.name = name
         self.primary_dataset = primary_dataset
+        self.unblind_data = unblind_data
         self.tlatex_alias = tlatex_alias
-        self.draw_ratio = draw_ratio
-        self.unblind_data = True
-        self.draw_data = True
 
     def print(self):
         logging.info(f"{self.name}, {self.primary_dataset}, unblind_data={self.unblind_data}, {self.tlatex_alias}")
 
 class Plotter:
     def __init__(self):
+        # Basic info
+        self.run = ""
+        self.year = ""
+        self.era = ""
+        self.input_directory = ""
+        self.input_directory = ""
+        self.dir = ""
+        self.suffix = ""
+
+        # Samples/Processes, analysis regions, variables
         self.sample_groups = []
         self.regions_to_draw = []
         self.variables_to_draw = []
-        self.input_directory = ""
+
         # New attributes for accumulating histogram stacks
         self.stack_list = []
         self.stack_colors = []
         self.stack_labels = []
         self.data_hist = []
+
+        # These will be set via configure_axes()
+        self.scale = False
+        self.lumi = None
+
         # These will be set via configure_axes()
         self.n_rebin = None
         self.xlim = None
         self.ylim = None
-        self.scale = False
 
     def print_border(self):
         logging.info('--------------------------------------------------------------------------')
