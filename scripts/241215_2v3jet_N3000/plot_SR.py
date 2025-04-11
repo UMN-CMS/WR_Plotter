@@ -113,11 +113,6 @@ def draw_histogram(run2_hist, run3_hist, ratio_hist, sample, process, region, va
     if args.exc:
         exclu="_exclusive"
     
-    # Save and upload plot
-    if not args.umn:
-        file_path = f"/eos/user/w/wijackso/plots/N3000_vs_N800/{sample.name}/{process}/{region.name}{exclu}/{variable.name}_{region.name}.pdf"
-    else:
-        file_path = f"plots/{process}/{region.name}{exclu}/{variable.name}_{region.name}.pdf"
     mylib.save_and_upload_plot(fig, file_path, args.umn)
     plt.close(fig)
 
@@ -126,7 +121,6 @@ def main():
 
     plotter.sample_groups = [
         SampleGroup('signals', 'Run2Legacy', ['2018','2018_3jets'], ['#5790fc', '#f89c20'], [r'2 jet', r'3 jet'], 'WR3200_N3000',),
-#        SampleGroup('DYJets', ['Run2UltraLegacy', 'Run3'], ['2018','2022'], ['#5790fc', '#f89c20'], [r'$DY+Jets$ (Run2 UL18)', r'$DY+Jets$ (Run3 22)'], ['DYJets'],),
     ]
     plotter.print_samples()
 
@@ -138,26 +132,8 @@ def main():
     plotter.print_regions()
 
     plotter.variables_to_draw = [
-        #Variable('Lepton_0_Pt', r'$p_{T}$ of the leading lepton', 'GeV'),
-        #Variable('Lepton_0_Eta', r'$\eta$ of the leading lepton', ''),
-        #Variable('Lepton_0_Phi', r'$\phi$ of the leading lepton', ''),
-        #Variable('Lepton_1_Pt', r'$p_{T}$ of the subleading lepton', 'GeV'),
-        #Variable('Lepton_1_Eta', r'$\eta$ of the subleading lepton', ''),
-        #Variable('Lepton_1_Phi', r'$\phi$ of the subleading lepton', ''),
-        #Variable('Jet_0_Pt', r'$p_{T}$ of the leading jet', 'GeV'),
-        #Variable('Jet_0_Eta', r'$\eta$ of the leading jet', ''),
-        #Variable('Jet_0_Phi', r'$\phi$ of the leading jet', ''),
-        #Variable('Jet_1_Pt', r'$p_{T}$ of the subleading jet', 'GeV'),
-        #Variable('Jet_1_Eta', r'$\eta$ of the subleading jet', ''),
-        #Variable('Jet_1_Phi', r'$\phi$ of the subleading jet', ''),
-        #Variable('ZCand_Mass', r'$m_{ll}$', 'GeV'),where
-        #Variable('ZCand_Pt', r'$p^{T}_{ll}$', 'GeV'),
-        #Variable('Dijet_Mass', r'$m_{jj}$', 'GeV'),
-        #Variable('Dijet_Pt', r'$p^{T}_{jj}$', 'GeV'),
         Variable('NCand_Lepton_0_Mass', r'$m_{l_{Lead}jj}$', 'GeV'),
         Variable('NCand_Lepton_0_Pt', r'$p^{T}_{l_{Lead}jj}$', 'GeV'),
-        #Variable('NCand_Lepton_1_Mass', r'$m_{l_{Sublead}jj}$', 'GeV'),
-        #Variable('NCand_Lepton_1_Pt', r'$p^{T}_{l_{Sublead}jj}$', 'GeV'),
         Variable('WRCand_Mass', r'$m_{lljj}$', 'GeV'),
         Variable('WRCand_Pt', r'$p^{T}_{lljj}$', 'GeV'),
     ]
@@ -179,34 +155,15 @@ def main():
 
     for region in plotter.regions_to_draw:
         rebins, xaxis_ranges, yaxis_ranges = plotter.read_binning_info(region.name)
-        for variable in plotter.variables_to_draw:
-            hists = {}
-            n_rebin, xlim, ylim = rebins[variable.name], xaxis_ranges[variable.name], yaxis_ranges[variable.name]
-            for sample in plotter.sample_groups:
-                for year in sample.year:
-                    process=sample.samples
-                    file_path = Path(f"rootfiles/{sample.mc_campaign}/Regions/{year}{exclu}/WRAnalyzer_SkimTree_LRSMHighPt_signal_{process}.root")
-                    if not file_path.exists():
-                        logging.warning(f"File {file_path} does not exist.")
-                        continue
-                    with ROOT.TFile.Open(str(file_path)) as file_run:
-                        lumi = 59.74
-                        hist = load_histogram(file_run, region.name, variable.name, n_rebin, lumi)
-                        if hist:
-                            hists[year] = copy.deepcopy(hist.Clone(f"{variable.name}_{region.name}_clone"))
-
-                hist_N3000, hist_N800 = hists['2018'], hists['2018_3jets']
-                hist_ratio = mylib.divide_histograms(hist_N800, hist_N3000)
-                draw_histogram(hist_N3000, hist_N800, hist_ratio, sample, process, region, variable, xlim, ylim, variable.name=="NCand_Lepton_0_Mass")
         
-        file_path = Path(f"rootfiles/Run2Legacy/Regions/2018_3jets{exclu}/WRAnalyzer_SkimTree_LRSMHighPt_signal_WR3200_N3000.root")
+        file_path = Path(f"rootfiles/RunII/2018/RunIISummer20UL18/3jets/WRAnalyzer_signal_WR3200_N3000.root")
             
         with ROOT.TFile.Open(str(file_path)) as file_run:
             lumi = 59.74
             hist = load_histogram(file_run, region.name , 'Delta_r20', -1, lumi)
             run2_content, run2_errors, x_bins = mylib.get_data(hist)
             fig, ax = plt.subplots()
-            hep.histplot(run2_content, bins=x_bins, yerr=run2_errors, color=sample.color[0], histtype='step', ax=ax,  linewidth=1)
+            hep.histplot(run2_content, bins=x_bins, yerr=run2_errors, color='#5790fc', histtype='step', ax=ax,  linewidth=1)
             ax.set_yscale("log" if region.logy > 0 else "linear")
             ax.yaxis.set_major_formatter(mticker.FuncFormatter(mylib.custom_log_formatter))
             #ax.set_ylim(*ylim)
@@ -224,7 +181,7 @@ def main():
             hist = load_histogram(file_run, region.name , 'Delta_r21', -1, lumi)
             run2_content, run2_errors, x_bins = mylib.get_data(hist)
             fig, ax = plt.subplots()
-            hep.histplot(run2_content, bins=x_bins, yerr=run2_errors, color=sample.color[0], histtype='step', ax=ax,  linewidth=1)
+            hep.histplot(run2_content, bins=x_bins, yerr=run2_errors, color='#5790fc', histtype='step', ax=ax,  linewidth=1)
             ax.set_yscale("log" if region.logy > 0 else "linear")
             ax.yaxis.set_major_formatter(mticker.FuncFormatter(mylib.custom_log_formatter))
             #ax.set_ylim(*ylim)
@@ -363,7 +320,7 @@ def main():
             plt.close(fig)
             
             fig, ax = plt.subplots()
-            ax.set_ylim(0.4,3.25)
+            ax.set_ylim(0.3,3.3)
             ax.set_xlim(-1000,1000)
             ax.set_xlabel(r"$\sigma_L$ and $\sigma_R$ [GeV]")
             ax.set_ylabel(r"$\Delta R_{min}$")
@@ -378,10 +335,10 @@ def main():
                 x4_cor_l, y4_cor_l, w4_l, h4_l=-s4l[i], y_bins[i]+(0.5+insets4)*bin_width, s4l[i], (0.5-insets-insets4)*bin_width
                 x4_cor_r, y4_cor_r, w4_r, h4_r= 0, y_bins[i]+(0.5+insets4)*bin_width, s4r[i], (0.5-insets-insets4)*bin_width
                 
-                rectl= patches.Rectangle((x_cor_l,y_cor_l),w_l,h_l,facecolor='blue',label=r'$\sigma_L$ 5 object' if i==0 else '')
-                rectr= patches.Rectangle((x_cor_r,y_cor_r),w_r,h_r,facecolor='red',label=r'$\sigma_R$ 5 object' if i==0 else '')
-                rect4l= patches.Rectangle((x4_cor_l,y4_cor_l),w4_l,h4_l,facecolor='orange',label=r'$\sigma_L$ 4 object' if i==0 else '')
-                rect4r= patches.Rectangle((x4_cor_r,y4_cor_r),w4_r,h4_r,facecolor='green',label=r'$\sigma_R$ 4 object' if i==0 else '')
+                rectl= patches.Rectangle((x_cor_l,y_cor_l),w_l,h_l,facecolor='red',label=r'$\sigma_L$ 5 object' if i==0 else '')
+                rectr= patches.Rectangle((x_cor_r,y_cor_r),w_r,h_r,facecolor='red',label='')
+                rect4l= patches.Rectangle((x4_cor_l,y4_cor_l),w4_l,h4_l,facecolor='blue',label=r'$\sigma_L$ 4 object' if i==0 else '')
+                rect4r= patches.Rectangle((x4_cor_r,y4_cor_r),w4_r,h4_r,facecolor='blue',label='')
                 
                 ax.add_patch(rectl)
                 ax.add_patch(rectr)
