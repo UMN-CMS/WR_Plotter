@@ -5,7 +5,8 @@ import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../python')))
 
 from Plotter import SampleGroup, Variable, Region, Plotter
-import ROOT 
+import ROOT
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import mplhep as hep
@@ -117,12 +118,18 @@ def draw_histogram(run2_hist, run3_hist, ratio_hist, sample, process, region, va
     plt.close(fig)
 
 def main():
+    matplotlib.use('Agg')
+    
     plotter = Plotter()
 
-    plotter.sample_groups = [
-        SampleGroup('signals', 'Run2Legacy', ['2018','2018_3jets'], ['#5790fc', '#f89c20'], [r'2 jet', r'3 jet'], 'WR3200_N3000',),
-    ]
-    plotter.print_samples()
+    mass_options = ["WR1200_N200", "WR1200_N400", "WR1200_N600", "WR1200_N800", "WR1200_N1100",
+                    "WR1600_N400", "WR1600_N600", "WR1600_N800", "WR1600_N1200", "WR1600_N1500",
+                    "WR2000_N400", "WR2000_N800", "WR2000_N1000", "WR2000_N1400", "WR2000_N1900",
+                    "WR2400_N600", "WR2400_N800", "WR2400_N1200", "WR2400_N1800", "WR2400_N2300",
+                    "WR2800_N600", "WR2800_N1000", "WR2800_N1400", "WR2800_N2000", "WR2800_N2700",
+                    "WR3200_N800", "WR3200_N1200", "WR3200_N1600", "WR3200_N2400", "WR3200_N3000"]
+    
+    valueat1=[]
 
     plotter.regions_to_draw = [
         Region('WR_EE_Resolved_SR', 'EGamma', unblind_data=True, logy=1, tlatex_alias='ee\nResolved SR'),
@@ -156,210 +163,230 @@ def main():
     for region in plotter.regions_to_draw:
         rebins, xaxis_ranges, yaxis_ranges = plotter.read_binning_info(region.name)
         
-        file_path = Path(f"rootfiles/RunII/2018/RunIISummer20UL18/3jets/WRAnalyzer_signal_WR3200_N3000.root")
-            
-        with ROOT.TFile.Open(str(file_path)) as file_run:
-            lumi = 59.74
-            hist = load_histogram(file_run, region.name , 'Delta_r20', -1, lumi)
-            run2_content, run2_errors, x_bins = mylib.get_data(hist)
-            fig, ax = plt.subplots()
-            hep.histplot(run2_content, bins=x_bins, yerr=run2_errors, color='#5790fc', histtype='step', ax=ax,  linewidth=1)
-            ax.set_yscale("log" if region.logy > 0 else "linear")
-            ax.yaxis.set_major_formatter(mticker.FuncFormatter(mylib.custom_log_formatter))
-            #ax.set_ylim(*ylim)
-            ax.set_ylabel(f"Events / 0.0875")
-            ax.set_xlabel(r"Delta_R02")
-            
-            ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
-            hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
-            #ax.legend(fontsize=20)
-            mylib.save_and_upload_plot(fig, f"plots/WR3200_N3000/{region.name}{exclu}/Del_R02_{region.name}.pdf", args.umn)
-            plt.close(fig)
-            
-        with ROOT.TFile.Open(str(file_path)) as file_run:
-            lumi = 59.74
-            hist = load_histogram(file_run, region.name , 'Delta_r21', -1, lumi)
-            run2_content, run2_errors, x_bins = mylib.get_data(hist)
-            fig, ax = plt.subplots()
-            hep.histplot(run2_content, bins=x_bins, yerr=run2_errors, color='#5790fc', histtype='step', ax=ax,  linewidth=1)
-            ax.set_yscale("log" if region.logy > 0 else "linear")
-            ax.yaxis.set_major_formatter(mticker.FuncFormatter(mylib.custom_log_formatter))
-            #ax.set_ylim(*ylim)
-            ax.set_ylabel(f"Events / 0.0875")
-            ax.set_xlabel(r"Delta_R12$")
-            
-            ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
-            hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
-            #ax.legend(fontsize=20)
-            mylib.save_and_upload_plot(fig, f"plots/WR3200_N3000/{region.name}{exclu}/Del_R12_{region.name}.pdf", args.umn)
-            plt.close(fig)
+        valueat1.clear()
         
-        n4_values=np.array([])
-        n4_errors=np.array([])
-        with ROOT.TFile.Open(str(file_path)) as file_run:
-            lumi = 59.74
-            hist = load_histogram(file_run, region.name , 'WRMass4_DeltaR', -1, lumi)
-            nxbin=hist.GetNbinsX()
-            nybin=hist.GetNbinsY()
-            y_bins,  x_bins = np.zeros(nybin+1), np.zeros(nxbin+1)
-            n_values = np.zeros((nxbin,nybin))
-            n4_values= np.zeros((nxbin,nybin))
-            n4_errors= np.zeros((nxbin,nybin))
+        for mass in mass_options:
             
-            for i in range(1,nxbin+1):
-                for j in range(1,nybin+1):
-                    content = hist.GetBinContent(i,j)
-                    n_values[i-1,j-1]= np.log10(np.where(content>1e-4,content,1e-4))
-                    n4_values[i-1,j-1]= content
-                    n4_errors[i-1,j-1]= hist.GetBinError(i,j)
-                    
-                    if i==1:
-                        yax = hist.GetYaxis()
-                        if j==1:
-                            y_bins[0]=yax.GetBinLowEdge(j)
-                        y_bins[j]=yax.GetBinLowEdge(j+1)
-                xax = hist.GetXaxis()
-                if i == 1:
-                    x_bins[0]=xax.GetBinLowEdge(i)
-                x_bins[i]=xax.GetBinLowEdge(i+1)
-            fig, ax = plt.subplots()
-            hep.hist2dplot(n_values,xbins=x_bins,ybins=y_bins,ax=ax)
-            ax.set_ylim(0, 5)
-            ax.set_xlim(0, 7000)
-            ax.set_xlabel(r"$m_{lljj}$ [GeV]")
-            ax.set_ylabel(r"$\Delta R_{min}$")
-            ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top',color='white')
-            hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
-            mylib.save_and_upload_plot(fig, f"plots/WR3200_N3000/{region.name}{exclu}/2d4obj_{region.name}.pdf", args.umn)
-            plt.close(fig)
+            file_path = Path(f"rootfiles/RunII/2018/RunIISummer20UL18/3jets/WRAnalyzer_signal_{mass}.root")
             
-        with ROOT.TFile.Open(str(file_path)) as file_run:
-            lumi = 59.74
-            hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi)
-            nxbin=hist.GetNbinsX()
-            nybin=hist.GetNbinsY()
-            y_bins,  x_bins, sl, sr, s4l, s4r = np.zeros(nybin+1), np.zeros(nxbin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1)
-            sle, sre, s4le, s4re = np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1)
-            n_values = np.zeros((nxbin,nybin))
-            n_errors = np.zeros((nxbin,nybin))
+            with ROOT.TFile.Open(str(file_path)) as file_run:
+                lumi = 59.74
+                hist = load_histogram(file_run, region.name , 'Delta_r20', -1, lumi)
+                run2_content, run2_errors, x_bins = mylib.get_data(hist)
+                fig, ax = plt.subplots()
+                hep.histplot(run2_content, bins=x_bins, yerr=run2_errors, color='#5790fc', histtype='step', ax=ax,  linewidth=1)
+                ax.set_yscale("log" if region.logy > 0 else "linear")
+                ax.yaxis.set_major_formatter(mticker.FuncFormatter(mylib.custom_log_formatter))
+                #ax.set_ylim(*ylim)
+                ax.set_ylabel(f"Events / 0.0875")
+                ax.set_xlabel(r"Delta_R02")
             
-            for j in range(1,nybin+1):
-                fitsuccess = False
-                fitsuccess4= False
-                
-                yax = hist.GetYaxis()
-                if j == 1:
-                    y_bins[0]=yax.GetBinLowEdge(j)
-                y_bins[j]=yax.GetBinLowEdge(j+1)
-                
+                ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
+                hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+                #ax.legend(fontsize=20)
+                mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/Del_R02_{region.name}.pdf", args.umn)
+                plt.close(fig)
+            
+            with ROOT.TFile.Open(str(file_path)) as file_run:
+                lumi = 59.74
+                hist = load_histogram(file_run, region.name , 'Delta_r21', -1, lumi)
+                run2_content, run2_errors, x_bins = mylib.get_data(hist)
+                fig, ax = plt.subplots()
+                hep.histplot(run2_content, bins=x_bins, yerr=run2_errors, color='#5790fc', histtype='step', ax=ax,  linewidth=1)
+                ax.set_yscale("log" if region.logy > 0 else "linear")
+                ax.yaxis.set_major_formatter(mticker.FuncFormatter(mylib.custom_log_formatter))
+                #ax.set_ylim(*ylim)
+                ax.set_ylabel(f"Events / 0.0875")
+                ax.set_xlabel(r"Delta_R12$")
+            
+                ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
+                hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+                #ax.legend(fontsize=20)
+                mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/Del_R12_{region.name}.pdf", args.umn)
+                plt.close(fig)
+        
+            n4_values=np.array([])
+            n4_errors=np.array([])
+            with ROOT.TFile.Open(str(file_path)) as file_run:
+                lumi = 59.74
+                hist = load_histogram(file_run, region.name , 'WRMass4_DeltaR', -1, lumi)
+                nxbin=hist.GetNbinsX()
+                nybin=hist.GetNbinsY()
+                y_bins,  x_bins = np.zeros(nybin+1), np.zeros(nxbin+1)
+                n_values = np.zeros((nxbin,nybin))
+                n4_values= np.zeros((nxbin,nybin))
+                n4_errors= np.zeros((nxbin,nybin))
+            
                 for i in range(1,nxbin+1):
-                    content = hist.GetBinContent(i,j)
-                    n_values[i-1,j-1]= content
-                    n_errors[i-1,j-1]= hist.GetBinError(i,j)
+                    for j in range(1,nybin+1):
+                        content = hist.GetBinContent(i,j)
+                        n_values[i-1,j-1]= np.log10(np.where(content>1e-4,content,1e-4))
+                        n4_values[i-1,j-1]= content
+                        n4_errors[i-1,j-1]= hist.GetBinError(i,j)
                     
-                    if j==1:
-                        xax = hist.GetXaxis()
                         if i==1:
-                            x_bins[0]=xax.GetBinLowEdge(i)
-                        x_bins[i]=xax.GetBinLowEdge(i+1)
-                
-                x_val=(x_bins[1:]+x_bins[:-1])/2
-                
-                np.seterr(divide='raise',invalid='raise')
-                
-                n_errors=np.where(n_errors==0,np.inf,n_errors)
-                n4_errors=np.where(n4_errors==0,np.inf,n4_errors)
-                
-                try:
-                    A=np.max(n_values[:,j-1])
-                    argx0=np.argmax(n_values[:,j-1])
-                    x0=x_val[argx0]
-                    sigL=np.sqrt(np.sum(np.multiply(n_values[:argx0,j-1],(x_val[:argx0]-x0)**2))/np.sum(n_values[:argx0,j-1]))
-                    sigR=np.sqrt(np.sum(np.multiply(n_values[argx0:,j-1],(x_val[argx0:]-x0)**2))/np.sum(n_values[argx0:,j-1]))
-                    
-                    par,pcov = curve_fit(gauss, x_val, n_values[:,j-1],[A,x0,sigR,sigL],sigma=n_errors[:,j-1])
-                    sr[j-1], sl[j-1]= np.abs(par[2]), np.abs(par[3])
-                    errors = np.sqrt(np.diag(pcov))
-                    sre[j-1], sle[j-1]= errors[2], errors[3]
-                    fitsuccess = True
-                except:
-                    sr[j-1]=sl[j-1]=0
+                            yax = hist.GetYaxis()
+                            if j==1:
+                                y_bins[0]=yax.GetBinLowEdge(j)
+                            y_bins[j]=yax.GetBinLowEdge(j+1)
+                    xax = hist.GetXaxis()
+                    if i == 1:
+                        x_bins[0]=xax.GetBinLowEdge(i)
+                    x_bins[i]=xax.GetBinLowEdge(i+1)
+                fig, ax = plt.subplots()
+                hep.hist2dplot(n_values,xbins=x_bins,ybins=y_bins,ax=ax)
+                ax.set_ylim(0, 5)
+                ax.set_xlim(0, 7000)
+                ax.set_xlabel(r"$m_{lljj}$ [GeV]")
+                ax.set_ylabel(r"$\Delta R_{min}$")
+                ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top',color='white')
+                hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+                mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/2d4obj_{region.name}.pdf", args.umn)
+                plt.close(fig)
+            
+            with ROOT.TFile.Open(str(file_path)) as file_run:
+                lumi = 59.74
+                hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi)
+                nxbin=hist.GetNbinsX()
+                nybin=hist.GetNbinsY()
+                y_bins,  x_bins, sl, sr, s4l, s4r = np.zeros(nybin+1), np.zeros(nxbin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1)
+                sle, sre, s4le, s4re = np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1)
+                n_values = np.zeros((nxbin,nybin))
+                n_errors = np.zeros((nxbin,nybin))
+            
+                for j in range(1,nybin+1):
                     fitsuccess = False
+                    fitsuccess4= False
                 
-                try:
-                    A=np.max(n4_values[:,j-1])
-                    argx0=np.argmax(n4_values[:,j-1])
-                    x0=x_val[argx0]
-                    sigL=np.sqrt(np.sum(np.multiply(n4_values[:argx0,j-1],(x_val[:argx0]-x0)**2))/np.sum(n4_values[:argx0,j-1]))
-                    sigR=np.sqrt(np.sum(np.multiply(n4_values[argx0:,j-1],(x_val[argx0:]-x0)**2))/np.sum(n4_values[argx0:,j-1]))
+                    yax = hist.GetYaxis()
+                    if j == 1:
+                        y_bins[0]=yax.GetBinLowEdge(j)
+                    y_bins[j]=yax.GetBinLowEdge(j+1)
+                
+                    for i in range(1,nxbin+1):
+                        content = hist.GetBinContent(i,j)
+                        n_values[i-1,j-1]= content
+                        n_errors[i-1,j-1]= hist.GetBinError(i,j)
                     
-                    par4,p4cov = curve_fit(gauss, x_val, n4_values[:,j-1],[A,x0,sigR,sigL],sigma=n4_errors[:,j-1])
-                    s4r[j-1], s4l[j-1]= np.abs(par4[2]), np.abs(par4[3])
-                    errors4 = np.sqrt(np.diag(p4cov))
-                    s4re[j-1], s4le[j-1]= errors4[2], errors4[3]
-                    fitsuccess4 = True
-                except:
-                    s4r[j-1]=s4l[j-1]=0
-                    fitsuccess4 = False
+                        if j==1:
+                            xax = hist.GetXaxis()
+                            if i==1:
+                                x_bins[0]=xax.GetBinLowEdge(i)
+                            x_bins[i]=xax.GetBinLowEdge(i+1)
                 
-                np.seterr(divide='warn',invalid='warn')
-            
-            for i in range(0,nxbin):
-                for j in range(0,nybin):
-                    n_values[i,j]=np.log10(np.where(n_values[i,j]>1e-4,n_values[i,j],1e-4))
-            
-            fig, ax = plt.subplots()
-            hep.hist2dplot(n_values,xbins=x_bins,ybins=y_bins,ax=ax)
-            ax.set_ylim(0, 5)
-            ax.set_xlim(0, 7000)
-            ax.set_xlabel(r"$m_{lljjj}$ [GeV]")
-            ax.set_ylabel(r"$\Delta R_{min}$")
-            ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top',color='white')
-            hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
-            mylib.save_and_upload_plot(fig, f"plots/WR3200_N3000/{region.name}{exclu}/2d5obj_{region.name}.pdf", args.umn)
-            plt.close(fig)
-            
-            fig, ax = plt.subplots()
-            ax.set_ylim(0.3,3.3)
-            ax.set_xlim(-1000,1000)
-            ax.set_xlabel(r"$\sigma_L$ and $\sigma_R$ [GeV]")
-            ax.set_ylabel(r"$\Delta R_{min}$")
-            
-            for i in range(0,nybin):
-                bin_width = y_bins[i+1]-y_bins[i]
-                insets=0.1
-                insets4=0.01
+                    x_val=(x_bins[1:]+x_bins[:-1])/2
                 
-                x_cor_l, y_cor_l, w_l, h_l=-sl[i], y_bins[i]+insets*bin_width, sl[i], (0.5-insets-insets4)*bin_width
-                x_cor_r, y_cor_r, w_r, h_r= 0, y_bins[i]+insets*bin_width, sr[i], (0.5-insets-insets4)*bin_width
-                x4_cor_l, y4_cor_l, w4_l, h4_l=-s4l[i], y_bins[i]+(0.5+insets4)*bin_width, s4l[i], (0.5-insets-insets4)*bin_width
-                x4_cor_r, y4_cor_r, w4_r, h4_r= 0, y_bins[i]+(0.5+insets4)*bin_width, s4r[i], (0.5-insets-insets4)*bin_width
+                    np.seterr(divide='raise',invalid='raise')
                 
-                rectl= patches.Rectangle((x_cor_l,y_cor_l),w_l,h_l,facecolor='red',label=r'$\sigma_L$ 5 object' if i==0 else '')
-                rectr= patches.Rectangle((x_cor_r,y_cor_r),w_r,h_r,facecolor='red',label='')
-                rect4l= patches.Rectangle((x4_cor_l,y4_cor_l),w4_l,h4_l,facecolor='blue',label=r'$\sigma_L$ 4 object' if i==0 else '')
-                rect4r= patches.Rectangle((x4_cor_r,y4_cor_r),w4_r,h4_r,facecolor='blue',label='')
+                    n_errors=np.where(n_errors==0,np.inf,n_errors)
+                    n4_errors=np.where(n4_errors==0,np.inf,n4_errors)
                 
-                ax.add_patch(rectl)
-                ax.add_patch(rectr)
-                ax.add_patch(rect4l)
-                ax.add_patch(rect4r)
+                    try:
+                        A=np.max(n_values[:,j-1])
+                        argx0=np.argmax(n_values[:,j-1])
+                        x0=x_val[argx0]
+                        sigL=np.sqrt(np.sum(np.multiply(n_values[:argx0,j-1],(x_val[:argx0]-x0)**2))/np.sum(n_values[:argx0,j-1]))
+                        sigR=np.sqrt(np.sum(np.multiply(n_values[argx0:,j-1],(x_val[argx0:]-x0)**2))/np.sum(n_values[argx0:,j-1]))
+                    
+                        par,pcov = curve_fit(gauss, x_val, n_values[:,j-1],[A,x0,sigR,sigL],sigma=n_errors[:,j-1])
+                        sr[j-1], sl[j-1]= np.abs(par[2]), np.abs(par[3])
+                        errors = np.sqrt(np.diag(pcov))
+                        sre[j-1], sle[j-1]= errors[2], errors[3]
+                        fitsuccess = True
+                    except:
+                        sr[j-1]=sl[j-1]=0
+                        fitsuccess = False
+                
+                    try:
+                        A=np.max(n4_values[:,j-1])
+                        argx0=np.argmax(n4_values[:,j-1])
+                        x0=x_val[argx0]
+                        sigL=np.sqrt(np.sum(np.multiply(n4_values[:argx0,j-1],(x_val[:argx0]-x0)**2))/np.sum(n4_values[:argx0,j-1]))
+                        sigR=np.sqrt(np.sum(np.multiply(n4_values[argx0:,j-1],(x_val[argx0:]-x0)**2))/np.sum(n4_values[argx0:,j-1]))
+                    
+                        par4,p4cov = curve_fit(gauss, x_val, n4_values[:,j-1],[A,x0,sigR,sigL],sigma=n4_errors[:,j-1])
+                        s4r[j-1], s4l[j-1]= np.abs(par4[2]), np.abs(par4[3])
+                        errors4 = np.sqrt(np.diag(p4cov))
+                        s4re[j-1], s4le[j-1]= errors4[2], errors4[3]
+                        fitsuccess4 = True
+                    except:
+                        s4r[j-1]=s4l[j-1]=0
+                        fitsuccess4 = False
+                    
+                    np.seterr(divide='warn',invalid='warn')
             
-            ax.errorbar(-sl,y_bins+(0.25+(insets-insets4)/2)*bin_width,xerr=sle,linestyle='none',color='black',capsize=5)
-            ax.errorbar(sr,y_bins+(0.25+(insets-insets4)/2)*bin_width,xerr=sre,linestyle='none',color='black',capsize=5)
-            ax.errorbar(-s4l,y_bins+(0.75+(insets4-insets)/2)*bin_width,xerr=s4le,linestyle='none',color='black',capsize=5)
-            ax.errorbar(s4r,y_bins+(0.75+(insets4-insets)/2)*bin_width,xerr=s4re,linestyle='none',color='black',capsize=5)
+                for i in range(0,nxbin):
+                    for j in range(0,nybin):
+                        n_values[i,j]=np.log10(np.where(n_values[i,j]>1e-4,n_values[i,j],1e-4))
+                
+                gp=np.where((sr>0) & (sl>0) & (s4r>0) & (s4l>0) & (y_bins>0.3) & (y_bins<2.5))
+                comparisn=(sr[gp]+sl[gp])/(s4l[gp]+s4r[gp])
+                yvals=y_bins[gp]
+                coeff = np.polyfit(yvals,comparisn, 1)
+                valueat1.append((1-coeff[1])/coeff[0])
+                
+                
+                fig, ax = plt.subplots()
+                hep.hist2dplot(n_values,xbins=x_bins,ybins=y_bins,ax=ax)
+                ax.set_ylim(0, 5)
+                ax.set_xlim(0, 7000)
+                ax.set_xlabel(r"$m_{lljjj}$ [GeV]")
+                ax.set_ylabel(r"$\Delta R_{min}$")
+                ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top',color='white')
+                hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+                mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/2d5obj_{region.name}.pdf", args.umn)
+                plt.close(fig)
             
-            ax.axvline(x=0, color='k')
+                fig, ax = plt.subplots()
+                ax.set_ylim(0.3,3.3)
+                ax.set_xlim(-1000,1000)
+                ax.set_xlabel(r"$\sigma_L$ and $\sigma_R$ [GeV]")
+                ax.set_ylabel(r"$\Delta R_{min}$")
             
-            xticks=np.arange(-1000,1001,250)
-            xlabel=[f'{x}' for x in np.abs(xticks)]
-            ax.set_xticks(xticks, labels=xlabel)
-            ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
-            ax.legend(fontsize=20)
-            hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
-            mylib.save_and_upload_plot(fig, f"plots/WR3200_N3000/{region.name}{exclu}/sigma_{region.name}.pdf", args.umn)
-            plt.close(fig)
+                for i in range(0,nybin):
+                    bin_width = y_bins[i+1]-y_bins[i]
+                    insets=0.1
+                    insets4=0.01
+                
+                    x_cor_l, y_cor_l, w_l, h_l=-sl[i], y_bins[i]+insets*bin_width, sl[i], (0.5-insets-insets4)*bin_width
+                    x_cor_r, y_cor_r, w_r, h_r= 0, y_bins[i]+insets*bin_width, sr[i], (0.5-insets-insets4)*bin_width
+                    x4_cor_l, y4_cor_l, w4_l, h4_l=-s4l[i], y_bins[i]+(0.5+insets4)*bin_width, s4l[i], (0.5-insets-insets4)*bin_width
+                    x4_cor_r, y4_cor_r, w4_r, h4_r= 0, y_bins[i]+(0.5+insets4)*bin_width, s4r[i], (0.5-insets-insets4)*bin_width
+                
+                    rectl= patches.Rectangle((x_cor_l,y_cor_l),w_l,h_l,facecolor='red',label=r'$\sigma_L$ 5 object' if i==0 else '')
+                    rectr= patches.Rectangle((x_cor_r,y_cor_r),w_r,h_r,facecolor='red',label='')
+                    rect4l= patches.Rectangle((x4_cor_l,y4_cor_l),w4_l,h4_l,facecolor='blue',label=r'$\sigma_L$ 4 object' if i==0 else '')
+                    rect4r= patches.Rectangle((x4_cor_r,y4_cor_r),w4_r,h4_r,facecolor='blue',label='')
+                
+                    ax.add_patch(rectl)
+                    ax.add_patch(rectr)
+                    ax.add_patch(rect4l)
+                    ax.add_patch(rect4r)
+            
+                ax.errorbar(-sl,y_bins+(0.25+(insets-insets4)/2)*bin_width,xerr=sle,linestyle='none',color='black',capsize=5)
+                ax.errorbar(sr,y_bins+(0.25+(insets-insets4)/2)*bin_width,xerr=sre,linestyle='none',color='black',capsize=5)
+                ax.errorbar(-s4l,y_bins+(0.75+(insets4-insets)/2)*bin_width,xerr=s4le,linestyle='none',color='black',capsize=5)
+                ax.errorbar(s4r,y_bins+(0.75+(insets4-insets)/2)*bin_width,xerr=s4re,linestyle='none',color='black',capsize=5)
+            
+                ax.axvline(x=0, color='k')
+            
+                xticks=np.arange(-1000,1001,250)
+                xlabel=[f'{x}' for x in np.abs(xticks)]
+                ax.set_xticks(xticks, labels=xlabel)
+                ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
+                ax.legend(fontsize=20)
+                hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+                mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/sigma_{region.name}.pdf", args.umn)
+                plt.close(fig)
+                
+        fig, ax = plt.subplots()
+        Nmasses=[600,1000,1400,2000,2700]
+        ax.plot(Nmasses,valueat1[20:25])
+        ax.set_ylabel(r"$\Delta R_{cut}$")
+        ax.set_xlabel(r"$M_{\nu} [GeV]$")
+        ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
+        hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+        mylib.save_and_upload_plot(fig, f"plots/Comparisn/{region.name}{exclu}/sigmaratio.pdf", args.umn)
         
 if __name__ == "__main__":
     main()
