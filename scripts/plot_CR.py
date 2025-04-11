@@ -15,6 +15,8 @@ from python import predefined_samples as ps
 
 import argparse
 import logging
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from hist.intervals import ratio_uncertainty
 import mplhep as hep
@@ -47,8 +49,8 @@ def setup_plotter(args) -> Plotter:
     working_dir = Path('/uscms/home/bjackson/nobackup/WrCoffea/WR_Plotter')
 
     era_mapping = {
-            "RunIISummer20UL18": {"run": "RunII", "year": "2018", "lumi": 59.83},
-            "Run3Summer22": {"run": "Run3", "year": "2022", "lumi": 7.98},
+            "RunIISummer20UL18": {"run": "RunII", "year": "2018", "lumi": 59.832422397},
+            "Run3Summer22": {"run": "Run3", "year": "2022", "lumi":  7.9804},
     }
     mapping = era_mapping.get(args.era)
     if mapping is None:
@@ -95,8 +97,8 @@ def setup_plotter(args) -> Plotter:
             f'SampleGroup_{args.era}_Muon',
         ]
         plotter.regions_to_draw = [
-            Region('WR_EE_Resolved_DYCR', 'EGamma', unblind_data = True, tlatex_alias='ee\nResolved DY CR'),
             Region('WR_MuMu_Resolved_DYCR', 'Muon', unblind_data = True, tlatex_alias='$\mu\mu$\nResolved DY CR'),
+            Region('WR_EE_Resolved_DYCR', 'EGamma', unblind_data = True, tlatex_alias='ee\nResolved DY CR'),
         ]
     elif args.category == "EMuCR":
         sample_group_names = [
@@ -200,7 +202,7 @@ def plot_stack(plotter, region, variable):
 
     # Plot region information and CMS label
     ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes, fontsize=22, verticalalignment='top')
-    hep.cms.label(loc=0, ax=ax, data=region.unblind_data, label="Work in Progress", lumi=plotter.lumi, fontsize=20)
+    hep.cms.label(loc=0, ax=ax, data=region.unblind_data, label="Work in Progress", lumi=f"{plotter.lumi:.2f}", fontsize=20)
 
     set_y_label(ax, tot, variable)
 

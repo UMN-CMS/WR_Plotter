@@ -2,7 +2,7 @@ import numpy as np
 import tempfile
 import os 
 import subprocess
-
+import time
 
 def custom_log_formatter(y, pos):
     """
@@ -44,8 +44,17 @@ def save_figure(fig, eos_path):
         tmp_file.flush()  # Ensure all data is written to disk
 
         # Upload the temporary PDF file to EOS
-        try:
-            subprocess.run(["xrdcp", "-f", tmp_file.name, f"root://eosuser.cern.ch/{eos_path}"], check=True)
-            print(f"File uploaded successfully to EOS at {eos_path}.")
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to upload file to EOS: {e}")
+        while True:
+            try:
+                subprocess.run(
+                    ["xrdcp", "-f", tmp_file.name, f"root://eosuser.cern.ch/{eos_path}"], 
+                    check=True,
+                    timeout=5
+                )
+                print(f"File uploaded: {eos_path}.")
+                break  # Exit the loop on successful upload
+            except subprocess.TimeoutExpired:
+                print("xrdcp command timed out. Retrying...")
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to upload file to EOS: {e}. Retrying in 5 seconds...")
+            time.sleep(1)

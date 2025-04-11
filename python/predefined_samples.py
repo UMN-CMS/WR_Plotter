@@ -46,17 +46,17 @@ SampleGroup_RunIISummer20UL18_EGamma = SampleGroup(
   year = 2018,
   mc_campaign='RunIISummer20UL18',
   color='#964a8b',
-  samples=['Run2018A', 'Run2018B', 'Run2018C', 'Run2018D'],
+  samples=['EGamma'],
   tlatex_alias='Data',
 )
 
 SampleGroup_RunIISummer20UL18_Muon = SampleGroup(
-  name='SingleMuon',
+  name='Muon',
   run='RunII',
   year = 2018,
   mc_campaign='RunIISummer20UL18',
   color='#964a8b',
-  samples=['Run2018A', 'Run2018B', 'Run2018C', 'Run2018D'],
+  samples=['Muon'],
   tlatex_alias='Data',
 )
 
