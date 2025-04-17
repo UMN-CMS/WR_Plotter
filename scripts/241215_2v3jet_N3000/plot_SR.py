@@ -18,6 +18,7 @@ import tempfile
 import copy
 from pathlib import Path
 from scipy.optimize import curve_fit
+from scipy.interpolate import pchip_interpolate
 
 parser = argparse.ArgumentParser(description="Run2 vs Run3 Histogram Comparison Script")
 parser.add_argument('--umn', action='store_true', default=False,help="Enable UMN-specific paths and configurations. Default: False")
@@ -130,6 +131,9 @@ def main():
                     "WR3200_N800", "WR3200_N1200", "WR3200_N1600", "WR3200_N2400", "WR3200_N3000"]
     
     valueat1=[]
+    valueat1mean=[]
+    WRmasses=[1200,1600,2000,2400,2800,3200]
+    Nmasses=[200,400,600,800,1100,400,600,800,1200,1500,400,800,1000,1400,1900,600,800,1200,1800,2300,600,1000,1400,2000,2700,800,1200,1600,2400,3000]
 
     plotter.regions_to_draw = [
         Region('WR_EE_Resolved_SR', 'EGamma', unblind_data=True, logy=1, tlatex_alias='ee\nResolved SR'),
@@ -164,6 +168,7 @@ def main():
         rebins, xaxis_ranges, yaxis_ranges = plotter.read_binning_info(region.name)
         
         valueat1.clear()
+        valueat1mean.clear()
         
         for mass in mass_options:
             
@@ -251,6 +256,7 @@ def main():
                 nybin=hist.GetNbinsY()
                 y_bins,  x_bins, sl, sr, s4l, s4r = np.zeros(nybin+1), np.zeros(nxbin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1)
                 sle, sre, s4le, s4re = np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1)
+                xmean,x4mean=np.zeros(nybin+1), np.zeros(nxbin+1)
                 n_values = np.zeros((nxbin,nybin))
                 n_errors = np.zeros((nxbin,nybin))
             
@@ -275,12 +281,18 @@ def main():
                             x_bins[i]=xax.GetBinLowEdge(i+1)
                 
                     x_val=(x_bins[1:]+x_bins[:-1])/2
+                   
+                for j in range(2,nybin+1):
+                    n_values[:,j-1]+=n_values[:,j-2]
+                    n4_values[:,j-1]+=n4_values[:,j-2]
+                    n_errors[:,j-1]=np.sqrt(n_errors[:,j-2]**2+n_errors[:,j-1]**2)
+                    n4_errors[:,j-1]=np.sqrt(n4_errors[:,j-2]**2+n4_errors[:,j-1]**2)
+                 
+                n_errors=np.where(n_errors==0,np.inf,n_errors)
+                n4_errors=np.where(n4_errors==0,np.inf,n4_errors)
                 
-                    np.seterr(divide='raise',invalid='raise')
-                
-                    n_errors=np.where(n_errors==0,np.inf,n_errors)
-                    n4_errors=np.where(n4_errors==0,np.inf,n4_errors)
-                
+                np.seterr(divide='raise',invalid='raise')
+                for j in range(1,nybin+1):
                     try:
                         A=np.max(n_values[:,j-1])
                         argx0=np.argmax(n_values[:,j-1])
@@ -292,6 +304,7 @@ def main():
                         sr[j-1], sl[j-1]= np.abs(par[2]), np.abs(par[3])
                         errors = np.sqrt(np.diag(pcov))
                         sre[j-1], sle[j-1]= errors[2], errors[3]
+                        xmean[j-1]=par[1]
                         fitsuccess = True
                     except:
                         sr[j-1]=sl[j-1]=0
@@ -308,12 +321,12 @@ def main():
                         s4r[j-1], s4l[j-1]= np.abs(par4[2]), np.abs(par4[3])
                         errors4 = np.sqrt(np.diag(p4cov))
                         s4re[j-1], s4le[j-1]= errors4[2], errors4[3]
+                        x4mean[j-1]=par4[1]
                         fitsuccess4 = True
                     except:
                         s4r[j-1]=s4l[j-1]=0
                         fitsuccess4 = False
-                    
-                    np.seterr(divide='warn',invalid='warn')
+                np.seterr(divide='warn',invalid='warn')
             
                 for i in range(0,nxbin):
                     for j in range(0,nybin):
@@ -324,6 +337,12 @@ def main():
                 yvals=y_bins[gp]
                 coeff = np.polyfit(yvals,comparisn, 1)
                 valueat1.append((1-coeff[1])/coeff[0])
+                
+                gp=np.where((sr>0) & (sl>0) & (s4r>0) & (s4l>0) & (y_bins>0.3) & (y_bins<2.5))
+                comparisn=(sr[gp]+sl[gp])*x4mean[gp]/(s4l[gp]+s4r[gp])/xmean[gp]
+                yvals=y_bins[gp]
+                coeff = np.polyfit(yvals,comparisn, 1)
+                valueat1mean.append((1-coeff[1])/coeff[0])
                 
                 
                 fig, ax = plt.subplots()
@@ -338,7 +357,7 @@ def main():
                 plt.close(fig)
             
                 fig, ax = plt.subplots()
-                ax.set_ylim(0.3,3.3)
+                ax.set_ylim(0.3,5)
                 ax.set_xlim(-1000,1000)
                 ax.set_xlabel(r"$\sigma_L$ and $\sigma_R$ [GeV]")
                 ax.set_ylabel(r"$\Delta R_{min}$")
@@ -380,13 +399,45 @@ def main():
                 plt.close(fig)
                 
         fig, ax = plt.subplots()
-        Nmasses=[600,1000,1400,2000,2700]
-        ax.plot(Nmasses,valueat1[20:25])
+        
+        i=0
+        for wrmass in WRmasses:
+            xv,yv=np.array(Nmasses[i:i+5]),np.array(valueat1[i:i+5])
+            good=np.where((yv>0.4) & (yv<2.5))
+            xv,yv=xv[good],yv[good]
+            xnew = np.linspace(xv.min(), xv.max(), 300)
+            power_smooth = pchip_interpolate(xv, yv, xnew)
+            ax.plot(xnew,power_smooth,label=f'WR{wrmass}')
+            i=i+5
+        
         ax.set_ylabel(r"$\Delta R_{cut}$")
         ax.set_xlabel(r"$M_{\nu} [GeV]$")
         ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
         hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+        ax.legend(fontsize=20,loc='lower right')
         mylib.save_and_upload_plot(fig, f"plots/Comparisn/{region.name}{exclu}/sigmaratio.pdf", args.umn)
+        plt.close(fig)
+        
+        
+        fig, ax = plt.subplots()
+        
+        i=0
+        for wrmass in WRmasses:
+            xv,yv=np.array(Nmasses[i:i+5]),np.array(valueat1mean[i:i+5])
+            good=np.where((yv>0.4) & (yv<2.5))
+            xv,yv=xv[good],yv[good]
+            xnew = np.linspace(xv.min(), xv.max(), 300)
+            power_smooth = pchip_interpolate(xv, yv, xnew)
+            ax.plot(xnew,power_smooth,label=f'WR{wrmass}')
+            i=i+5
+        
+        ax.set_ylabel(r"$\Delta R_{cut}$")
+        ax.set_xlabel(r"$M_{\nu} [GeV]$")
+        ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
+        hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+        ax.legend(fontsize=20,loc='lower right')
+        mylib.save_and_upload_plot(fig, f"plots/Comparisn/{region.name}{exclu}/sigmaratiomean.pdf", args.umn)
+        plt.close(fig)
         
 if __name__ == "__main__":
     main()
