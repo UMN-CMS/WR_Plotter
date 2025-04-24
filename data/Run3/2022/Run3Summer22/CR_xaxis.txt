@@ -42,12 +42,12 @@ WR_MuMu_Resolved_DYCR     NCand_Lepton_1_Mass     0       5000
 WR_MuMu_Resolved_DYCR     NCand_Lepton_1_Pt       0       2000
 WR_MuMu_Resolved_DYCR     WRCand_Mass             0       8000
 WR_MuMu_Resolved_DYCR     WRCand_Pt               0       2000
-WR_EMu_Resolved_Sideband     Lepton_0_Pt             0       1000
-WR_EMu_Resolved_Sideband     Lepton_0_Eta            -3      3
-WR_EMu_Resolved_Sideband     Lepton_0_Phi            -4      4
-WR_EMu_Resolved_Sideband     Lepton_1_Pt             0       500
-WR_EMu_Resolved_Sideband     Lepton_1_Eta            -3      3
-WR_EMu_Resolved_Sideband     Lepton_1_Phi            -4      4
+WR_EMu_Resolved_CR     Lepton_0_Pt             0       1000
+WR_EMu_Resolved_CR     Lepton_0_Eta            -3      3
+WR_EMu_Resolved_CR     Lepton_0_Phi            -4      4
+WR_EMu_Resolved_CR     Lepton_1_Pt             0       500
+WR_EMu_Resolved_CR     Lepton_1_Eta            -3      3
+WR_EMu_Resolved_CR     Lepton_1_Phi            -4      4
 WR_EMu_Resolved_Sideband     Jet_0_Pt                0       2000
 WR_EMu_Resolved_Sideband     Jet_0_Eta               -3      3
 WR_EMu_Resolved_Sideband     Jet_0_Phi               -4      4
@@ -64,6 +64,7 @@ WR_EMu_Resolved_Sideband     NCand_Lepton_1_Mass     0       5000
 WR_EMu_Resolved_Sideband     NCand_Lepton_1_Pt       0       2000
 WR_EMu_Resolved_Sideband     WRCand_Mass             0       8000
 WR_EMu_Resolved_Sideband     WRCand_Pt               0       2000
+
 WR_EMu_Resolved_CR     Lepton_0_Pt             0       1000
 WR_EMu_Resolved_CR     Lepton_0_Eta            -3      3
 WR_EMu_Resolved_CR     Lepton_0_Phi            -4      4
