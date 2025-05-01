@@ -29,7 +29,7 @@ def load_histogram(file, region_name, variable_name, n_rebin, lum=None):
     """Load and rebin a histogram, with optional luminosity scaling."""
     hist_path = f"{region_name}/{variable_name}_{region_name}"
     hist = file.Get(hist_path)
-
+    
     if not hist:
         logging.error(f"Histogram '{hist_path}' not found in '{file.GetName()}'")
         return None
@@ -165,6 +165,70 @@ def makeSigmaFits(n_values,n_err,x_bins):
     
     return sl,sr,sle,sre
     
+def makeSigmaPlots(n_non_values,n_non_errors,n4_non_values,n4_non_errors,x_bins,y_bins,xlim,ylim,xlabel,ylabel,varlab1,varlab2,plotname,mass,region):
+    
+    n_values,n_errors=IntegralDist(n_non_values,n_non_errors)
+    n4_values,n4_errors=IntegralDist(n4_non_values,n4_non_errors)
+    
+    nxbin=n_values.shape[0]
+    nybin=n_values.shape[1]
+    sl, sr, sle, sre     = makeSigmaFits(n_values, n_errors, x_bins)
+    s4l, s4r, s4le, s4re = makeSigmaFits(n4_values,n4_errors,x_bins)
+                    
+    fig, ax = plt.subplots()
+    ax.set_ylim(ylim)
+    ax.set_xlim(xlim)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+            
+    for i in range(0,nybin):
+        bin_width = y_bins[i+1]-y_bins[i]
+        insets=0.1
+        insets4=0.01
+                
+        x_cor_l, y_cor_l, w_l, h_l=-sl[i], y_bins[i]+insets*bin_width, sl[i], (0.5-insets-insets4)*bin_width
+        x_cor_r, y_cor_r, w_r, h_r= 0, y_bins[i]+insets*bin_width, sr[i], (0.5-insets-insets4)*bin_width
+        x4_cor_l, y4_cor_l, w4_l, h4_l=-s4l[i], y_bins[i]+(0.5+insets4)*bin_width, s4l[i], (0.5-insets-insets4)*bin_width
+        x4_cor_r, y4_cor_r, w4_r, h4_r= 0, y_bins[i]+(0.5+insets4)*bin_width, s4r[i], (0.5-insets-insets4)*bin_width
+                
+        rectl= patches.Rectangle((x_cor_l,y_cor_l),w_l,h_l,facecolor='red',label=varlab1 if i==0 else '')
+        rectr= patches.Rectangle((x_cor_r,y_cor_r),w_r,h_r,facecolor='red',label='')
+        rect4l= patches.Rectangle((x4_cor_l,y4_cor_l),w4_l,h4_l,facecolor='blue',label=varlab2 if i==0 else '')
+        rect4r= patches.Rectangle((x4_cor_r,y4_cor_r),w4_r,h4_r,facecolor='blue',label='')
+                
+        ax.add_patch(rectl)
+        ax.add_patch(rectr)
+        ax.add_patch(rect4l)
+        ax.add_patch(rect4r)
+            
+    ax.errorbar(-sl,y_bins+(0.25+(insets-insets4)/2)*bin_width,xerr=sle,linestyle='none',color='black',capsize=5)
+    ax.errorbar(sr,y_bins+(0.25+(insets-insets4)/2)*bin_width,xerr=sre,linestyle='none',color='black',capsize=5)
+    ax.errorbar(-s4l,y_bins+(0.75+(insets4-insets)/2)*bin_width,xerr=s4le,linestyle='none',color='black',capsize=5)
+    ax.errorbar(s4r,y_bins+(0.75+(insets4-insets)/2)*bin_width,xerr=s4re,linestyle='none',color='black',capsize=5)
+    
+    xticks,_=plt.xticks()[1:-1]
+    ax.axvline(x=0, color='k')
+    xlabel=[f'{x}' for x in np.abs(xticks)]
+    ax.set_xticks(xticks, labels=xlabel)
+    ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
+    ax.legend(fontsize=20)
+    hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+    
+    exclu=""
+    if args.exc:
+        exclu="_exclusive"
+    
+    mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/{plotname}_{region.name}.pdf", args.umn)
+    plt.close(fig)
+    return sl, sr, sle, sre, s4l, s4r, s4le, s4re
+
+def IntegralDist(n_values,n_errors):
+    n_int,nerr_int=np.copy(n_values),np.copy(n_errors)
+    nybin=n_values.shape[1]
+    for j in range(2,nybin+1):
+        n_int[:,j-1]+=n_int[:,j-2]
+        nerr_int[:,j-1]=np.sqrt(nerr_int[:,j-2]**2+nerr_int[:,j-1]**2)
+    return n_int,nerr_int
 
 def main():
     matplotlib.use('Agg')
@@ -283,60 +347,13 @@ def main():
                 n_values_pT, n_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist)
                 make2Dplot(n_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljjj}$ [GeV]",r"$pT_{min}$",'2d5obj_pT',mass,region)
             
-            with ROOT.TFile.Open(str(file_path)) as file_run:
-                
-                nxbin=n_values.shape[0]
-                nybin=n_values.shape[1]
-                for j in range(2,nybin+1):
-                    n_values[:,j-1]+=n_values[:,j-2]
-                    n4_values[:,j-1]+=n4_values[:,j-2]
-                    n_errors[:,j-1]=np.sqrt(n_errors[:,j-2]**2+n_errors[:,j-1]**2)
-                    n4_errors[:,j-1]=np.sqrt(n4_errors[:,j-2]**2+n4_errors[:,j-1]**2)
-                
-                sl, sr, sle, sre     = makeSigmaFits(n_values, n_errors, x_bins)
-                s4l, s4r, s4le, s4re = makeSigmaFits(n4_values,n4_errors,x_bins)
-                    
-                fig, ax = plt.subplots()
-                ax.set_ylim(0.3,5)
-                ax.set_xlim(-1000,1000)
-                ax.set_xlabel(r"$\sigma_L$ and $\sigma_R$ [GeV]")
-                ax.set_ylabel(r"$\Delta R_{min}$")
             
-                for i in range(0,nybin):
-                    bin_width = y_bins[i+1]-y_bins[i]
-                    insets=0.1
-                    insets4=0.01
-                
-                    x_cor_l, y_cor_l, w_l, h_l=-sl[i], y_bins[i]+insets*bin_width, sl[i], (0.5-insets-insets4)*bin_width
-                    x_cor_r, y_cor_r, w_r, h_r= 0, y_bins[i]+insets*bin_width, sr[i], (0.5-insets-insets4)*bin_width
-                    x4_cor_l, y4_cor_l, w4_l, h4_l=-s4l[i], y_bins[i]+(0.5+insets4)*bin_width, s4l[i], (0.5-insets-insets4)*bin_width
-                    x4_cor_r, y4_cor_r, w4_r, h4_r= 0, y_bins[i]+(0.5+insets4)*bin_width, s4r[i], (0.5-insets-insets4)*bin_width
-                
-                    rectl= patches.Rectangle((x_cor_l,y_cor_l),w_l,h_l,facecolor='red',label=r'$\sigma_L$ 5 object' if i==0 else '')
-                    rectr= patches.Rectangle((x_cor_r,y_cor_r),w_r,h_r,facecolor='red',label='')
-                    rect4l= patches.Rectangle((x4_cor_l,y4_cor_l),w4_l,h4_l,facecolor='blue',label=r'$\sigma_L$ 4 object' if i==0 else '')
-                    rect4r= patches.Rectangle((x4_cor_r,y4_cor_r),w4_r,h4_r,facecolor='blue',label='')
-                
-                    ax.add_patch(rectl)
-                    ax.add_patch(rectr)
-                    ax.add_patch(rect4l)
-                    ax.add_patch(rect4r)
             
-                ax.errorbar(-sl,y_bins+(0.25+(insets-insets4)/2)*bin_width,xerr=sle,linestyle='none',color='black',capsize=5)
-                ax.errorbar(sr,y_bins+(0.25+(insets-insets4)/2)*bin_width,xerr=sre,linestyle='none',color='black',capsize=5)
-                ax.errorbar(-s4l,y_bins+(0.75+(insets4-insets)/2)*bin_width,xerr=s4le,linestyle='none',color='black',capsize=5)
-                ax.errorbar(s4r,y_bins+(0.75+(insets4-insets)/2)*bin_width,xerr=s4re,linestyle='none',color='black',capsize=5)
+            makeSigmaPlots(n_values,n_errors,n4_values,n4_errors,x_bins,y_bins,(-1000,1000),(0.3,3.3),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$\Delta R_{min}$",r'$\sigma$ 5 object',
+            r'$\sigma$ 4 object','sigma_deltaR',mass,region)
             
-                ax.axvline(x=0, color='k')
-            
-                xticks=np.arange(-1000,1001,250)
-                xlabel=[f'{x}' for x in np.abs(xticks)]
-                ax.set_xticks(xticks, labels=xlabel)
-                ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
-                ax.legend(fontsize=20)
-                hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
-                mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/sigma_{region.name}.pdf", args.umn)
-                plt.close(fig)
+            makeSigmaPlots(n_values_pT,n_errors_pT,n4_values_pT,n4_errors_pT,x_bins_pT,y_bins_pT,(-1000,1000),(0,150),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$p_T_{min}$",r'$\sigma$ 5 object',
+            r'$\sigma$ 4 object','sigma_pT',mass,region)
         
 if __name__ == "__main__":
     main()
