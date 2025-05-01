@@ -118,6 +118,54 @@ def draw_histogram(run2_hist, run3_hist, ratio_hist, sample, process, region, va
     mylib.save_and_upload_plot(fig, file_path, args.umn)
     plt.close(fig)
 
+def make2Dplot(n_values,x_bins,y_bins,xlabel,ylabel,plotname,mass,region):
+    logvals = np.log10(np.where(n_values>1e-5,n_values,1e-5))   
+    fig, ax = plt.subplots()
+    hep.hist2dplot(logvals,xbins=x_bins,ybins=y_bins,ax=ax)
+    ax.set_ylim(np.min(y_bins), np.max(y_bins))
+    ax.set_xlim(np.min(x_bins), np.max(x_bins))
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top',color='white')
+    hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+    
+    exclu=""
+    if args.exc:
+        exclu="_exclusive"
+    
+    mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/{plotname}_{region.name}.pdf", args.umn)
+    plt.close(fig)
+
+def makeSigmaFits(n_values,n_err,x_bins):
+
+    x_val=(x_bins[1:]+x_bins[:-1])/2
+    nybin=n_values.shape[1]
+    sl, sr  = np.zeros(nybin+1), np.zeros(nybin+1)
+    sle, sre= np.zeros(nybin+1), np.zeros(nybin+1)
+    
+    np.seterr(divide='raise',invalid='raise')
+    n_errors=np.where(n_err==0,np.inf,n_err)
+    for j in range(1,nybin+1):
+        try:
+            A=np.max(n_values[:,j-1])
+            argx0=np.argmax(n_values[:,j-1])
+            x0=x_val[argx0]
+            sigL=np.sqrt(np.sum(np.multiply(n_values[:argx0,j-1],(x_val[:argx0]-x0)**2))/np.sum(n_values[:argx0,j-1]))
+            sigR=np.sqrt(np.sum(np.multiply(n_values[argx0:,j-1],(x_val[argx0:]-x0)**2))/np.sum(n_values[argx0:,j-1]))
+                    
+            par,pcov = curve_fit(gauss, x_val, n_values[:,j-1],[A,x0,sigR,sigL],sigma=n_errors[:,j-1])
+            sr[j-1], sl[j-1]= np.abs(par[2]), np.abs(par[3])
+            errors = np.sqrt(np.diag(pcov))
+            sre[j-1], sle[j-1]= errors[2], errors[3]
+            fitsuccess = True
+        except:
+            sr[j-1]=sl[j-1]=0
+            fitsuccess = False
+    np.seterr(divide='warn',invalid='warn')
+    
+    return sl,sr,sle,sre
+    
+
 def main():
     matplotlib.use('Agg')
     
@@ -173,6 +221,7 @@ def main():
         for mass in mass_options:
             
             file_path = Path(f"rootfiles/RunII/2018/RunIISummer20UL18/3jets/WRAnalyzer_signal_{mass}.root")
+            file_path2= Path(f"rootfiles/RunII/2018/RunIISummer20UL18/WRAnalyzer_signal_{mass}.root")
             
             with ROOT.TFile.Open(str(file_path)) as file_run:
                 lumi = 59.74
@@ -209,153 +258,44 @@ def main():
                 #ax.legend(fontsize=20)
                 mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/Del_R12_{region.name}.pdf", args.umn)
                 plt.close(fig)
-        
-            n4_values=np.array([])
-            n4_errors=np.array([])
+                
             with ROOT.TFile.Open(str(file_path)) as file_run:
                 lumi = 59.74
                 hist = load_histogram(file_run, region.name , 'WRMass4_DeltaR', -1, lumi)
-                nxbin=hist.GetNbinsX()
-                nybin=hist.GetNbinsY()
-                y_bins,  x_bins = np.zeros(nybin+1), np.zeros(nxbin+1)
-                n_values = np.zeros((nxbin,nybin))
-                n4_values= np.zeros((nxbin,nybin))
-                n4_errors= np.zeros((nxbin,nybin))
-            
-                for i in range(1,nxbin+1):
-                    for j in range(1,nybin+1):
-                        content = hist.GetBinContent(i,j)
-                        n_values[i-1,j-1]= np.log10(np.where(content>1e-4,content,1e-4))
-                        n4_values[i-1,j-1]= content
-                        n4_errors[i-1,j-1]= hist.GetBinError(i,j)
-                    
-                        if i==1:
-                            yax = hist.GetYaxis()
-                            if j==1:
-                                y_bins[0]=yax.GetBinLowEdge(j)
-                            y_bins[j]=yax.GetBinLowEdge(j+1)
-                    xax = hist.GetXaxis()
-                    if i == 1:
-                        x_bins[0]=xax.GetBinLowEdge(i)
-                    x_bins[i]=xax.GetBinLowEdge(i+1)
-                fig, ax = plt.subplots()
-                hep.hist2dplot(n_values,xbins=x_bins,ybins=y_bins,ax=ax)
-                ax.set_ylim(0, 5)
-                ax.set_xlim(0, 7000)
-                ax.set_xlabel(r"$m_{lljj}$ [GeV]")
-                ax.set_ylabel(r"$\Delta R_{min}$")
-                ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top',color='white')
-                hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
-                mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/2d4obj_{region.name}.pdf", args.umn)
-                plt.close(fig)
+                n4_values, n4_errors, x_bins, y_bins= mylib.get_2Ddata(hist)
+                make2Dplot(n4_values,x_bins,y_bins,r"$m_{lljj}$ [GeV]",r"$\Delta R_{min}$",'2d4obj',mass,region)
+                
+            with ROOT.TFile.Open(str(file_path)) as file_run:
+                lumi = 59.74
+                hist = load_histogram(file_run, region.name , 'WRMass4_pT', -1, lumi)
+                n4_values_pT, n4_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist)
+                make2Dplot(n4_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljj}$ [GeV]",r"$pT_{min}$",'2d4obj_pT',mass,region)
             
             with ROOT.TFile.Open(str(file_path)) as file_run:
                 lumi = 59.74
                 hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi)
-                nxbin=hist.GetNbinsX()
-                nybin=hist.GetNbinsY()
-                y_bins,  x_bins, sl, sr, s4l, s4r = np.zeros(nybin+1), np.zeros(nxbin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1)
-                sle, sre, s4le, s4re = np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1), np.zeros(nybin+1)
-                xmean,x4mean=np.zeros(nybin+1), np.zeros(nxbin+1)
-                n_values = np.zeros((nxbin,nybin))
-                n_errors = np.zeros((nxbin,nybin))
+                n_values, n_errors, x_bins, y_bins= mylib.get_2Ddata(hist)
+                make2Dplot(n_values,x_bins,y_bins,r"$m_{lljjj}$ [GeV]",r"$\Delta R_{min}$",'2d5obj',mass,region)
+                
+            with ROOT.TFile.Open(str(file_path)) as file_run:
+                lumi = 59.74
+                hist = load_histogram(file_run, region.name , 'WRMass5_pT', -1, lumi)
+                n_values_pT, n_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist)
+                make2Dplot(n_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljjj}$ [GeV]",r"$pT_{min}$",'2d5obj_pT',mass,region)
             
-                for j in range(1,nybin+1):
-                    fitsuccess = False
-                    fitsuccess4= False
+            with ROOT.TFile.Open(str(file_path)) as file_run:
                 
-                    yax = hist.GetYaxis()
-                    if j == 1:
-                        y_bins[0]=yax.GetBinLowEdge(j)
-                    y_bins[j]=yax.GetBinLowEdge(j+1)
-                
-                    for i in range(1,nxbin+1):
-                        content = hist.GetBinContent(i,j)
-                        n_values[i-1,j-1]= content
-                        n_errors[i-1,j-1]= hist.GetBinError(i,j)
-                    
-                        if j==1:
-                            xax = hist.GetXaxis()
-                            if i==1:
-                                x_bins[0]=xax.GetBinLowEdge(i)
-                            x_bins[i]=xax.GetBinLowEdge(i+1)
-                
-                    x_val=(x_bins[1:]+x_bins[:-1])/2
-                   
+                nxbin=n_values.shape[0]
+                nybin=n_values.shape[1]
                 for j in range(2,nybin+1):
                     n_values[:,j-1]+=n_values[:,j-2]
                     n4_values[:,j-1]+=n4_values[:,j-2]
                     n_errors[:,j-1]=np.sqrt(n_errors[:,j-2]**2+n_errors[:,j-1]**2)
                     n4_errors[:,j-1]=np.sqrt(n4_errors[:,j-2]**2+n4_errors[:,j-1]**2)
-                 
-                n_errors=np.where(n_errors==0,np.inf,n_errors)
-                n4_errors=np.where(n4_errors==0,np.inf,n4_errors)
                 
-                np.seterr(divide='raise',invalid='raise')
-                for j in range(1,nybin+1):
-                    try:
-                        A=np.max(n_values[:,j-1])
-                        argx0=np.argmax(n_values[:,j-1])
-                        x0=x_val[argx0]
-                        sigL=np.sqrt(np.sum(np.multiply(n_values[:argx0,j-1],(x_val[:argx0]-x0)**2))/np.sum(n_values[:argx0,j-1]))
-                        sigR=np.sqrt(np.sum(np.multiply(n_values[argx0:,j-1],(x_val[argx0:]-x0)**2))/np.sum(n_values[argx0:,j-1]))
+                sl, sr, sle, sre     = makeSigmaFits(n_values, n_errors, x_bins)
+                s4l, s4r, s4le, s4re = makeSigmaFits(n4_values,n4_errors,x_bins)
                     
-                        par,pcov = curve_fit(gauss, x_val, n_values[:,j-1],[A,x0,sigR,sigL],sigma=n_errors[:,j-1])
-                        sr[j-1], sl[j-1]= np.abs(par[2]), np.abs(par[3])
-                        errors = np.sqrt(np.diag(pcov))
-                        sre[j-1], sle[j-1]= errors[2], errors[3]
-                        xmean[j-1]=par[1]
-                        fitsuccess = True
-                    except:
-                        sr[j-1]=sl[j-1]=0
-                        fitsuccess = False
-                
-                    try:
-                        A=np.max(n4_values[:,j-1])
-                        argx0=np.argmax(n4_values[:,j-1])
-                        x0=x_val[argx0]
-                        sigL=np.sqrt(np.sum(np.multiply(n4_values[:argx0,j-1],(x_val[:argx0]-x0)**2))/np.sum(n4_values[:argx0,j-1]))
-                        sigR=np.sqrt(np.sum(np.multiply(n4_values[argx0:,j-1],(x_val[argx0:]-x0)**2))/np.sum(n4_values[argx0:,j-1]))
-                    
-                        par4,p4cov = curve_fit(gauss, x_val, n4_values[:,j-1],[A,x0,sigR,sigL],sigma=n4_errors[:,j-1])
-                        s4r[j-1], s4l[j-1]= np.abs(par4[2]), np.abs(par4[3])
-                        errors4 = np.sqrt(np.diag(p4cov))
-                        s4re[j-1], s4le[j-1]= errors4[2], errors4[3]
-                        x4mean[j-1]=par4[1]
-                        fitsuccess4 = True
-                    except:
-                        s4r[j-1]=s4l[j-1]=0
-                        fitsuccess4 = False
-                np.seterr(divide='warn',invalid='warn')
-            
-                for i in range(0,nxbin):
-                    for j in range(0,nybin):
-                        n_values[i,j]=np.log10(np.where(n_values[i,j]>1e-4,n_values[i,j],1e-4))
-                
-                gp=np.where((sr>0) & (sl>0) & (s4r>0) & (s4l>0) & (y_bins>0.3) & (y_bins<2.5))
-                comparisn=(sr[gp]+sl[gp])/(s4l[gp]+s4r[gp])
-                yvals=y_bins[gp]
-                coeff = np.polyfit(yvals,comparisn, 1)
-                valueat1.append((1-coeff[1])/coeff[0])
-                
-                gp=np.where((sr>0) & (sl>0) & (s4r>0) & (s4l>0) & (y_bins>0.3) & (y_bins<2.5))
-                comparisn=(sr[gp]+sl[gp])*x4mean[gp]/(s4l[gp]+s4r[gp])/xmean[gp]
-                yvals=y_bins[gp]
-                coeff = np.polyfit(yvals,comparisn, 1)
-                valueat1mean.append((1-coeff[1])/coeff[0])
-                
-                
-                fig, ax = plt.subplots()
-                hep.hist2dplot(n_values,xbins=x_bins,ybins=y_bins,ax=ax)
-                ax.set_ylim(0, 5)
-                ax.set_xlim(0, 7000)
-                ax.set_xlabel(r"$m_{lljjj}$ [GeV]")
-                ax.set_ylabel(r"$\Delta R_{min}$")
-                ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top',color='white')
-                hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
-                mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/2d5obj_{region.name}.pdf", args.umn)
-                plt.close(fig)
-            
                 fig, ax = plt.subplots()
                 ax.set_ylim(0.3,5)
                 ax.set_xlim(-1000,1000)
@@ -397,47 +337,6 @@ def main():
                 hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
                 mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/sigma_{region.name}.pdf", args.umn)
                 plt.close(fig)
-                
-        fig, ax = plt.subplots()
-        
-        i=0
-        for wrmass in WRmasses:
-            xv,yv=np.array(Nmasses[i:i+5]),np.array(valueat1[i:i+5])
-            good=np.where((yv>0.4) & (yv<2.5))
-            xv,yv=xv[good],yv[good]
-            xnew = np.linspace(xv.min(), xv.max(), 300)
-            power_smooth = pchip_interpolate(xv, yv, xnew)
-            ax.plot(xnew,power_smooth,label=f'WR{wrmass}')
-            i=i+5
-        
-        ax.set_ylabel(r"$\Delta R_{cut}$")
-        ax.set_xlabel(r"$M_{\nu} [GeV]$")
-        ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
-        hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
-        ax.legend(fontsize=20,loc='lower right')
-        mylib.save_and_upload_plot(fig, f"plots/Comparisn/{region.name}{exclu}/sigmaratio.pdf", args.umn)
-        plt.close(fig)
-        
-        
-        fig, ax = plt.subplots()
-        
-        i=0
-        for wrmass in WRmasses:
-            xv,yv=np.array(Nmasses[i:i+5]),np.array(valueat1mean[i:i+5])
-            good=np.where((yv>0.4) & (yv<2.5))
-            xv,yv=xv[good],yv[good]
-            xnew = np.linspace(xv.min(), xv.max(), 300)
-            power_smooth = pchip_interpolate(xv, yv, xnew)
-            ax.plot(xnew,power_smooth,label=f'WR{wrmass}')
-            i=i+5
-        
-        ax.set_ylabel(r"$\Delta R_{cut}$")
-        ax.set_xlabel(r"$M_{\nu} [GeV]$")
-        ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
-        hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
-        ax.legend(fontsize=20,loc='lower right')
-        mylib.save_and_upload_plot(fig, f"plots/Comparisn/{region.name}{exclu}/sigmaratiomean.pdf", args.umn)
-        plt.close(fig)
         
 if __name__ == "__main__":
     main()

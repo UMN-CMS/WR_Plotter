@@ -152,6 +152,25 @@ def get_data(hist):
 
     x_bins.append(hist.GetBinLowEdge(n_bins + 1)) # Add the final upper edge of the last bin
     return np.array(y_bins), np.array(y_errors), np.array(x_bins)
+    
+def get_2Ddata(hist):
+    nxbin,nybin=hist.GetNbinsX(),hist.GetNbinsY()
+    y_bins, x_bins, n_values, n_errors = np.zeros(nybin+1), np.zeros(nxbin+1), np.zeros((nxbin,nybin)), np.zeros((nxbin,nybin))
+    xax, yax=hist.GetXaxis(), hist.GetYaxis()
+    
+    for i in range(1,nxbin+1):
+        for j in range(1,nybin+1):
+            n_values[i-1,j-1], n_errors[i-1,j-1] = hist.GetBinContent(i,j), hist.GetBinError(i,j)
+            if i==1:
+                if j==1:
+                    y_bins[0]=yax.GetBinLowEdge(j)
+                y_bins[j]=yax.GetBinLowEdge(j+1)
+        if i == 1:
+            x_bins[0]=xax.GetBinLowEdge(i)
+        x_bins[i]=xax.GetBinLowEdge(i+1)
+    
+    return n_values,n_errors,x_bins,y_bins
+            
 
 def custom_log_formatter(y, pos):
     if y == 1:
