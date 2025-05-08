@@ -135,10 +135,10 @@ def ChangeGeVToTeVXaxis(hist):
 
     return hist_new
 
-def get_data(hist):
+def get_data(hist,normalized=True):
     n_bins = hist.GetNbinsX()
     y_bins, y_errors, x_bins = [], [], []
-
+    
     for i in range(1, n_bins + 1):
         bin_low_edge = hist.GetBinLowEdge(i)
         bin_up_edge = hist.GetBinLowEdge(i + 1)
@@ -149,11 +149,19 @@ def get_data(hist):
 
         if i == 1 or bin_low_edge != x_bins[-1]:  # Figure out exactly what this does
             x_bins.append(bin_low_edge)
-
-    x_bins.append(hist.GetBinLowEdge(n_bins + 1)) # Add the final upper edge of the last bin
-    return np.array(y_bins), np.array(y_errors), np.array(x_bins)
     
-def get_2Ddata(hist):
+    x_bins.append(hist.GetBinLowEdge(n_bins + 1)) # Add the final upper edge of the last bin
+    
+    y_bins, y_errors = np.array(y_bins), np.array(y_errors)
+    
+    if not normalized:
+        totalevents=1/np.min(y_bins[y_bins>0])################################################# Plese Change
+        y_bins = y_bins*totalevents
+        y_errors = y_errors*totalevents
+    
+    return y_bins, y_errors, np.array(x_bins)
+    
+def get_2Ddata(hist,normalized=True):
     nxbin,nybin=hist.GetNbinsX(),hist.GetNbinsY()
     y_bins, x_bins, n_values, n_errors = np.zeros(nybin+1), np.zeros(nxbin+1), np.zeros((nxbin,nybin)), np.zeros((nxbin,nybin))
     xax, yax=hist.GetXaxis(), hist.GetYaxis()
@@ -168,6 +176,11 @@ def get_2Ddata(hist):
         if i == 1:
             x_bins[0]=xax.GetBinLowEdge(i)
         x_bins[i]=xax.GetBinLowEdge(i+1)
+    
+    if not normalized:
+        totalevents=1/np.min(n_values[n_values>0])################################################# Plese Change
+        n_values = n_values*totalevents
+        n_errors = n_errors*totalevents
     
     return n_values,n_errors,x_bins,y_bins
             

@@ -40,11 +40,13 @@ def load_histogram(file, region_name, variable_name, n_rebin, lum=None):
     integral = hist.Integral()
     if integral > 0: hist.Scale(1.0 / integral)
 
-    if variable_name=='WRCand_Mass':
-        return mylib.RebinWRMass(hist)
-    elif variable_name=='Jet_0_Pt':
-        return mylib.RebinJetPt(hist)
-    elif n_rebin > 0:
+
+
+    #if variable_name=='WRCand_Mass' and n_rebin > 0:
+    #    return mylib.RebinWRMass(hist)
+    #elif variable_name=='Jet_0_Pt' and n_rebin > 0:
+    #    return mylib.RebinJetPt(hist)
+    if n_rebin > 0:
         hist.Rebin(n_rebin)
     return hist
     
@@ -119,7 +121,7 @@ def draw_histogram(run2_hist, run3_hist, ratio_hist, sample, process, region, va
     plt.close(fig)
 
 def make2Dplot(n_values,x_bins,y_bins,xlabel,ylabel,plotname,mass,region):
-    logvals = np.log10(np.where(n_values>1e-5,n_values,1e-5))   
+    logvals = np.log10(np.where(n_values>0,n_values,0.01))   
     fig, ax = plt.subplots()
     hep.hist2dplot(logvals,xbins=x_bins,ybins=y_bins,ax=ax)
     ax.set_ylim(np.min(y_bins), np.max(y_bins))
@@ -206,7 +208,8 @@ def makeSigmaPlots(n_non_values,n_non_errors,n4_non_values,n4_non_errors,x_bins,
     ax.errorbar(-s4l,y_bins+(0.75+(insets4-insets)/2)*bin_width,xerr=s4le,linestyle='none',color='black',capsize=5)
     ax.errorbar(s4r,y_bins+(0.75+(insets4-insets)/2)*bin_width,xerr=s4re,linestyle='none',color='black',capsize=5)
     
-    xticks,_=plt.xticks()[1:-1]
+    xticks,_=plt.xticks()
+    xticks=xticks[1:-1]
     ax.axvline(x=0, color='k')
     xlabel=[f'{x}' for x in np.abs(xticks)]
     ax.set_xticks(xticks, labels=xlabel)
@@ -229,6 +232,21 @@ def IntegralDist(n_values,n_errors):
         n_int[:,j-1]+=n_int[:,j-2]
         nerr_int[:,j-1]=np.sqrt(nerr_int[:,j-2]**2+nerr_int[:,j-1]**2)
     return n_int,nerr_int
+
+def comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, plotname):
+    
+    allgood = np.where((sl>0) & (sr>0) & (s4l>0) & (s4r>0))
+    ratio=(sl[allgood]+sr[allgood])/(s4l[allgood]+s4r[allgood])
+    fig, ax = plt.subplots()
+    ymid=(y_bins[1:]+y_bins[:-1])/2
+    ax.plot(ymid[allgood],ratio)
+    
+    exclu=""
+    if args.exc:
+        exclu="_exclusive"
+    
+    mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/{plotname}_{region.name}.pdf", args.umn)
+    plt.close(fig)
 
 def main():
     matplotlib.use('Agg')
@@ -285,9 +303,9 @@ def main():
         for mass in mass_options:
             
             file_path = Path(f"rootfiles/RunII/2018/RunIISummer20UL18/3jets/WRAnalyzer_signal_{mass}.root")
-            file_path2= Path(f"rootfiles/RunII/2018/RunIISummer20UL18/WRAnalyzer_signal_{mass}.root")
+            file_path2= Path(f"rootfiles/RunII/2018/RunIISummer20UL18/exclusive/WRAnalyzer_signal_{mass}.root")
             
-            with ROOT.TFile.Open(str(file_path)) as file_run:
+            with ROOT.TFile.Open(str(file_path)) as file_run, ROOT.TFile.Open(str(file_path2)) as file_run2:
                 lumi = 59.74
                 hist = load_histogram(file_run, region.name , 'Delta_r20', -1, lumi)
                 run2_content, run2_errors, x_bins = mylib.get_data(hist)
@@ -304,9 +322,9 @@ def main():
                 #ax.legend(fontsize=20)
                 mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/Del_R02_{region.name}.pdf", args.umn)
                 plt.close(fig)
-            
-            with ROOT.TFile.Open(str(file_path)) as file_run:
-                lumi = 59.74
+                
+                
+                
                 hist = load_histogram(file_run, region.name , 'Delta_r21', -1, lumi)
                 run2_content, run2_errors, x_bins = mylib.get_data(hist)
                 fig, ax = plt.subplots()
@@ -323,37 +341,46 @@ def main():
                 mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/Del_R12_{region.name}.pdf", args.umn)
                 plt.close(fig)
                 
-            with ROOT.TFile.Open(str(file_path)) as file_run:
-                lumi = 59.74
+                
+                
                 hist = load_histogram(file_run, region.name , 'WRMass4_DeltaR', -1, lumi)
-                n4_values, n4_errors, x_bins, y_bins= mylib.get_2Ddata(hist)
+                hist2 = load_histogram(file_run2, region.name , 'WRCand_Mass', 8, lumi)
+                n4_values, n4_errors, x_bins, y_bins= mylib.get_2Ddata(hist,False)
+                zroadd , zroadd_err , _ = mylib.get_data(hist2,False)
+                n4_values[:,0] += zroadd
+                n4_errors[:,0] = np.sqrt(n4_errors[:,0]**2 + zroadd_err**2)
                 make2Dplot(n4_values,x_bins,y_bins,r"$m_{lljj}$ [GeV]",r"$\Delta R_{min}$",'2d4obj',mass,region)
                 
-            with ROOT.TFile.Open(str(file_path)) as file_run:
-                lumi = 59.74
+                
+                
                 hist = load_histogram(file_run, region.name , 'WRMass4_pT', -1, lumi)
-                n4_values_pT, n4_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist)
+                n4_values_pT, n4_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist,False)
+                n4_values_pT[:,0] += zroadd
+                n4_errors_pT[:,0] = np.sqrt(n4_errors_pT[:,0]**2 + zroadd_err**2)
                 make2Dplot(n4_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljj}$ [GeV]",r"$pT_{min}$",'2d4obj_pT',mass,region)
-            
-            with ROOT.TFile.Open(str(file_path)) as file_run:
-                lumi = 59.74
+                
+                
+                
                 hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi)
-                n_values, n_errors, x_bins, y_bins= mylib.get_2Ddata(hist)
+                n_values, n_errors, x_bins, y_bins= mylib.get_2Ddata(hist,False)
                 make2Dplot(n_values,x_bins,y_bins,r"$m_{lljjj}$ [GeV]",r"$\Delta R_{min}$",'2d5obj',mass,region)
                 
-            with ROOT.TFile.Open(str(file_path)) as file_run:
-                lumi = 59.74
+                
+                
                 hist = load_histogram(file_run, region.name , 'WRMass5_pT', -1, lumi)
-                n_values_pT, n_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist)
+                n_values_pT, n_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist,False)
                 make2Dplot(n_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljjj}$ [GeV]",r"$pT_{min}$",'2d5obj_pT',mass,region)
+                
             
             
             
-            makeSigmaPlots(n_values,n_errors,n4_values,n4_errors,x_bins,y_bins,(-1000,1000),(0.3,3.3),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$\Delta R_{min}$",r'$\sigma$ 5 object',
-            r'$\sigma$ 4 object','sigma_deltaR',mass,region)
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values,n_errors,n4_values,n4_errors,x_bins,y_bins,(-1000,1000),(0.3,3.3),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$\Delta R_{min}$",
+            r'$\sigma$ 5 object',r'$\sigma$ 4 object','sigma_deltaR',mass,region)
+            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, 'CompareDelR')
             
-            makeSigmaPlots(n_values_pT,n_errors_pT,n4_values_pT,n4_errors_pT,x_bins_pT,y_bins_pT,(-1000,1000),(0,150),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$p_T_{min}$",r'$\sigma$ 5 object',
-            r'$\sigma$ 4 object','sigma_pT',mass,region)
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pT,n_errors_pT,n4_values_pT,n4_errors_pT,x_bins_pT,y_bins_pT,(-1000,1000),(0,150),r"$\sigma_L$ and $\sigma_R$ [GeV]",
+            r"$pT_{min}$",r'$\sigma$ 5 object',r'$\sigma$ 4 object','sigma_pT',mass,region)
+            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pT, mass, region, 'ComparePT')
         
 if __name__ == "__main__":
     main()
