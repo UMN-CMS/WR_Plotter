@@ -121,7 +121,7 @@ def draw_histogram(run2_hist, run3_hist, ratio_hist, sample, process, region, va
     plt.close(fig)
 
 def make2Dplot(n_values,x_bins,y_bins,xlabel,ylabel,plotname,mass,region):
-    logvals = np.log10(np.where(n_values>0,n_values,0.01))   
+    logvals = np.log10(np.where(n_values>1e-5,n_values,1e-5))   
     fig, ax = plt.subplots()
     hep.hist2dplot(logvals,xbins=x_bins,ybins=y_bins,ax=ax)
     ax.set_ylim(np.min(y_bins), np.max(y_bins))
@@ -360,6 +360,12 @@ def main():
                 make2Dplot(n4_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljj}$ [GeV]",r"$pT_{min}$",'2d4obj_pT',mass,region)
                 
                 
+                hist = load_histogram(file_run, region.name , 'WRMass4_sin', -1, lumi)
+                n4_values_sin, n4_errors_sin, x_bins_sin, y_bins_sin= mylib.get_2Ddata(hist,False)
+                n4_values_sin[:,0] += zroadd
+                n4_errors_sin[:,0] = np.sqrt(n4_errors_sin[:,0]**2 + zroadd_err**2)
+                make2Dplot(n4_values_sin,x_bins_sin,y_bins_sin,r"$m_{lljj}$ [GeV]",r"$sin_{min}$",'2d4obj_sin',mass,region)
+                
                 
                 hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi)
                 n_values, n_errors, x_bins, y_bins= mylib.get_2Ddata(hist,False)
@@ -371,7 +377,10 @@ def main():
                 n_values_pT, n_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist,False)
                 make2Dplot(n_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljjj}$ [GeV]",r"$pT_{min}$",'2d5obj_pT',mass,region)
                 
-            
+                
+                hist = load_histogram(file_run, region.name , 'WRMass5_sin', -1, lumi)
+                n_values_sin, n_errors_sin, x_bins_sin, y_bins_sin= mylib.get_2Ddata(hist,False)
+                make2Dplot(n_values_sin, x_bins_sin, y_bins_sin, r"$m_{lljjj}$ [GeV]", r"$sin_{min}$",'2d5obj_sin', mass, region)
             
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values,n_errors,n4_values,n4_errors,x_bins,y_bins,(-1000,1000),(0.3,3.3),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$\Delta R_{min}$",
@@ -381,6 +390,10 @@ def main():
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pT,n_errors_pT,n4_values_pT,n4_errors_pT,x_bins_pT,y_bins_pT,(-1000,1000),(0,150),r"$\sigma_L$ and $\sigma_R$ [GeV]",
             r"$pT_{min}$",r'$\sigma$ 5 object',r'$\sigma$ 4 object','sigma_pT',mass,region)
             comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pT, mass, region, 'ComparePT')
-        
+            
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_sin, n_errors_sin, n4_values_sin, n4_errors_sin, x_bins_sin, y_bins_sin, (-1000,1000), (0,1), r"$\sigma_L$ and $\sigma_R$ [GeV]",
+            r"$sin_{min}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_sin', mass, region)
+            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_sin, mass, region, 'CompareSine')
+            
 if __name__ == "__main__":
     main()
