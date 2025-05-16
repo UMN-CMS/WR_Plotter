@@ -113,8 +113,8 @@ def setup_plotter(args) -> Plotter:
             f'SampleGroup_{args.era}_Muon',
         ]
         plotter.regions_to_draw = [
-            Region('WR_MuMu_Resolved_DYCR', 'Muon', unblind_data = True, tlatex_alias='$\mu\mu$\nResolved DY CR'),
-            Region('WR_EE_Resolved_DYCR', 'EGamma', unblind_data = True, tlatex_alias='ee\nResolved DY CR'),
+            Region('WR_MuMu_Resolved_DYCR', 'Muon', unblind_data = True, tlatex_alias='$\mu\mu$\nResolved DY CR\nRunIISummer20UL18\nHT DY, NNLO x-sec'),
+            Region('WR_EE_Resolved_DYCR', 'EGamma', unblind_data = True, tlatex_alias='ee\nResolved DY CR\nRunIISummer20UL18\nHT DY, NNLO x-sec'),
         ]
     elif args.category == "flavor_cr":
         sample_group_names = [
@@ -127,8 +127,8 @@ def setup_plotter(args) -> Plotter:
         ]
 
         plotter.regions_to_draw = [
-            Region('WR_Resolved_FlavorCR', 'Muon', unblind_data = True, tlatex_alias='ee\nResolved Flavor CR'),
-            Region('WR_Resolved_FlavorCR', 'EGamma', unblind_data = True, tlatex_alias='ee\nResolved Flavor CR'),
+            Region('WR_Resolved_FlavorCR', 'Muon', unblind_data = True, tlatex_alias='$e\mu$\nResolved Flavor CR'),
+#            Region('WR_Resolved_FlavorCR', 'EGamma', unblind_data = True, tlatex_alias='$e\mu$\nResolved Flavor CR'),
         ]
 
     plotter.sample_groups = [getattr(ps, name) for name in sample_group_names]
@@ -144,25 +144,24 @@ def setup_plotter(args) -> Plotter:
         Variable('pt_leading_jet', r'$p_{T}$ of the leading jet', 'GeV'),
         Variable('mass_dijet', r'$m_{jj}$', 'GeV'),
         Variable('pt_leading_lepton', r'$p_{T}$ of the leading lepton', 'GeV'),
-
-#        Variable('eta_leading_lepton', r'$\eta$ of the leading lepton', ''),
-#        Variable('phi_leading_lepton', r'$\phi$ of the leading lepton', ''),
-#        Variable('pt_subleading_lepton', r'$p_{T}$ of the subleading lepton', 'GeV'),
-#        Variable('eta_subleading_lepton', r'$\eta$ of the subleading lepton', ''),
-#        Variable('phi_subleading_lepton', r'$\phi$ of the subleading lepton', ''),
-#        Variable('eta_leading_jet', r'$\eta$ of the leading jet', ''),
-#        Variable('phi_leading_jet', r'$\phi$ of the leading jet', ''),
+        Variable('eta_leading_lepton', r'$\eta$ of the leading lepton', ''),
+        Variable('phi_leading_lepton', r'$\phi$ of the leading lepton', ''),
+        Variable('pt_subleading_lepton', r'$p_{T}$ of the subleading lepton', 'GeV'),
+        Variable('eta_subleading_lepton', r'$\eta$ of the subleading lepton', ''),
+        Variable('phi_subleading_lepton', r'$\phi$ of the subleading lepton', ''),
+        Variable('eta_leading_jet', r'$\eta$ of the leading jet', ''),
+        Variable('phi_leading_jet', r'$\phi$ of the leading jet', ''),
         Variable('pt_subleading_jet', r'$p_{T}$ of the subleading jet', 'GeV'),
-#        Variable('eta_subleading_jet', r'$\eta$ of the subleading jet', ''),
-#        Variable('phi_subleading_jet', r'$\phi$ of the subleading jet', ''),
+        Variable('eta_subleading_jet', r'$\eta$ of the subleading jet', ''),
+        Variable('phi_subleading_jet', r'$\phi$ of the subleading jet', ''),
         Variable('mass_dilepton', r'$m_{ll}$', 'GeV'),
         Variable('pt_dilepton', r'$p_{T}^{ll}$', 'GeV'),
-#        Variable('pt_dijet', r'$p_{T}^{jj}$', 'GeV'),
-#        Variable('mass_threeobject_leadlep', r'$m_{l_{\mathrm{lead}}jj}$', 'GeV'),
-#        Variable('pt_threeobject_leadlep', r'$p^{T}_{l_{\mathrm{lead}}jj}$', 'GeV'),
-#        Variable('mass_threeobject_subleadlep', r'$m_{l_{\mathrm{sublead}}jj}$', 'GeV'),
-#        Variable('pt_threeobject_subleadlep', r'$p^{T}_{l_{\mathrm{sublead}}jj}$', 'GeV'),
-#        Variable('pt_fourobject', r'$p^{T}_{lljj}$', 'GeV'),
+        Variable('pt_dijet', r'$p_{T}^{jj}$', 'GeV'),
+        Variable('mass_threeobject_leadlep', r'$m_{l_{\mathrm{lead}}jj}$', 'GeV'),
+        Variable('pt_threeobject_leadlep', r'$p^{T}_{l_{\mathrm{lead}}jj}$', 'GeV'),
+        Variable('mass_threeobject_subleadlep', r'$m_{l_{\mathrm{sublead}}jj}$', 'GeV'),
+        Variable('pt_threeobject_subleadlep', r'$p^{T}_{l_{\mathrm{sublead}}jj}$', 'GeV'),
+        Variable('pt_fourobject', r'$p^{T}_{lljj}$', 'GeV'),
     ]
     plotter.print_variables()
 
@@ -201,7 +200,7 @@ def plot_stack(plotter, region, variable):
     hep.histplot(ratio, tot.axes[0].edges, yerr=ratio_err, ax=rax, histtype='errorbar', color='k', capsize=4, label="Data")
 
     yerr = ratio_uncertainty(data.values(), tot_vals, 'poisson-ratio')
-    rax.stairs(1 + yerr[1], edges=tot.axes[0].edges, baseline=1 - yerr[0], **errps)
+#    rax.stairs(1 + yerr[1], edges=tot.axes[0].edges, baseline=1 - yerr[0], **errps)
 
     print(plotter.xlim)
     print(plotter.ylim)
@@ -210,7 +209,8 @@ def plot_stack(plotter, region, variable):
     rax.set_xlabel(f"{variable.tlatex_alias} {f'[{variable.unit}]' if variable.unit else f'{variable.unit}'}")
     ax.set_xlabel("")
 
-    rax.set_ylim(0.3, 1.7)
+    rax.set_ylim(0.7, 1.3)
+    rax.set_yticks([0.8, 1.0, 1.2])
     rax.axhline(1, ls='--', color='k')
     rax.set_ylabel("Data/Sim.")
 
@@ -255,20 +255,16 @@ def main():
 
     for region in plotter.regions_to_draw:
         logging.info(f"Processing region '{region.name}'") # e.g. WR_EE_Resolved_DYCR
-#        rebins, xaxis_ranges, yaxis_ranges = plotter.read_binning_info(region.name)
         for variable in plotter.variables_to_draw: # e.g. Lepton_0_Pt
             logging.info(f"Processing variable '{variable.name}' in region '{region.name}'")
 
             hist_key = f"{region.name}/{variable.name}_{region.name}"
 
-            # Configure axes using binning information
-#            plotter.configure_axes(rebins[variable.name], xaxis_ranges[variable.name], yaxis_ranges[variable.name])
             # lookup in YAML dictionary
-
             cfg = plotter.plot_settings[region.name][variable.name]
 
             # cast everything to float/tuple
-            rebin = int(cfg['rebin'])
+            rebin = cfg['rebin']
             xmin, xmax = map(float, cfg['xlim'])
             ymin, ymax = map(float, cfg['ylim'])
 
