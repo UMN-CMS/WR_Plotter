@@ -233,13 +233,17 @@ def IntegralDist(n_values,n_errors):
         nerr_int[:,j-1]=np.sqrt(nerr_int[:,j-2]**2+nerr_int[:,j-1]**2)
     return n_int,nerr_int
 
-def comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, plotname):
+def comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, xname, plotname):
     
     allgood = np.where((sl>0) & (sr>0) & (s4l>0) & (s4r>0))
     ratio=(sl[allgood]+sr[allgood])/(s4l[allgood]+s4r[allgood])
     fig, ax = plt.subplots()
     ymid=(y_bins[1:]+y_bins[:-1])/2
     ax.plot(ymid[allgood],ratio)
+    ax.set_ylabel(r'$\sigma_5\:/\:\sigma_4$')
+    ax.set_xlabel(xname)
+    ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
+    hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
     
     exclu=""
     if args.exc:
@@ -304,9 +308,26 @@ def main():
             
             file_path = Path(f"rootfiles/RunII/2018/RunIISummer20UL18/3jets/WRAnalyzer_signal_{mass}.root")
             file_path2= Path(f"rootfiles/RunII/2018/RunIISummer20UL18/exclusive/WRAnalyzer_signal_{mass}.root")
+            file_path3= Path(f"rootfiles/RunII/2018/RunIISummer20UL18/WRAnalyzer_signal_{mass}.root")
             
-            with ROOT.TFile.Open(str(file_path)) as file_run, ROOT.TFile.Open(str(file_path2)) as file_run2:
+            with ROOT.TFile.Open(str(file_path)) as file_run, ROOT.TFile.Open(str(file_path2)) as file_run2, ROOT.TFile.Open(str(file_path3)) as file_run3:
                 lumi = 59.74
+                hist5 = load_histogram(file_run, region.name , 'WRCand_Mass', -1, lumi)
+                hist4 = load_histogram(file_run3, region.name , 'WRCand_Mass', -1, lumi)
+                content5, errors5, x_bins = mylib.get_data(hist5)
+                content4, errors4, _ = mylib.get_data(hist4)
+                fig, ax = plt.subplots()
+                hep.histplot(content5, bins=x_bins, yerr=errors5, label=r'$m_{lljjj}$', color='#5790fc', histtype='step', ax=ax, linewidth=1)
+                hep.histplot(content4, bins=x_bins, yerr=errors4, label=r'$m_{lljj}$' , color='#f89c20', histtype='step', ax=ax, linewidth=1)
+                ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
+                hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+                ax.legend(fontsize=20)
+                ax.set_xlabel(r'$M_{WR}$ [GeV]')
+                ax.set_ylabel('Events')
+                mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/WRMass_{region.name}.pdf", args.umn)
+                plt.close(fig)
+                
+                
                 hist = load_histogram(file_run, region.name , 'Delta_r20', -1, lumi)
                 run2_content, run2_errors, x_bins = mylib.get_data(hist)
                 fig, ax = plt.subplots()
@@ -357,7 +378,7 @@ def main():
                 n4_values_pT, n4_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist,False)
                 n4_values_pT[:,0] += zroadd
                 n4_errors_pT[:,0] = np.sqrt(n4_errors_pT[:,0]**2 + zroadd_err**2)
-                make2Dplot(n4_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljj}$ [GeV]",r"$pT_{min}$",'2d4obj_pT',mass,region)
+                make2Dplot(n4_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljj}$ [GeV]",r"$pT_{min}^{rel}$",'2d4obj_pT',mass,region)
                 
                 
                 hist = load_histogram(file_run, region.name , 'WRMass4_sin', -1, lumi)
@@ -367,33 +388,59 @@ def main():
                 make2Dplot(n4_values_sin,x_bins_sin,y_bins_sin,r"$m_{lljj}$ [GeV]",r"$sin_{min}$",'2d4obj_sin',mass,region)
                 
                 
+                
+                hist = load_histogram(file_run, region.name , 'WRMass4_pTnorm', -1, lumi)
+                n4_values_pTnorm, n4_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm= mylib.get_2Ddata(hist,False)
+                n4_values_pTnorm[:,0] += zroadd
+                n4_errors_pTnorm[:,0] = np.sqrt(n4_errors_pTnorm[:,0]**2 + zroadd_err**2)
+                make2Dplot(n4_values_pTnorm,x_bins_pTnorm,y_bins_pTnorm,r"$m_{lljj}$ [GeV]",r"$pT_{min}^{rel}/pT_3$",'2d4obj_pTnorm',mass,region)
+                
+                
+                
                 hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi)
                 n_values, n_errors, x_bins, y_bins= mylib.get_2Ddata(hist,False)
+                n_values[:,0] += zroadd
+                n_errors[:,0] = np.sqrt(n_errors[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values,x_bins,y_bins,r"$m_{lljjj}$ [GeV]",r"$\Delta R_{min}$",'2d5obj',mass,region)
                 
                 
                 
                 hist = load_histogram(file_run, region.name , 'WRMass5_pT', -1, lumi)
                 n_values_pT, n_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist,False)
-                make2Dplot(n_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljjj}$ [GeV]",r"$pT_{min}$",'2d5obj_pT',mass,region)
+                n_values_pT[:,0] += zroadd
+                n_errors_pT[:,0] = np.sqrt(n_errors_pT[:,0]**2 + zroadd_err**2)
+                make2Dplot(n_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljjj}$ [GeV]",r"$pT_{min}^{rel}$",'2d5obj_pT',mass,region)
                 
                 
                 hist = load_histogram(file_run, region.name , 'WRMass5_sin', -1, lumi)
                 n_values_sin, n_errors_sin, x_bins_sin, y_bins_sin= mylib.get_2Ddata(hist,False)
+                n_values_sin[:,0] += zroadd
+                n_errors_sin[:,0] = np.sqrt(n_errors_sin[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values_sin, x_bins_sin, y_bins_sin, r"$m_{lljjj}$ [GeV]", r"$sin_{min}$",'2d5obj_sin', mass, region)
+                
+                
+                hist = load_histogram(file_run, region.name , 'WRMass5_pTnorm', -1, lumi)
+                n_values_pTnorm, n_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm= mylib.get_2Ddata(hist,False)
+                n_values_pTnorm[:,0] += zroadd
+                n_errors_pTnorm[:,0] = np.sqrt(n_errors_pTnorm[:,0]**2 + zroadd_err**2)
+                make2Dplot(n_values_pTnorm, x_bins_pTnorm, y_bins_pTnorm, r"$m_{lljjj}$ [GeV]", r"$pT_{min}^{rel}/pT_3$",'2d5obj_pTnorm', mass, region)
             
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values,n_errors,n4_values,n4_errors,x_bins,y_bins,(-1000,1000),(0.3,3.3),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$\Delta R_{min}$",
             r'$\sigma$ 5 object',r'$\sigma$ 4 object','sigma_deltaR',mass,region)
-            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, 'CompareDelR')
+            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, r"$\Delta R_{min}$", 'CompareDelR')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pT,n_errors_pT,n4_values_pT,n4_errors_pT,x_bins_pT,y_bins_pT,(-1000,1000),(0,150),r"$\sigma_L$ and $\sigma_R$ [GeV]",
             r"$pT_{min}$",r'$\sigma$ 5 object',r'$\sigma$ 4 object','sigma_pT',mass,region)
-            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pT, mass, region, 'ComparePT')
+            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pT, mass, region, r"$pT_{min}$ [GeV]", 'ComparePT')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_sin, n_errors_sin, n4_values_sin, n4_errors_sin, x_bins_sin, y_bins_sin, (-1000,1000), (0,1), r"$\sigma_L$ and $\sigma_R$ [GeV]",
             r"$sin_{min}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_sin', mass, region)
-            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_sin, mass, region, 'CompareSine')
+            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_sin, mass, region, r"$sin_{min}$", 'CompareSine')
+            
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pTnorm, n_errors_pTnorm, n4_values_pTnorm, n4_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm, (-1000,1000), (0,5), r"$\sigma_L$ and $\sigma_R$ [GeV]",
+            r"$pT_{min}^{rel}/pT_3$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pTnorm', mass, region)
+            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pTnorm, mass, region, r"$pT_{min}^{rel}/pT_3$", 'ComparePTnorm')
             
 if __name__ == "__main__":
     main()
