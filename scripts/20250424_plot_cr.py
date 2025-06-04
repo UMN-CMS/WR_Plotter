@@ -123,21 +123,46 @@ def setup_plotter(args) -> Plotter:
     plotter.scale = True
 
     # Set directories
+#    if args.dir:
+#        plotter.input_directory = str(working_dir / 'rootfiles' / plotter.run / plotter.year / plotter.era / args.dir)
+#        plotter.output_directory = Path(f"/eos/user/w/wijackso/{plotter.run}/{plotter.year}/{plotter.era}/{args.dir}")
+#    else:
+#        plotter.input_directory = str(working_dir / 'rootfiles' / plotter.run / plotter.year / plotter.era)
+#        plotter.output_directory = f"/eos/user/w/wijackso/{plotter.run}/{plotter.year}/{plotter.era}"
+
+    # ── BUILD A LIST OF INPUT DIRECTORIES ──
+    # If era == "2022", we want both sub-eras:
+    if args.era == "2022":
+        dir1 = working_dir / 'rootfiles' / plotter.run / plotter.year / 'Run3Summer22'
+        dir2 = working_dir / 'rootfiles' / plotter.run / plotter.year / 'Run3Summer22EE'
+        if args.dir:
+            dir1 = dir1 / args.dir
+            dir2 = dir2 / args.dir
+        plotter.input_directory = [dir1, dir2]
+    else:
+        base = working_dir / 'rootfiles' / plotter.run / plotter.year / plotter.era
+        if args.dir:
+            base = base / args.dir
+        plotter.input_directory = [base]
+
+    # ── OUTPUT DIRECTORY (unchanged) ──
     if args.dir:
-        plotter.input_directory = str(working_dir / 'rootfiles' / plotter.run / plotter.year / plotter.era / args.dir)
         plotter.output_directory = Path(f"/eos/user/w/wijackso/{plotter.run}/{plotter.year}/{plotter.era}/{args.dir}")
     else:
-        plotter.input_directory = str(working_dir / 'rootfiles' / plotter.run / plotter.year / plotter.era)
-        plotter.output_directory = f"/eos/user/w/wijackso/{plotter.run}/{plotter.year}/{plotter.era}"
+        plotter.output_directory = Path(f"/eos/user/w/wijackso/{plotter.run}/{plotter.year}/{plotter.era}")
 
+    if args.era == "2022":
+        sample_era = "Run3Summer22"
+    else:
+        sample_era = args.era
     # Define sample group ordering
     base_groups = [
-        f'SampleGroup_{args.era}_Other',
-        f'SampleGroup_{args.era}_Nonprompt',
-        f'SampleGroup_{args.era}_TTbar',
-        f'SampleGroup_{args.era}_DY',
-        f'SampleGroup_{args.era}_EGamma',
-        f'SampleGroup_{args.era}_Muon',
+        f'SampleGroup_{sample_era}_Other',
+        f'SampleGroup_{sample_era}_Nonprompt',
+        f'SampleGroup_{sample_era}_TTbar',
+        f'SampleGroup_{sample_era}_DY',
+        f'SampleGroup_{sample_era}_EGamma',
+        f'SampleGroup_{sample_era}_Muon',
     ]
     if args.category == "dy_cr":
         sample_group_names = base_groups.copy()
@@ -161,13 +186,13 @@ def setup_plotter(args) -> Plotter:
                 'WR_MuMu_Resolved_DYCR', 
                 'Muon', 
                 unblind_data = True, 
-                tlatex_alias='$\mu\mu$\nResolved DY CR\nRun3Summer22EE\nNLO DY, NNLO x-sec'
+                tlatex_alias=f'$\mu\mu$\nResolved DY CR\n{sample_era}\nNLO DY, NNLO x-sec'
             ),
             Region(
                 'WR_EE_Resolved_DYCR', 
                 'EGamma', 
                 unblind_data = True, 
-                tlatex_alias='ee\nResolved DY CR\nRun3Summer22EE\nNLO DY, NNLO x-sec'
+                tlatex_alias=f'ee\nResolved DY CR\n{sample_era}\nNLO DY, NNLO x-sec'
             ),
         ]
     elif args.category == "flavor_cr":
@@ -181,48 +206,58 @@ def setup_plotter(args) -> Plotter:
 
     # Define Variables
     plotter.variables_to_draw = [
-        Variable('mass_fourobject', r'$m_{lljj}$', 'GeV'),
-        Variable('pt_leading_jet', r'$p_{T}$ of the leading jet', 'GeV'),
-        Variable('mass_dijet', r'$m_{jj}$', 'GeV'),
-        Variable('pt_leading_lepton', r'$p_{T}$ of the leading lepton', 'GeV'),
-        Variable('eta_leading_lepton', r'$\eta$ of the leading lepton', ''),
-        Variable('phi_leading_lepton', r'$\phi$ of the leading lepton', ''),
-        Variable('pt_subleading_lepton', r'$p_{T}$ of the subleading lepton', 'GeV'),
-        Variable('eta_subleading_lepton', r'$\eta$ of the subleading lepton', ''),
-        Variable('phi_subleading_lepton', r'$\phi$ of the subleading lepton', ''),
-        Variable('eta_leading_jet', r'$\eta$ of the leading jet', ''),
-        Variable('phi_leading_jet', r'$\phi$ of the leading jet', ''),
-        Variable('pt_subleading_jet', r'$p_{T}$ of the subleading jet', 'GeV'),
-        Variable('eta_subleading_jet', r'$\eta$ of the subleading jet', ''),
-        Variable('phi_subleading_jet', r'$\phi$ of the subleading jet', ''),
+#        Variable('mass_fourobject', r'$m_{lljj}$', 'GeV'),
+#        Variable('pt_leading_jet', r'$p_{T}$ of the leading jet', 'GeV'),
+#        Variable('mass_dijet', r'$m_{jj}$', 'GeV'),
+#        Variable('pt_leading_lepton', r'$p_{T}$ of the leading lepton', 'GeV'),
+#        Variable('eta_leading_lepton', r'$\eta$ of the leading lepton', ''),
+#        Variable('phi_leading_lepton', r'$\phi$ of the leading lepton', ''),
+#        Variable('pt_subleading_lepton', r'$p_{T}$ of the subleading lepton', 'GeV'),
+#        Variable('eta_subleading_lepton', r'$\eta$ of the subleading lepton', ''),
+#        Variable('phi_subleading_lepton', r'$\phi$ of the subleading lepton', ''),
+#        Variable('eta_leading_jet', r'$\eta$ of the leading jet', ''),
+#        Variable('phi_leading_jet', r'$\phi$ of the leading jet', ''),
+#        Variable('pt_subleading_jet', r'$p_{T}$ of the subleading jet', 'GeV'),
+#        Variable('eta_subleading_jet', r'$\eta$ of the subleading jet', ''),
+#        Variable('phi_subleading_jet', r'$\phi$ of the subleading jet', ''),
         Variable('mass_dilepton', r'$m_{ll}$', 'GeV'),
-        Variable('pt_dilepton', r'$p_{T}^{ll}$', 'GeV'),
-        Variable('pt_dijet', r'$p_{T}^{jj}$', 'GeV'),
-        Variable('mass_threeobject_leadlep', r'$m_{l_{\mathrm{lead}}jj}$', 'GeV'),
-        Variable('pt_threeobject_leadlep', r'$p^{T}_{l_{\mathrm{lead}}jj}$', 'GeV'),
-        Variable('mass_threeobject_subleadlep', r'$m_{l_{\mathrm{sublead}}jj}$', 'GeV'),
-        Variable('pt_threeobject_subleadlep', r'$p^{T}_{l_{\mathrm{sublead}}jj}$', 'GeV'),
-        Variable('pt_fourobject', r'$p^{T}_{lljj}$', 'GeV'),
+#        Variable('pt_dilepton', r'$p_{T}^{ll}$', 'GeV'),
+#        Variable('pt_dijet', r'$p_{T}^{jj}$', 'GeV'),
+#        Variable('mass_threeobject_leadlep', r'$m_{l_{\mathrm{lead}}jj}$', 'GeV'),
+#        Variable('pt_threeobject_leadlep', r'$p^{T}_{l_{\mathrm{lead}}jj}$', 'GeV'),
+#        Variable('mass_threeobject_subleadlep', r'$m_{l_{\mathrm{sublead}}jj}$', 'GeV'),
+#        Variable('pt_threeobject_subleadlep', r'$p^{T}_{l_{\mathrm{sublead}}jj}$', 'GeV'),
+#        Variable('pt_fourobject', r'$p^{T}_{lljj}$', 'GeV'),
     ]
     plotter.print_variables()
 
     return plotter
 
-def load_and_rebin(input_dir: Path, sample: str, hist_key: str, plotter: Plotter):
+def load_and_rebin(input_dirs: list[Path], sample: str, hist_key: str, plotter: Plotter):
     """
-    Try to open WRAnalyzer_{sample}.root from input_dir, extract hist_key,
-    rebin and scale it. Returns a rebinned (and scaled) hist or None on failure.
+    Try to open WRAnalyzer_{sample}.root in each directory of input_dirs,
+    extract hist_key, and rebin (and scale) them.  If found in multiple sub-eras,
+    sum them together. Returns a combined Hist or None if no valid file/Hist is found.
     """
-    fp = input_dir / f"WRAnalyzer_{sample}.root"
-    try:
-        with uproot.open(fp) as f:
-            raw_hist = f[hist_key].to_hist()
-    except (FileNotFoundError, KeyError) as e:
-        logging.warning(f"{e.__class__.__name__} for {fp}: {e}")
-        return None
+    combined = None
 
-    rebinned = plotter.rebin_hist(raw_hist)
-    return rebinned
+    for indir in input_dirs:
+        fp = indir / f"WRAnalyzer_{sample}.root"
+        try:
+            with uproot.open(fp) as f:
+                raw_hist = f[hist_key].to_hist()
+        except (FileNotFoundError, KeyError):
+            # either file does not exist or histogram not in the file → skip
+            continue
+
+        # Rebin the raw histogram
+        rebinned = plotter.rebin_hist(raw_hist)
+        if combined is None:
+            combined = rebinned
+        else:
+            combined = combined + rebinned
+
+    return combined  # could be None if no file/Hist was found in any of the input_dirs
 
 def reorder_legend(ax, priority_labels=("MC stat. unc.", "Data"), fontsize=FONT_SIZE_LEGEND):
     """
@@ -385,7 +420,7 @@ def main():
         logging.error(f"Missing YAML entries for regions: {missing_regions}")
         sys.exit(1)
 
-    input_dir = Path(plotter.input_directory)
+    input_dir = plotter.input_directory
 
     # e.g. WR_EE_Resolved_DYCR
     for region in plotter.regions_to_draw:
