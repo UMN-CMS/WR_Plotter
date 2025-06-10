@@ -25,7 +25,7 @@ parser.add_argument('--umn', action='store_true', default=False,help="Enable UMN
 parser.add_argument("--exc", action="store_true", help="Exclusively 2 & 3 jets")
 args = parser.parse_args()
 
-def load_histogram(file, region_name, variable_name, n_rebin, lum=None):
+def load_histogram(file, region_name, variable_name, n_rebin, lum=None,normalized=True):
     """Load and rebin a histogram, with optional luminosity scaling."""
     hist_path = f"{region_name}/{variable_name}_{region_name}"
     hist = file.Get(hist_path)
@@ -38,7 +38,7 @@ def load_histogram(file, region_name, variable_name, n_rebin, lum=None):
         hist.Scale(lum * 1000)
 
     integral = hist.Integral()
-    if integral > 0: hist.Scale(1.0 / integral)
+    if integral > 0 and normalized: hist.Scale(1.0 / integral)
 
 
 
@@ -167,10 +167,10 @@ def makeSigmaFits(n_values,n_err,x_bins):
     
     return sl,sr,sle,sre
     
-def makeSigmaPlots(n_non_values,n_non_errors,n4_non_values,n4_non_errors,x_bins,y_bins,xlim,ylim,xlabel,ylabel,varlab1,varlab2,plotname,mass,region):
+def makeSigmaPlots(n_non_values,n_non_errors,n4_non_values,n4_non_errors,x_bins,y_bins,xlim,ylim,xlabel,ylabel,varlab1,varlab2,plotname,mass,region,invertintegral=False):
     
-    n_values,n_errors=IntegralDist(n_non_values,n_non_errors)
-    n4_values,n4_errors=IntegralDist(n4_non_values,n4_non_errors)
+    n_values,n_errors=IntegralDist(n_non_values,n_non_errors,invertintegral)
+    n4_values,n4_errors=IntegralDist(n4_non_values,n4_non_errors,invertintegral)
     
     nxbin=n_values.shape[0]
     nybin=n_values.shape[1]
@@ -225,21 +225,49 @@ def makeSigmaPlots(n_non_values,n_non_errors,n4_non_values,n4_non_errors,x_bins,
     plt.close(fig)
     return sl, sr, sle, sre, s4l, s4r, s4le, s4re
 
-def IntegralDist(n_values,n_errors):
+def IntegralDist(n_values,n_errors,invertintegral=False):
     n_int,nerr_int=np.copy(n_values),np.copy(n_errors)
     nybin=n_values.shape[1]
-    for j in range(2,nybin+1):
-        n_int[:,j-1]+=n_int[:,j-2]
-        nerr_int[:,j-1]=np.sqrt(nerr_int[:,j-2]**2+nerr_int[:,j-1]**2)
+    indices=range(0,nybin-1)
+    mod=1
+    if invertintegral:
+        indices=range(nybin-1,0,-1)
+        mod=-1
+    for j in indices:
+        n_int[:,j+1*mod]+=n_int[:,j]
+        nerr_int[:,j+1*mod]=np.sqrt(nerr_int[:,j]**2+nerr_int[:,j+1*mod]**2)
     return n_int,nerr_int
 
 def comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, xname, plotname):
     
     allgood = np.where((sl>0) & (sr>0) & (s4l>0) & (s4r>0))
     ratio=(sl[allgood]+sr[allgood])/(s4l[allgood]+s4r[allgood])
+    assymetry=(sl[allgood]-sr[allgood])/(s4l[allgood]-s4r[allgood])
     fig, ax = plt.subplots()
     ymid=(y_bins[1:]+y_bins[:-1])/2
-    ax.plot(ymid[allgood],ratio)
+    ymid=ymid[allgood]
+    
+    ratio_min_idx=np.argmin(ratio)
+    ratiomin_val=-1
+    ratiomin=0
+    if ratio_min_idx>2:
+        lowidx=np.max([ratio_min_idx-np.max([3,(int)(ymid.size*0.1)]),0])
+        highidx=np.min([ratio_min_idx+np.max([5,(int)(ymid.size*0.2)]),ymid.size-1])
+        fitsubset_y=ratio[lowidx:highidx]
+        fitsubset_x=ymid[lowidx:highidx]
+        fit=np.polyfit(fitsubset_x,fitsubset_y,2)
+        ratiomin_val=-fit[1]/fit[0]/2
+        if fit[0]>0 and ratiomin_val>fitsubset_x[0] and ratiomin_val<fitsubset_x[-1]:
+            ratiomin=fit[2]-fit[1]*fit[1]/fit[0]/4
+            visual_x=np.linspace(fitsubset_x[0],fitsubset_x[-1],100)
+            poly=np.poly1d(fit)
+            visual_y=poly(visual_x)
+        else:
+            ratiomin_val=-1
+    
+    ax.plot(ymid,ratio)
+    if ratio_min_idx>2 and ratiomin_val>0:
+        ax.plot(visual_x,visual_y)
     ax.set_ylabel(r'$\sigma_5\:/\:\sigma_4$')
     ax.set_xlabel(xname)
     ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
@@ -250,6 +278,43 @@ def comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, 
         exclu="_exclusive"
     
     mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/{plotname}_{region.name}.pdf", args.umn)
+    plt.close(fig)
+    
+    fig, ax = plt.subplots()
+    ax.plot(ymid,assymetry)
+    ax.set_ylabel(r'$r_{L-R}$')
+    ax.set_xlabel(xname)
+    ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
+    hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+    mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/{plotname}_Assymetry_{region.name}.pdf", args.umn)
+    plt.close(fig)
+    return ratiomin_val,ratiomin
+
+def plotcomparisn(Nmasses,WRmasses,cuts,region,ylab,filename):
+    fig, ax = plt.subplots()
+    plotted=False
+    for i in range(WRmasses.size):
+        Nmassesi=Nmasses[i*5:(i+1)*5]
+        cutsi=cuts[i*5:(i+1)*5]
+        Nmassesi=Nmassesi[cutsi>-1]
+        cutsi=cutsi[cutsi>-1]
+        if cutsi.size>=1:
+            ax.plot(Nmassesi,cutsi,label='WR'+str(WRmasses[i]))
+            plotted=True
+    if plotted:
+        ax.set_xlabel(r'$M_{\nu}$ [GeV]')
+        ax.set_ylabel(ylab)
+        ax.legend()
+        ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
+        hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
+    
+        exclu=""
+        if args.exc:
+            exclu="_exclusive"
+    
+        print(filename+":"+str(np.mean(cuts[cuts>0])))
+    
+        mylib.save_and_upload_plot(fig, f"plots/Comparisn/{region.name}{exclu}/{filename}.pdf", args.umn)
     plt.close(fig)
 
 def main():
@@ -303,6 +368,9 @@ def main():
         
         valueat1.clear()
         valueat1mean.clear()
+        
+        cutsdelr,cutspt,cutsptn,cutssin=np.zeros(len(Nmasses)),np.zeros(len(Nmasses)),np.zeros(len(Nmasses)),np.zeros(len(Nmasses))
+        i=0
         
         for mass in mass_options:
             
@@ -365,9 +433,13 @@ def main():
                 
                 
                 hist = load_histogram(file_run, region.name , 'WRMass4_DeltaR', -1, lumi)
+                n5,_,_ = mylib.get_data(load_histogram(file_run, region.name , 'n_counter', -1, lumi,False))
                 hist2 = load_histogram(file_run2, region.name , 'WRCand_Mass', 8, lumi)
-                n4_values, n4_errors, x_bins, y_bins= mylib.get_2Ddata(hist,False)
-                zroadd , zroadd_err , _ = mylib.get_data(hist2,False)
+                n4,_,_ = mylib.get_data(load_histogram(file_run2, region.name , 'n_counter', -1, lumi,False))
+                n4_values, n4_errors, x_bins, y_bins= mylib.get_2Ddata(hist)
+                n4_values, n4_errors = n4_values*n5, n4_errors*n5
+                zroadd , zroadd_err , _ = mylib.get_data(hist2)
+                zroadd , zroadd_err = zroadd*n4 , zroadd_err*n4
                 n4_values[:,0] += zroadd
                 n4_errors[:,0] = np.sqrt(n4_errors[:,0]**2 + zroadd_err**2)
                 make2Dplot(n4_values,x_bins,y_bins,r"$m_{lljj}$ [GeV]",r"$\Delta R_{min}$",'2d4obj',mass,region)
@@ -375,22 +447,25 @@ def main():
                 
                 
                 hist = load_histogram(file_run, region.name , 'WRMass4_pT', -1, lumi)
-                n4_values_pT, n4_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist,False)
+                n4_values_pT, n4_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist)
+                n4_values_pT, n4_errors_pT = n4_values_pT*n5, n4_errors_pT*n5
                 n4_values_pT[:,0] += zroadd
                 n4_errors_pT[:,0] = np.sqrt(n4_errors_pT[:,0]**2 + zroadd_err**2)
                 make2Dplot(n4_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljj}$ [GeV]",r"$pT_{min}^{rel}$",'2d4obj_pT',mass,region)
                 
                 
                 hist = load_histogram(file_run, region.name , 'WRMass4_sin', -1, lumi)
-                n4_values_sin, n4_errors_sin, x_bins_sin, y_bins_sin= mylib.get_2Ddata(hist,False)
-                n4_values_sin[:,0] += zroadd
-                n4_errors_sin[:,0] = np.sqrt(n4_errors_sin[:,0]**2 + zroadd_err**2)
+                n4_values_sin, n4_errors_sin, x_bins_sin, y_bins_sin= mylib.get_2Ddata(hist)
+                n4_values_sin, n4_errors_sin = n4_values_sin*n5, n4_errors_sin*n5
+                n4_values_sin[:,-1] += zroadd
+                n4_errors_sin[:,-1] = np.sqrt(n4_errors_sin[:,-1]**2 + zroadd_err**2)
                 make2Dplot(n4_values_sin,x_bins_sin,y_bins_sin,r"$m_{lljj}$ [GeV]",r"$sin_{min}$",'2d4obj_sin',mass,region)
                 
                 
                 
                 hist = load_histogram(file_run, region.name , 'WRMass4_pTnorm', -1, lumi)
-                n4_values_pTnorm, n4_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm= mylib.get_2Ddata(hist,False)
+                n4_values_pTnorm, n4_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm= mylib.get_2Ddata(hist)
+                n4_values_pTnorm, n4_errors_pTnorm = n4_values_pTnorm*n5, n4_errors_pTnorm*n5
                 n4_values_pTnorm[:,0] += zroadd
                 n4_errors_pTnorm[:,0] = np.sqrt(n4_errors_pTnorm[:,0]**2 + zroadd_err**2)
                 make2Dplot(n4_values_pTnorm,x_bins_pTnorm,y_bins_pTnorm,r"$m_{lljj}$ [GeV]",r"$pT_{min}^{rel}/pT_3$",'2d4obj_pTnorm',mass,region)
@@ -398,7 +473,8 @@ def main():
                 
                 
                 hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi)
-                n_values, n_errors, x_bins, y_bins= mylib.get_2Ddata(hist,False)
+                n_values, n_errors, x_bins, y_bins= mylib.get_2Ddata(hist)
+                n_values, n_errors = n_values*n5, n_errors*n5
                 n_values[:,0] += zroadd
                 n_errors[:,0] = np.sqrt(n_errors[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values,x_bins,y_bins,r"$m_{lljjj}$ [GeV]",r"$\Delta R_{min}$",'2d5obj',mass,region)
@@ -406,21 +482,24 @@ def main():
                 
                 
                 hist = load_histogram(file_run, region.name , 'WRMass5_pT', -1, lumi)
-                n_values_pT, n_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist,False)
+                n_values_pT, n_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist)
+                n_values_pT, n_errors_pT = n_values_pT*n5, n_errors_pT*n5
                 n_values_pT[:,0] += zroadd
                 n_errors_pT[:,0] = np.sqrt(n_errors_pT[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljjj}$ [GeV]",r"$pT_{min}^{rel}$",'2d5obj_pT',mass,region)
                 
                 
                 hist = load_histogram(file_run, region.name , 'WRMass5_sin', -1, lumi)
-                n_values_sin, n_errors_sin, x_bins_sin, y_bins_sin= mylib.get_2Ddata(hist,False)
-                n_values_sin[:,0] += zroadd
-                n_errors_sin[:,0] = np.sqrt(n_errors_sin[:,0]**2 + zroadd_err**2)
+                n_values_sin, n_errors_sin, x_bins_sin, y_bins_sin= mylib.get_2Ddata(hist)
+                n_values_sin, n_errors_sin = n_values_sin*n5, n_errors_sin*n5
+                n_values_sin[:,-1] += zroadd
+                n_errors_sin[:,-1] = np.sqrt(n_errors_sin[:,-1]**2 + zroadd_err**2)
                 make2Dplot(n_values_sin, x_bins_sin, y_bins_sin, r"$m_{lljjj}$ [GeV]", r"$sin_{min}$",'2d5obj_sin', mass, region)
                 
                 
                 hist = load_histogram(file_run, region.name , 'WRMass5_pTnorm', -1, lumi)
-                n_values_pTnorm, n_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm= mylib.get_2Ddata(hist,False)
+                n_values_pTnorm, n_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm= mylib.get_2Ddata(hist)
+                n_values_pTnorm, n_errors_pTnorm = n_values_pTnorm*n5, n_errors_pTnorm*n5
                 n_values_pTnorm[:,0] += zroadd
                 n_errors_pTnorm[:,0] = np.sqrt(n_errors_pTnorm[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values_pTnorm, x_bins_pTnorm, y_bins_pTnorm, r"$m_{lljjj}$ [GeV]", r"$pT_{min}^{rel}/pT_3$",'2d5obj_pTnorm', mass, region)
@@ -428,19 +507,27 @@ def main():
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values,n_errors,n4_values,n4_errors,x_bins,y_bins,(-1000,1000),(0.3,3.3),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$\Delta R_{min}$",
             r'$\sigma$ 5 object',r'$\sigma$ 4 object','sigma_deltaR',mass,region)
-            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, r"$\Delta R_{min}$", 'CompareDelR')
+            cutsdelr[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, r"$\Delta R_{min}$", 'CompareDelR')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pT,n_errors_pT,n4_values_pT,n4_errors_pT,x_bins_pT,y_bins_pT,(-1000,1000),(0,150),r"$\sigma_L$ and $\sigma_R$ [GeV]",
             r"$pT_{min}$",r'$\sigma$ 5 object',r'$\sigma$ 4 object','sigma_pT',mass,region)
-            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pT, mass, region, r"$pT_{min}$ [GeV]", 'ComparePT')
+            cutspt[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pT, mass, region, r"$pT_{min}^{rel}$ [GeV]", 'ComparePT')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_sin, n_errors_sin, n4_values_sin, n4_errors_sin, x_bins_sin, y_bins_sin, (-1000,1000), (0,1), r"$\sigma_L$ and $\sigma_R$ [GeV]",
             r"$sin_{min}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_sin', mass, region)
-            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_sin, mass, region, r"$sin_{min}$", 'CompareSine')
+            cutssin[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_sin, mass, region, r"$sin_{min}$", 'CompareSine')
             
-            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pTnorm, n_errors_pTnorm, n4_values_pTnorm, n4_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm, (-1000,1000), (0,5), r"$\sigma_L$ and $\sigma_R$ [GeV]",
-            r"$pT_{min}^{rel}/pT_3$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pTnorm', mass, region)
-            comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pTnorm, mass, region, r"$pT_{min}^{rel}/pT_3$", 'ComparePTnorm')
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pTnorm, n_errors_pTnorm, n4_values_pTnorm, n4_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm, (-1000,1000), (0,5), 
+            r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/pT_3$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pTnorm', mass, region)
+            cutsptn[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pTnorm, mass, region, r"$pT_{min}^{rel}/pT_3$", 'ComparePTnorm')
+            i=i+1
+        
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsdelr,region,r"$\Delta R_{min}$",'DelR')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutspt,region,r"$pT_{min}^{rel}$ [GeV]",'pTrel')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutssin,region,r"$sin_{min}$",'Sin')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsptn,region,r"$pT_{min}^{rel}/pT_3$",'pTnorm')
+            
+            
             
 if __name__ == "__main__":
     main()

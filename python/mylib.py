@@ -161,7 +161,7 @@ def get_data(hist,normalized=True):
     
     return y_bins, y_errors, np.array(x_bins)
     
-def get_2Ddata(hist,normalized=True):
+def get_2Ddata(hist):
     nxbin,nybin=hist.GetNbinsX(),hist.GetNbinsY()
     y_bins, x_bins, n_values, n_errors = np.zeros(nybin+1), np.zeros(nxbin+1), np.zeros((nxbin,nybin)), np.zeros((nxbin,nybin))
     xax, yax=hist.GetXaxis(), hist.GetYaxis()
@@ -176,11 +176,6 @@ def get_2Ddata(hist,normalized=True):
         if i == 1:
             x_bins[0]=xax.GetBinLowEdge(i)
         x_bins[i]=xax.GetBinLowEdge(i+1)
-    
-    if not normalized:
-        totalevents=1/np.min(n_values[n_values>0])################################################# Plese Change
-        n_values = n_values*totalevents
-        n_errors = n_errors*totalevents
     
     return n_values,n_errors,x_bins,y_bins
             
