@@ -121,9 +121,8 @@ def draw_histogram(run2_hist, run3_hist, ratio_hist, sample, process, region, va
     plt.close(fig)
 
 def make2Dplot(n_values,x_bins,y_bins,xlabel,ylabel,plotname,mass,region):
-    logvals = np.log10(np.where(n_values>1e-5,n_values,1e-5))   
     fig, ax = plt.subplots()
-    hep.hist2dplot(logvals,xbins=x_bins,ybins=y_bins,ax=ax)
+    hep.hist2dplot(n_values,xbins=x_bins,ybins=y_bins,ax=ax,norm='log')
     ax.set_ylim(np.min(y_bins), np.max(y_bins))
     ax.set_xlim(np.min(x_bins), np.max(x_bins))
     ax.set_xlabel(xlabel)
@@ -179,6 +178,7 @@ def makeSigmaPlots(n_non_values,n_non_errors,n4_non_values,n4_non_errors,x_bins,
                     
     fig, ax = plt.subplots()
     ax.set_ylim(ylim)
+
     ax.set_xlim(xlim)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
@@ -422,7 +422,7 @@ def main():
                 ax.yaxis.set_major_formatter(mticker.FuncFormatter(mylib.custom_log_formatter))
                 #ax.set_ylim(*ylim)
                 ax.set_ylabel(f"Events / 0.0875")
-                ax.set_xlabel(r"Delta_R12$")
+                ax.set_xlabel(r"$\Delta_R12$")
             
                 ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
                 hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
@@ -432,74 +432,72 @@ def main():
                 
                 
                 
-                hist = load_histogram(file_run, region.name , 'WRMass4_DeltaR', -1, lumi)
-                n5,_,_ = mylib.get_data(load_histogram(file_run, region.name , 'n_counter', -1, lumi,False))
-                hist2 = load_histogram(file_run2, region.name , 'WRCand_Mass', 8, lumi)
-                n4,_,_ = mylib.get_data(load_histogram(file_run2, region.name , 'n_counter', -1, lumi,False))
+                hist = load_histogram(file_run, region.name , 'WRMass4_DeltaR', -1, lumi,False)
+                hist2 = load_histogram(file_run2, region.name , 'WRCand_Mass', 8, lumi,False)
                 n4_values, n4_errors, x_bins, y_bins= mylib.get_2Ddata(hist)
-                n4_values, n4_errors = n4_values*n5, n4_errors*n5
+                n4_values, n4_errors = n4_values, n4_errors
                 zroadd , zroadd_err , _ = mylib.get_data(hist2)
-                zroadd , zroadd_err = zroadd*n4 , zroadd_err*n4
+                zroadd , zroadd_err = zroadd , zroadd_err
                 n4_values[:,0] += zroadd
                 n4_errors[:,0] = np.sqrt(n4_errors[:,0]**2 + zroadd_err**2)
                 make2Dplot(n4_values,x_bins,y_bins,r"$m_{lljj}$ [GeV]",r"$\Delta R_{min}$",'2d4obj',mass,region)
                 
                 
                 
-                hist = load_histogram(file_run, region.name , 'WRMass4_pT', -1, lumi)
+                hist = load_histogram(file_run, region.name , 'WRMass4_pT', -1, lumi,False)
                 n4_values_pT, n4_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist)
-                n4_values_pT, n4_errors_pT = n4_values_pT*n5, n4_errors_pT*n5
+                n4_values_pT, n4_errors_pT = n4_values_pT, n4_errors_pT
                 n4_values_pT[:,0] += zroadd
                 n4_errors_pT[:,0] = np.sqrt(n4_errors_pT[:,0]**2 + zroadd_err**2)
                 make2Dplot(n4_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljj}$ [GeV]",r"$pT_{min}^{rel}$",'2d4obj_pT',mass,region)
                 
                 
-                hist = load_histogram(file_run, region.name , 'WRMass4_sin', -1, lumi)
+                hist = load_histogram(file_run, region.name , 'WRMass4_sin', -1, lumi,False)
                 n4_values_sin, n4_errors_sin, x_bins_sin, y_bins_sin= mylib.get_2Ddata(hist)
-                n4_values_sin, n4_errors_sin = n4_values_sin*n5, n4_errors_sin*n5
-                n4_values_sin[:,-1] += zroadd
-                n4_errors_sin[:,-1] = np.sqrt(n4_errors_sin[:,-1]**2 + zroadd_err**2)
+                n4_values_sin, n4_errors_sin = n4_values_sin, n4_errors_sin
+                n4_values_sin[:,0] += zroadd
+                n4_errors_sin[:,0] = np.sqrt(n4_errors_sin[:,-1]**2 + zroadd_err**2)
                 make2Dplot(n4_values_sin,x_bins_sin,y_bins_sin,r"$m_{lljj}$ [GeV]",r"$sin_{min}$",'2d4obj_sin',mass,region)
                 
                 
                 
-                hist = load_histogram(file_run, region.name , 'WRMass4_pTnorm', -1, lumi)
+                hist = load_histogram(file_run, region.name , 'WRMass4_pTnorm', -1, lumi,False)
                 n4_values_pTnorm, n4_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm= mylib.get_2Ddata(hist)
-                n4_values_pTnorm, n4_errors_pTnorm = n4_values_pTnorm*n5, n4_errors_pTnorm*n5
+                n4_values_pTnorm, n4_errors_pTnorm = n4_values_pTnorm, n4_errors_pTnorm
                 n4_values_pTnorm[:,0] += zroadd
                 n4_errors_pTnorm[:,0] = np.sqrt(n4_errors_pTnorm[:,0]**2 + zroadd_err**2)
                 make2Dplot(n4_values_pTnorm,x_bins_pTnorm,y_bins_pTnorm,r"$m_{lljj}$ [GeV]",r"$pT_{min}^{rel}/pT_3$",'2d4obj_pTnorm',mass,region)
                 
                 
                 
-                hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi)
+                hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi,False)
                 n_values, n_errors, x_bins, y_bins= mylib.get_2Ddata(hist)
-                n_values, n_errors = n_values*n5, n_errors*n5
+                n_values, n_errors = n_values, n_errors
                 n_values[:,0] += zroadd
                 n_errors[:,0] = np.sqrt(n_errors[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values,x_bins,y_bins,r"$m_{lljjj}$ [GeV]",r"$\Delta R_{min}$",'2d5obj',mass,region)
                 
                 
                 
-                hist = load_histogram(file_run, region.name , 'WRMass5_pT', -1, lumi)
+                hist = load_histogram(file_run, region.name , 'WRMass5_pT', -1, lumi,False)
                 n_values_pT, n_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist)
-                n_values_pT, n_errors_pT = n_values_pT*n5, n_errors_pT*n5
+                n_values_pT, n_errors_pT = n_values_pT, n_errors_pT
                 n_values_pT[:,0] += zroadd
                 n_errors_pT[:,0] = np.sqrt(n_errors_pT[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljjj}$ [GeV]",r"$pT_{min}^{rel}$",'2d5obj_pT',mass,region)
                 
                 
-                hist = load_histogram(file_run, region.name , 'WRMass5_sin', -1, lumi)
+                hist = load_histogram(file_run, region.name , 'WRMass5_sin', -1, lumi,False)
                 n_values_sin, n_errors_sin, x_bins_sin, y_bins_sin= mylib.get_2Ddata(hist)
-                n_values_sin, n_errors_sin = n_values_sin*n5, n_errors_sin*n5
-                n_values_sin[:,-1] += zroadd
-                n_errors_sin[:,-1] = np.sqrt(n_errors_sin[:,-1]**2 + zroadd_err**2)
+                n_values_sin, n_errors_sin = n_values_sin, n_errors_sin
+                n_values_sin[:,0] += zroadd
+                n_errors_sin[:,0] = np.sqrt(n_errors_sin[:,-1]**2 + zroadd_err**2)
                 make2Dplot(n_values_sin, x_bins_sin, y_bins_sin, r"$m_{lljjj}$ [GeV]", r"$sin_{min}$",'2d5obj_sin', mass, region)
                 
                 
-                hist = load_histogram(file_run, region.name , 'WRMass5_pTnorm', -1, lumi)
+                hist = load_histogram(file_run, region.name , 'WRMass5_pTnorm', -1, lumi,False)
                 n_values_pTnorm, n_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm= mylib.get_2Ddata(hist)
-                n_values_pTnorm, n_errors_pTnorm = n_values_pTnorm*n5, n_errors_pTnorm*n5
+                n_values_pTnorm, n_errors_pTnorm = n_values_pTnorm, n_errors_pTnorm
                 n_values_pTnorm[:,0] += zroadd
                 n_errors_pTnorm[:,0] = np.sqrt(n_errors_pTnorm[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values_pTnorm, x_bins_pTnorm, y_bins_pTnorm, r"$m_{lljjj}$ [GeV]", r"$pT_{min}^{rel}/pT_3$",'2d5obj_pTnorm', mass, region)
