@@ -138,7 +138,6 @@ def make2Dplot(n_values,x_bins,y_bins,xlabel,ylabel,plotname,mass,region):
     plt.close(fig)
 
 def makeSigmaFits(n_values,n_err,x_bins):
-
     x_val=(x_bins[1:]+x_bins[:-1])/2
     nybin=n_values.shape[1]
     sl, sr  = np.zeros(nybin+1), np.zeros(nybin+1)
@@ -166,12 +165,16 @@ def makeSigmaFits(n_values,n_err,x_bins):
     
     return sl,sr,sle,sre
     
-def makeSigmaPlots(n_non_values,n_non_errors,n4_non_values,n4_non_errors,x_bins,y_bins,xlim,ylim,xlabel,ylabel,varlab1,varlab2,plotname,mass,region,invertintegral=False):
+def makeSigmaPlots(n_non_values,n_non_errors,n4_non_values,n4_non_errors,x_bins,y_bins,xlim,ylim,xlabel,ylabel,varlab1,varlab2,plotname,mass,region):
+    n_values,n_errors=IntegralDist(n_non_values,n_non_errors)
+    n4_values,n4_errors=IntegralDist(n4_non_values,n4_non_errors)
     
-    n_values,n_errors=IntegralDist(n_non_values,n_non_errors,invertintegral)
-    n4_values,n4_errors=IntegralDist(n4_non_values,n4_non_errors,invertintegral)
-    
-    nxbin=n_values.shape[0]
+    n4_values2,n4_errors2=IntegralDist(n4_non_values,n4_non_errors,True)
+    n_values+=n4_values2
+    n4_values+=n4_values2
+    n_errors=np.sqrt(n_errors**2+n4_errors2**2)
+    n4_errors=np.sqrt(n4_errors**2+n4_errors2**2)
+
     nybin=n_values.shape[1]
     sl, sr, sle, sre     = makeSigmaFits(n_values, n_errors, x_bins)
     s4l, s4r, s4le, s4re = makeSigmaFits(n4_values,n4_errors,x_bins)
@@ -228,6 +231,7 @@ def makeSigmaPlots(n_non_values,n_non_errors,n4_non_values,n4_non_errors,x_bins,
 def IntegralDist(n_values,n_errors,invertintegral=False):
     n_int,nerr_int=np.copy(n_values),np.copy(n_errors)
     nybin=n_values.shape[1]
+    nxbin=n_values.shape[0]
     indices=range(0,nybin-1)
     mod=1
     if invertintegral:
@@ -236,10 +240,14 @@ def IntegralDist(n_values,n_errors,invertintegral=False):
     for j in indices:
         n_int[:,j+1*mod]+=n_int[:,j]
         nerr_int[:,j+1*mod]=np.sqrt(nerr_int[:,j]**2+nerr_int[:,j+1*mod]**2)
+    if invertintegral:
+        n_int[:,:-1]=n_int[:,1:]
+        nerr_int[:,:-1]=nerr_int[:,1:]
+        n_int[:,-1]=np.zeros(nxbin)
+        nerr_int[:,-1]=np.zeros(nxbin)
     return n_int,nerr_int
 
 def comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, xname, plotname):
-    
     allgood = np.where((sl>0) & (sr>0) & (s4l>0) & (s4r>0))
     ratio=(sl[allgood]+sr[allgood])/(s4l[allgood]+s4r[allgood])
     assymetry=(sl[allgood]-sr[allgood])/(s4l[allgood]-s4r[allgood])
@@ -369,7 +377,7 @@ def main():
         valueat1.clear()
         valueat1mean.clear()
         
-        cutsdelr,cutspt,cutsptn,cutssin=np.zeros(len(Nmasses)),np.zeros(len(Nmasses)),np.zeros(len(Nmasses)),np.zeros(len(Nmasses))
+        cutsdelr,cutspt,cutsptn,cutssin,cutsmagic=np.zeros(len(Nmasses)),np.zeros(len(Nmasses)),np.zeros(len(Nmasses)),np.zeros(len(Nmasses)),np.zeros(len(Nmasses))
         i=0
         
         for mass in mass_options:
@@ -435,7 +443,6 @@ def main():
                 hist = load_histogram(file_run, region.name , 'WRMass4_DeltaR', -1, lumi,False)
                 hist2 = load_histogram(file_run2, region.name , 'WRCand_Mass', 8, lumi,False)
                 n4_values, n4_errors, x_bins, y_bins= mylib.get_2Ddata(hist)
-                n4_values, n4_errors = n4_values, n4_errors
                 zroadd , zroadd_err , _ = mylib.get_data(hist2)
                 zroadd , zroadd_err = zroadd , zroadd_err
                 n4_values[:,0] += zroadd
@@ -446,7 +453,6 @@ def main():
                 
                 hist = load_histogram(file_run, region.name , 'WRMass4_pT', -1, lumi,False)
                 n4_values_pT, n4_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist)
-                n4_values_pT, n4_errors_pT = n4_values_pT, n4_errors_pT
                 n4_values_pT[:,0] += zroadd
                 n4_errors_pT[:,0] = np.sqrt(n4_errors_pT[:,0]**2 + zroadd_err**2)
                 make2Dplot(n4_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljj}$ [GeV]",r"$pT_{min}^{rel}$",'2d4obj_pT',mass,region)
@@ -454,7 +460,6 @@ def main():
                 
                 hist = load_histogram(file_run, region.name , 'WRMass4_sin', -1, lumi,False)
                 n4_values_sin, n4_errors_sin, x_bins_sin, y_bins_sin= mylib.get_2Ddata(hist)
-                n4_values_sin, n4_errors_sin = n4_values_sin, n4_errors_sin
                 n4_values_sin[:,0] += zroadd
                 n4_errors_sin[:,0] = np.sqrt(n4_errors_sin[:,-1]**2 + zroadd_err**2)
                 make2Dplot(n4_values_sin,x_bins_sin,y_bins_sin,r"$m_{lljj}$ [GeV]",r"$sin_{min}$",'2d4obj_sin',mass,region)
@@ -463,16 +468,21 @@ def main():
                 
                 hist = load_histogram(file_run, region.name , 'WRMass4_pTnorm', -1, lumi,False)
                 n4_values_pTnorm, n4_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm= mylib.get_2Ddata(hist)
-                n4_values_pTnorm, n4_errors_pTnorm = n4_values_pTnorm, n4_errors_pTnorm
                 n4_values_pTnorm[:,0] += zroadd
                 n4_errors_pTnorm[:,0] = np.sqrt(n4_errors_pTnorm[:,0]**2 + zroadd_err**2)
                 make2Dplot(n4_values_pTnorm,x_bins_pTnorm,y_bins_pTnorm,r"$m_{lljj}$ [GeV]",r"$pT_{min}^{rel}/pT_3$",'2d4obj_pTnorm',mass,region)
                 
-                
+
+                hist = load_histogram(file_run, region.name , 'WRMass4_magic', -1, lumi,False)
+                n4_values_magic, n4_errors_magic, x_bins_magic, y_bins_magic= mylib.get_2Ddata(hist)
+                n4_values_magic[:,0] += zroadd
+                n4_errors_magic[:,0] = np.sqrt(n4_errors_magic[:,0]**2 + zroadd_err**2)
+                make2Dplot(n4_values_magic, x_bins_magic, y_bins_magic, r"$m_{lljj}$ [GeV]", r"$pT_{min}^{rel}/m_{jjj}$",'2d4obj_magic', mass, region)
+
+
                 
                 hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi,False)
                 n_values, n_errors, x_bins, y_bins= mylib.get_2Ddata(hist)
-                n_values, n_errors = n_values, n_errors
                 n_values[:,0] += zroadd
                 n_errors[:,0] = np.sqrt(n_errors[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values,x_bins,y_bins,r"$m_{lljjj}$ [GeV]",r"$\Delta R_{min}$",'2d5obj',mass,region)
@@ -481,7 +491,6 @@ def main():
                 
                 hist = load_histogram(file_run, region.name , 'WRMass5_pT', -1, lumi,False)
                 n_values_pT, n_errors_pT, x_bins_pT, y_bins_pT= mylib.get_2Ddata(hist)
-                n_values_pT, n_errors_pT = n_values_pT, n_errors_pT
                 n_values_pT[:,0] += zroadd
                 n_errors_pT[:,0] = np.sqrt(n_errors_pT[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values_pT,x_bins_pT,y_bins_pT,r"$m_{lljjj}$ [GeV]",r"$pT_{min}^{rel}$",'2d5obj_pT',mass,region)
@@ -489,7 +498,6 @@ def main():
                 
                 hist = load_histogram(file_run, region.name , 'WRMass5_sin', -1, lumi,False)
                 n_values_sin, n_errors_sin, x_bins_sin, y_bins_sin= mylib.get_2Ddata(hist)
-                n_values_sin, n_errors_sin = n_values_sin, n_errors_sin
                 n_values_sin[:,0] += zroadd
                 n_errors_sin[:,0] = np.sqrt(n_errors_sin[:,-1]**2 + zroadd_err**2)
                 make2Dplot(n_values_sin, x_bins_sin, y_bins_sin, r"$m_{lljjj}$ [GeV]", r"$sin_{min}$",'2d5obj_sin', mass, region)
@@ -497,10 +505,15 @@ def main():
                 
                 hist = load_histogram(file_run, region.name , 'WRMass5_pTnorm', -1, lumi,False)
                 n_values_pTnorm, n_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm= mylib.get_2Ddata(hist)
-                n_values_pTnorm, n_errors_pTnorm = n_values_pTnorm, n_errors_pTnorm
                 n_values_pTnorm[:,0] += zroadd
                 n_errors_pTnorm[:,0] = np.sqrt(n_errors_pTnorm[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values_pTnorm, x_bins_pTnorm, y_bins_pTnorm, r"$m_{lljjj}$ [GeV]", r"$pT_{min}^{rel}/pT_3$",'2d5obj_pTnorm', mass, region)
+
+                hist = load_histogram(file_run, region.name , 'WRMass5_magic', -1, lumi,False)
+                n_values_magic, n_errors_magic, x_bins_magic, y_bins_magic= mylib.get_2Ddata(hist)
+                n_values_magic[:,0] += zroadd
+                n_errors_magic[:,0] = np.sqrt(n_errors_magic[:,0]**2 + zroadd_err**2)
+                make2Dplot(n_values_magic, x_bins_magic, y_bins_magic, r"$m_{lljjj}$ [GeV]", r"$pT_{min}^{rel}/m_{jjj}$",'2d5obj_magic', mass, region)
             
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values,n_errors,n4_values,n4_errors,x_bins,y_bins,(-1000,1000),(0.3,3.3),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$\Delta R_{min}$",
@@ -518,12 +531,17 @@ def main():
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pTnorm, n_errors_pTnorm, n4_values_pTnorm, n4_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm, (-1000,1000), (0,5), 
             r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/pT_3$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pTnorm', mass, region)
             cutsptn[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pTnorm, mass, region, r"$pT_{min}^{rel}/pT_3$", 'ComparePTnorm')
+
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_magic, n_errors_magic, n4_values_magic, n4_errors_magic, x_bins_magic, y_bins_magic, (-1000,1000), (0,1), 
+            r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/m_{jjj}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_magic', mass, region)
+            cutsmagic[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_magic, mass, region, r"$pT_{min}^{rel}/m_{jjj}$", 'CompareMagic')
             i=i+1
         
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsdelr,region,r"$\Delta R_{min}$",'DelR')
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutspt,region,r"$pT_{min}^{rel}$ [GeV]",'pTrel')
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutssin,region,r"$sin_{min}$",'Sin')
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsptn,region,r"$pT_{min}^{rel}/pT_3$",'pTnorm')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsmagic,region,r"$pT_{min}^{rel}/m_{jjj}$",'Magic')
             
             
             
