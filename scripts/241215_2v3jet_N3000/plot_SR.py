@@ -377,7 +377,18 @@ def main():
         valueat1.clear()
         valueat1mean.clear()
         
-        cutsdelr,cutspt,cutsptn,cutssin,cutsmagic=np.zeros(len(Nmasses)),np.zeros(len(Nmasses)),np.zeros(len(Nmasses)),np.zeros(len(Nmasses)),np.zeros(len(Nmasses))
+        cutsdelr= np.zeros(len(Nmasses))
+        cutspt=np.zeros(len(Nmasses))
+        cutsptn=np.zeros(len(Nmasses))
+        cutssin=np.zeros(len(Nmasses))
+        cutsmagic=np.zeros(len(Nmasses))
+        cutsmagic3=np.zeros(len(Nmasses))
+        cutspseudo=np.zeros(len(Nmasses))
+        cutspseudo3=np.zeros(len(Nmasses))
+        cutspseudomagic=np.zeros(len(Nmasses))
+        cutspseudomagic3=np.zeros(len(Nmasses))
+        cutsneutrino=np.zeros(len(Nmasses))
+        cutsneutrino3=np.zeros(len(Nmasses))
         i=0
         
         for mass in mass_options:
@@ -477,10 +488,59 @@ def main():
                 n4_values_magic, n4_errors_magic, x_bins_magic, y_bins_magic= mylib.get_2Ddata(hist)
                 n4_values_magic[:,0] += zroadd
                 n4_errors_magic[:,0] = np.sqrt(n4_errors_magic[:,0]**2 + zroadd_err**2)
-                make2Dplot(n4_values_magic, x_bins_magic, y_bins_magic, r"$m_{lljj}$ [GeV]", r"$pT_{min}^{rel}/m_{jjj}$",'2d4obj_magic', mass, region)
+                make2Dplot(n4_values_magic, x_bins_magic, y_bins_magic, r"$m_{lljj}$ [GeV]", r"$pT_{min}^{rel}/m_{jjl_x}$",'2d4obj_magic', mass, region)
 
+
+                hist = load_histogram(file_run, region.name , 'WRMass4_magic3', -1, lumi,False)
+                n4_values_magic3, n4_errors_magic3, x_bins_magic3, y_bins_magic3= mylib.get_2Ddata(hist)
+                n4_values_magic3[:,0] += zroadd
+                n4_errors_magic3[:,0] = np.sqrt(n4_errors_magic3[:,0]**2 + zroadd_err**2)
+                make2Dplot(n4_values_magic3, x_bins_magic3, y_bins_magic3, r"$m_{lljj}$ [GeV]", r"$pT_{min}^{rel}/m_{jjjl_x}$",'2d4obj_magic3', mass, region)
+
+
+                hist = load_histogram(file_run, region.name , 'WRMass4_pseudomagic', -1, lumi,False)
+                n4_values_pseudomagic, n4_errors_pseudomagic, x_bins_pseudomagic, y_bins_pseudomagic= mylib.get_2Ddata(hist)
+                n4_values_pseudomagic[:,0] += zroadd
+                n4_errors_pseudomagic[:,0] = np.sqrt(n4_errors_pseudomagic[:,0]**2 + zroadd_err**2)
+                make2Dplot(n4_values_pseudomagic, x_bins_pseudomagic, y_bins_pseudomagic, r"$m_{lljj}$ [GeV]", r"$pT_{min}^{rel}/m_{jj}$",'2d4obj_pseudomagic', mass, region)
+
+
+                hist = load_histogram(file_run, region.name , 'WRMass4_pseudomagic3', -1, lumi,False)
+                n4_values_pseudomagic3, n4_errors_pseudomagic3, x_bins_pseudomagic3, y_bins_pseudomagic3= mylib.get_2Ddata(hist)
+                n4_values_pseudomagic3[:,0] += zroadd
+                n4_errors_pseudomagic3[:,0] = np.sqrt(n4_errors_pseudomagic3[:,0]**2 + zroadd_err**2)
+                make2Dplot(n4_values_pseudomagic3, x_bins_pseudomagic3, y_bins_pseudomagic3, r"$m_{lljj}$ [GeV]", r"$pT_{min}^{rel}/m_{jjjl_x}$",'2d4obj_pseudomagic3', mass, region)
+                
+                
+                hist = load_histogram(file_run, region.name , 'WRMass4_pseudo', -1, lumi,False)
+                n4_values_pseudo, n4_errors_pseudo, x_bins_pseudo, y_bins_pseudo= mylib.get_2Ddata(hist)
+                n4_values_pseudo[:,0] += zroadd
+                n4_errors_pseudo[:,0] = np.sqrt(n4_errors_pseudo[:,0]**2 + zroadd_err**2)
+                make2Dplot(n4_values_pseudo, x_bins_pseudo, y_bins_pseudo, r"$m_{lljj}$ [GeV]", r"$m_{jj}$ [GeV]",'2d4obj_pseudo', mass, region)
 
                 
+                hist = load_histogram(file_run, region.name , 'WRMass4_pseudo3', -1, lumi,False)
+                n4_values_pseudo3, n4_errors_pseudo3, x_bins_pseudo3, y_bins_pseudo3= mylib.get_2Ddata(hist)
+                n4_values_pseudo3[:,0] += zroadd
+                n4_errors_pseudo3[:,0] = np.sqrt(n4_errors_pseudo3[:,0]**2 + zroadd_err**2)
+                make2Dplot(n4_values_pseudo3, x_bins_pseudo3, y_bins_pseudo3, r"$m_{lljj}$ [GeV]", r"$m_{jjj}$ [GeV]",'2d4obj_pseudo3', mass, region)
+
+                
+                hist = load_histogram(file_run, region.name , 'WRMass4_neutrino', -1, lumi,False)
+                n4_values_neutrino, n4_errors_neutrino, x_bins_neutrino, y_bins_neutrino= mylib.get_2Ddata(hist)
+                n4_values_neutrino[:,0] += zroadd
+                n4_errors_neutrino[:,0] = np.sqrt(n4_errors_neutrino[:,0]**2 + zroadd_err**2)
+                make2Dplot(n4_values_neutrino, x_bins_neutrino, y_bins_neutrino, r"$m_{lljj}$ [GeV]", r"$m_{jjl_x}$ [GeV]",'2d4obj_neutrino', mass, region)
+
+
+                hist = load_histogram(file_run, region.name , 'WRMass4_neutrino3', -1, lumi,False)
+                n4_values_neutrino3, n4_errors_neutrino3, x_bins_neutrino3, y_bins_neutrino3= mylib.get_2Ddata(hist)
+                n4_values_neutrino3[:,0] += zroadd
+                n4_errors_neutrino3[:,0] = np.sqrt(n4_errors_neutrino3[:,0]**2 + zroadd_err**2)
+                make2Dplot(n4_values_neutrino3, x_bins_neutrino3, y_bins_neutrino3, r"$m_{lljj}$ [GeV]", r"$m_{jjjl_x}$ [GeV]",'2d4obj_neutrino3', mass, region)
+
+                
+
                 hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi,False)
                 n_values, n_errors, x_bins, y_bins= mylib.get_2Ddata(hist)
                 n_values[:,0] += zroadd
@@ -513,7 +573,49 @@ def main():
                 n_values_magic, n_errors_magic, x_bins_magic, y_bins_magic= mylib.get_2Ddata(hist)
                 n_values_magic[:,0] += zroadd
                 n_errors_magic[:,0] = np.sqrt(n_errors_magic[:,0]**2 + zroadd_err**2)
-                make2Dplot(n_values_magic, x_bins_magic, y_bins_magic, r"$m_{lljjj}$ [GeV]", r"$pT_{min}^{rel}/m_{jjj}$",'2d5obj_magic', mass, region)
+                make2Dplot(n_values_magic, x_bins_magic, y_bins_magic, r"$m_{lljjj}$ [GeV]", r"$pT_{min}^{rel}/m_{jjjl_x}$",'2d5obj_magic', mass, region)
+
+                hist = load_histogram(file_run, region.name , 'WRMass5_magic3', -1, lumi,False)
+                n_values_magic3, n_errors_magic3, x_bins_magic3, y_bins_magic3= mylib.get_2Ddata(hist)
+                n_values_magic3[:,0] += zroadd
+                n_errors_magic3[:,0] = np.sqrt(n_errors_magic3[:,0]**2 + zroadd_err**2)
+                make2Dplot(n_values_magic3, x_bins_magic3, y_bins_magic3, r"$m_{lljjj}$ [GeV]", r"$pT_{min}^{rel}/m_{jjjl_x}$",'2d5obj_magic3', mass, region)
+
+                hist = load_histogram(file_run, region.name , 'WRMass5_pseudomagic', -1, lumi,False)
+                n_values_pseudomagic, n_errors_pseudomagic, x_bins_pseudomagic, y_bins_pseudomagic= mylib.get_2Ddata(hist)
+                n_values_pseudomagic[:,0] += zroadd
+                n_errors_pseudomagic[:,0] = np.sqrt(n_errors_pseudomagic[:,0]**2 + zroadd_err**2)
+                make2Dplot(n_values_pseudomagic, x_bins_pseudomagic, y_bins_pseudomagic, r"$m_{lljjj}$ [GeV]", r"$pT_{min}^{rel}/m_{jj}$",'2d5obj_pseudomagic', mass, region)
+
+                hist = load_histogram(file_run, region.name , 'WRMass5_pseudomagic3', -1, lumi,False)
+                n_values_pseudomagic3, n_errors_pseudomagic3, x_bins_pseudomagic3, y_bins_pseudomagic3= mylib.get_2Ddata(hist)
+                n_values_pseudomagic3[:,0] += zroadd
+                n_errors_pseudomagic3[:,0] = np.sqrt(n_errors_pseudomagic3[:,0]**2 + zroadd_err**2)
+                make2Dplot(n_values_pseudomagic3, x_bins_pseudomagic3, y_bins_pseudomagic3, r"$m_{lljjj}$ [GeV]", r"$pT_{min}^{rel}/m_{jjjl_x}$",'2d5obj_pseudomagic3', mass, region)
+
+                hist = load_histogram(file_run, region.name , 'WRMass5_pseudo', -1, lumi,False)
+                n_values_pseudo, n_errors_pseudo, x_bins_pseudo, y_bins_pseudo= mylib.get_2Ddata(hist)
+                n_values_pseudo[:,0] += zroadd
+                n_errors_pseudo[:,0] = np.sqrt(n_errors_pseudo[:,0]**2 + zroadd_err**2)
+                make2Dplot(n_values_pseudo, x_bins_pseudo, y_bins_pseudo, r"$m_{lljjj}$ [GeV]", r"$m_{jj}$ [GeV]",'2d5obj_pseudo', mass, region)
+
+                hist = load_histogram(file_run, region.name , 'WRMass5_pseudo3', -1, lumi,False)
+                n_values_pseudo3, n_errors_pseudo3, x_bins_pseudo3, y_bins_pseudo3= mylib.get_2Ddata(hist)
+                n_values_pseudo3[:,0] += zroadd
+                n_errors_pseudo3[:,0] = np.sqrt(n_errors_pseudo3[:,0]**2 + zroadd_err**2)
+                make2Dplot(n_values_pseudo3, x_bins_pseudo3, y_bins_pseudo3, r"$m_{lljjj}$ [GeV]", r"$m_{jjj}$ [GeV]",'2d5obj_pseudo3', mass, region)
+
+                hist = load_histogram(file_run, region.name , 'WRMass5_neutrino', -1, lumi,False)
+                n_values_neutrino, n_errors_neutrino, x_bins_neutrino, y_bins_neutrino= mylib.get_2Ddata(hist)
+                n_values_neutrino[:,0] += zroadd
+                n_errors_neutrino[:,0] = np.sqrt(n_errors_neutrino[:,0]**2 + zroadd_err**2)
+                make2Dplot(n_values_neutrino, x_bins_neutrino, y_bins_neutrino, r"$m_{lljjj}$ [GeV]", r"$m_{jjl_x}$ [GeV]",'2d5obj_neutrino', mass, region)
+
+                hist = load_histogram(file_run, region.name , 'WRMass5_neutrino3', -1, lumi,False)
+                n_values_neutrino3, n_errors_neutrino3, x_bins_neutrino3, y_bins_neutrino3= mylib.get_2Ddata(hist)
+                n_values_neutrino3[:,0] += zroadd
+                n_errors_neutrino3[:,0] = np.sqrt(n_errors_neutrino3[:,0]**2 + zroadd_err**2)
+                make2Dplot(n_values_neutrino3, x_bins_neutrino3, y_bins_neutrino3, r"$m_{lljjj}$ [GeV]", r"$m_{jjjl_x}$ [GeV]",'2d5obj_neutrino3', mass, region)
             
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values,n_errors,n4_values,n4_errors,x_bins,y_bins,(-1000,1000),(0.3,3.3),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$\Delta R_{min}$",
@@ -533,15 +635,50 @@ def main():
             cutsptn[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pTnorm, mass, region, r"$pT_{min}^{rel}/pT_3$", 'ComparePTnorm')
 
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_magic, n_errors_magic, n4_values_magic, n4_errors_magic, x_bins_magic, y_bins_magic, (-1000,1000), (0,1), 
-            r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/m_{jjj}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_magic', mass, region)
-            cutsmagic[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_magic, mass, region, r"$pT_{min}^{rel}/m_{jjj}$", 'CompareMagic')
+            r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/m_{jjl_x}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_magic', mass, region)
+            cutsmagic[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_magic, mass, region, r"$pT_{min}^{rel}/m_{jjl_x}$", 'CompareMagic')
+            
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_magic3, n_errors_magic3, n4_values_magic3, n4_errors_magic3, x_bins_magic3, y_bins_magic3, (-1000,1000), (0,1),
+            r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/m_{jjjl_x}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_magic3', mass, region)
+            cutsmagic3[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_magic3, mass, region, r"$pT_{min}^{rel}/m_{jjjl_x}$", 'CompareMagic3')
+            
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pseudomagic, n_errors_pseudomagic, n4_values_pseudomagic, n4_errors_pseudomagic, x_bins_pseudomagic, y_bins_pseudomagic,
+            (-1000,1000), (0,1), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/m_{jj}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pseudomagic', mass, region)
+            cutspseudomagic[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudomagic, mass, region, r"$pT_{min}^{rel}/m_{jj}$", 'ComparePseudomagic')
+            
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pseudomagic3, n_errors_pseudomagic3, n4_values_pseudomagic3, n4_errors_pseudomagic3, x_bins_pseudomagic3, y_bins_pseudomagic3,
+            (-1000,1000), (0,1), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/m_{jjjl_x}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pseudomagic3', mass, region)
+            cutspseudomagic3[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudomagic3, mass, region, r"$pT_{min}^{rel}/m_{jjjl_x}$", 'ComparePseudomagic3')
+            
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pseudo, n_errors_pseudo, n4_values_pseudo, n4_errors_pseudo, x_bins_pseudo, y_bins_pseudo,
+            (-1000,1000), (0,8000), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$m_{jj}$ [GeV]", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pseudo', mass, region)
+            cutspseudo[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudo, mass, region, r"$m_{jj}$ [GeV]", 'ComparePseudo')
+            
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pseudo3, n_errors_pseudo3, n4_values_pseudo3, n4_errors_pseudo3, x_bins_pseudo3, y_bins_pseudo3,
+            (-1000,1000), (0,8000), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$m_{jjj}$ [GeV]", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pseudo3', mass, region)
+            cutspseudo3[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudo3, mass, region, r"$m_{jjj}$ [GeV]", 'ComparePseudo3')
+            
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_neutrino, n_errors_neutrino, n4_values_neutrino, n4_errors_neutrino, x_bins_neutrino, y_bins_neutrino,
+            (-1000,1000), (0,8000), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$m_{jjl_x}$ [GeV]", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_neutrino', mass, region)
+            cutsneutrino[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_neutrino, mass, region, r"$m_{jjl_x}$ [GeV]", 'CompareNeutrino')
+            
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_neutrino3, n_errors_neutrino3, n4_values_neutrino3, n4_errors_neutrino3, x_bins_neutrino3, y_bins_neutrino3,
+            (-1000,1000), (0,8000), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$m_{jjjl_x}$ [GeV]", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_neutrino3', mass, region)
+            cutsneutrino3[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_neutrino3, mass, region, r"$m_{jjjl_x}$ [GeV]", 'CompareNeutrino3')
             i=i+1
         
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsdelr,region,r"$\Delta R_{min}$",'DelR')
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutspt,region,r"$pT_{min}^{rel}$ [GeV]",'pTrel')
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutssin,region,r"$sin_{min}$",'Sin')
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsptn,region,r"$pT_{min}^{rel}/pT_3$",'pTnorm')
-        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsmagic,region,r"$pT_{min}^{rel}/m_{jjj}$",'Magic')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsmagic,region,r"$pT_{min}^{rel}/m_{jjl_x}$",'Magic')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsmagic3,region,r"$pT_{min}^{rel}/m_{jjjl_x}$",'Magic3')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutspseudomagic,region,r"$pT_{min}^{rel}/m_{jj}$",'Pseudomagic')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutspseudomagic3,region,r"$pT_{min}^{rel}/m_{jjjl_x}$",'Pseudomagic3')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutspseudo,region,r"$m_{jj}$ [GeV]",'Pseudo')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutspseudo3,region,r"$m_{jjj}$ [GeV]",'Pseudo3')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsneutrino,region,r"$m_{jjl_x}$ [GeV]",'Neutrino')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsneutrino3,region,r"$m_{jjjl_x}$ [GeV]",'Neutrino3')
             
             
             
