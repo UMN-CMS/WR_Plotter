@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import mplhep as hep
 from hist.intervals import ratio_uncertainty
+import subprocess
 
 # Custom imports
 repo_root = Path(__file__).resolve().parent.parent
@@ -81,6 +82,13 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help='YAML file with rebin/xlim/ylim for each (region,variable)'
     )
+
+    parser.add_argument(
+        '--signal-mode',
+        action='store_true',
+        help='Ignore backgrounds/data; plot each WRAnalyzer_signal_*.root per mass point'
+    )
+
     return parser.parse_args()
 
 def setup_logging():
@@ -175,13 +183,13 @@ def setup_plotter(args) -> Plotter:
             'wr_mumu_resolved_sr',
             'Muon',
             unblind_data = True,
-            tlatex_alias=f"$\mu\mu$\nResolved SR\n{args.era}\nDY w/ dijet mass reweight"
+            tlatex_alias=f"$\mu\mu$\nResolved SR" #"$\mu\mu$\nResolved SR\n{args.era}\nDY w/ dijet mass reweight"
         ),
         Region(
             'wr_ee_resolved_sr',
             'EGamma',
             unblind_data = True,
-            tlatex_alias=f"ee\nResolved SR\n{args.era}\nDY w/ dijet mass reweight"
+            tlatex_alias=f"ee\nResolved SR" #"ee\nResolved SR\n{args.era}\nDY w/ dijet mass reweight"
         ),
     ]
 
@@ -191,7 +199,7 @@ def setup_plotter(args) -> Plotter:
     # Define Variables
     plotter.variables_to_draw = [
         Variable('mass_fourobject', r'$m_{lljj}$', 'GeV'),
-        Variable('pt_leading_jet', r'$p_{T}$ of the leading jet', 'GeV'),
+#        Variable('pt_leading_jet', r'$p_{T}$ of the leading jet', 'GeV'),
 #        Variable('mass_dijet', r'$m_{jj}$', 'GeV'),
 #        Variable('pt_leading_lepton', r'$p_{T}$ of the leading lepton', 'GeV'),
 #        Variable('eta_leading_lepton', r'$\eta$ of the leading lepton', ''),
@@ -204,7 +212,7 @@ def setup_plotter(args) -> Plotter:
 #        Variable('pt_subleading_jet', r'$p_{T}$ of the subleading jet', 'GeV'),
 #        Variable('eta_subleading_jet', r'$\eta$ of the subleading jet', ''),
 #        Variable('phi_subleading_jet', r'$\phi$ of the subleading jet', ''),
-        Variable('mass_dilepton', r'$m_{ll}$', 'GeV'),
+#        Variable('mass_dilepton', r'$m_{ll}$', 'GeV'),
 #        Variable('pt_dilepton', r'$p_{T}^{ll}$', 'GeV'),
 #        Variable('pt_dijet', r'$p_{T}^{jj}$', 'GeV'),
 #        Variable('mass_threeobject_leadlep', r'$m_{l_{\mathrm{pri}}jj}$', 'GeV'),
@@ -445,6 +453,74 @@ def plot_stack(plotter, region, variable):
     reorder_legend(ax)
     return fig
 
+def plot_signals(plotter, plot_settings):
+    base = plotter.input_directory[0]
+    for fp in sorted(base.glob("WRAnalyzer_signal_*.root")):
+        masspoint = fp.stem.replace("WRAnalyzer_signal_", "")
+        outdir = plotter.output_directory / masspoint
+        # ... mkdir logic unchanged ...
+
+        with uproot.open(fp) as f:
+            for region in plotter.regions_to_draw:
+                for variable in plotter.variables_to_draw:
+                    hist_key = f"{region.name}/{variable.name}_{region.name}"
+                    try:
+                        raw = f[hist_key].to_hist()
+                    except KeyError:
+                        logging.warning(f"{masspoint}: missing {hist_key}")
+                        continue
+
+                    # --- load cfg up‐front ---
+                    cfg = plot_settings[region.name][variable.name]
+                    rebin_spec = cfg['rebin']
+
+                    # --- now rebin with a valid spec ---
+                    h = plotter.rebin_hist(raw, rebin_spec)
+
+                    # --- scale & axes config as before ---
+                    h = plotter.scale_hist(h)
+                    plotter.configure_axes(
+                        nrebin=cfg['rebin'],
+                        xlim=tuple(map(float, cfg['xlim'])),
+                        ylim=tuple(map(float, cfg['ylim']))
+                    )
+
+                    # draw single-histogram
+                    fig, ax = plt.subplots()
+                    hep.style.use("CMS")
+                    hep.histplot(h, histtype='step', label=masspoint, ax=ax)
+                    ax.set_yscale('log')
+
+                    x_bins     = h.axes[0].edges
+                    bin_widths = np.round(np.diff(x_bins), 1)
+                    if np.all(bin_widths == bin_widths[0]):  # uniform binning
+                        bw = bin_widths[0]
+                        formatted = int(bw) if bw.is_integer() else f"{bw:.1f}"
+                        ax.set_ylabel(f"Events / {formatted} {variable.unit}".strip())
+                    else:                                    # variable bin widths
+                        ax.set_ylabel(f"Events / bin {variable.unit}".strip())
+
+                    # ─── continue with x-label, CMS label, legend, etc. ───
+                    xlabel = variable.tlatex_alias + (f" [{variable.unit}]" if variable.unit else "")
+                    ax.set_xlabel(xlabel)
+
+#                    set_y_label(ax, tot, variable)
+#                    ax.set_ylabel("Events")
+                    ax.text(0.05,0.97, region.tlatex_alias,
+                            transform=ax.transAxes, fontsize=FONT_SIZE_TITLE,
+                            verticalalignment='top')
+                    hep.cms.label(loc=0, ax=ax, data=False,
+                                  label="Work in Progress",
+                                  lumi=f"{plotter.lumi:.1f}",
+                                  com=13, fontsize=FONT_SIZE_LABEL)
+                    ax.set_xlim(*plotter.xlim)
+                    ax.set_ylim(*plotter.ylim)
+                    ax.legend(loc='best', fontsize=FONT_SIZE_LEGEND)
+
+                    outname = outdir / f"{region.name}_{variable.name}.pdf"
+                    save_figure(fig, outname)
+                    plt.close(fig)
+
 def main():
     args = parse_args()
     setup_logging()
@@ -464,6 +540,10 @@ def main():
     # Load YAML configurations
     plot_settings = load_plot_settings(args.plot_config)
     plotter.plot_settings = plot_settings
+
+    if args.signal_mode:
+        plot_signals(plotter, plot_settings)
+        return
 
     # Validate YAML entries for each region
     missing_regions = [
