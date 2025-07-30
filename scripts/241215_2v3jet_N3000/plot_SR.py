@@ -296,22 +296,30 @@ def comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, 
     hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
     mylib.save_and_upload_plot(fig, f"plots/{mass}/{region.name}{exclu}/{plotname}_Assymetry_{region.name}.pdf", args.umn)
     plt.close(fig)
-    return ratiomin_val,ratiomin
+    return ratiomin_val,1-ratiomin
 
-def plotcomparisn(Nmasses,WRmasses,cuts,region,ylab,filename):
+def plotcomparisn(Nmasses,WRmasses,cuts,region,ylab,filename,ratios=False):
     fig, ax = plt.subplots()
     plotted=False
     for i in range(WRmasses.size):
         Nmassesi=Nmasses[i*5:(i+1)*5]
         cutsi=cuts[i*5:(i+1)*5]
-        Nmassesi=Nmassesi[cutsi>-1]
-        cutsi=cutsi[cutsi>-1]
+        if ratios:
+            Nmassesi=Nmassesi[cutsi<0.9]
+            cutsi=cutsi[cutsi<0.9]
+        else:
+            Nmassesi=Nmassesi[cutsi>-1]
+            cutsi=cutsi[cutsi>-1]
+        
         if cutsi.size>=1:
             ax.plot(Nmassesi,cutsi,label='WR'+str(WRmasses[i]))
             plotted=True
     if plotted:
         ax.set_xlabel(r'$M_{\nu}$ [GeV]')
-        ax.set_ylabel(ylab)
+        if ratios:
+            ax.set_ylabel(r'1-$\frac{3jet}{2jet}$  '+ylab)
+        else:
+            ax.set_ylabel(ylab)
         ax.legend()
         ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,fontsize=20, verticalalignment='top')
         hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress", fontsize=22)
@@ -389,6 +397,19 @@ def main():
         cutspseudomagic3=np.zeros(len(Nmasses))
         cutsneutrino=np.zeros(len(Nmasses))
         cutsneutrino3=np.zeros(len(Nmasses))
+
+        minratiodelr= np.zeros(len(Nmasses))
+        minratiopt= np.zeros(len(Nmasses))
+        minratioptn= np.zeros(len(Nmasses))
+        minratiosin= np.zeros(len(Nmasses))
+        minratiomagic= np.zeros(len(Nmasses))
+        minratiomagic3= np.zeros(len(Nmasses))
+        minratiopseudo= np.zeros(len(Nmasses))
+        minratiopseudo3= np.zeros(len(Nmasses))
+        minratiopseudomagic= np.zeros(len(Nmasses))
+        minratiopseudomagic3= np.zeros(len(Nmasses))
+        minrationeutrino= np.zeros(len(Nmasses))
+        minrationeutrino3= np.zeros(len(Nmasses))
         i=0
         
         for mass in mass_options:
@@ -620,51 +641,51 @@ def main():
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values,n_errors,n4_values,n4_errors,x_bins,y_bins,(-1000,1000),(0.3,3.3),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$\Delta R_{min}$",
             r'$\sigma$ 5 object',r'$\sigma$ 4 object','sigma_deltaR',mass,region)
-            cutsdelr[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, r"$\Delta R_{min}$", 'CompareDelR')
+            cutsdelr[i],minratiodelr[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins, mass, region, r"$\Delta R_{min}$", 'CompareDelR')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pT,n_errors_pT,n4_values_pT,n4_errors_pT,x_bins_pT,y_bins_pT,(-1000,1000),(0,150),r"$\sigma_L$ and $\sigma_R$ [GeV]",
             r"$pT_{min}$",r'$\sigma$ 5 object',r'$\sigma$ 4 object','sigma_pT',mass,region)
-            cutspt[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pT, mass, region, r"$pT_{min}^{rel}$ [GeV]", 'ComparePT')
+            cutspt[i],minratiopt[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pT, mass, region, r"$pT_{min}^{rel}$ [GeV]", 'ComparePT')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_sin, n_errors_sin, n4_values_sin, n4_errors_sin, x_bins_sin, y_bins_sin, (-1000,1000), (0,1), r"$\sigma_L$ and $\sigma_R$ [GeV]",
             r"$sin_{min}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_sin', mass, region)
-            cutssin[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_sin, mass, region, r"$sin_{min}$", 'CompareSine')
+            cutssin[i],minratiosin[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_sin, mass, region, r"$sin_{min}$", 'CompareSine')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pTnorm, n_errors_pTnorm, n4_values_pTnorm, n4_errors_pTnorm, x_bins_pTnorm, y_bins_pTnorm, (-1000,1000), (0,5), 
             r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/pT_3$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pTnorm', mass, region)
-            cutsptn[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pTnorm, mass, region, r"$pT_{min}^{rel}/pT_3$", 'ComparePTnorm')
+            cutsptn[i],minratioptn[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pTnorm, mass, region, r"$pT_{min}^{rel}/pT_3$", 'ComparePTnorm')
 
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_magic, n_errors_magic, n4_values_magic, n4_errors_magic, x_bins_magic, y_bins_magic, (-1000,1000), (0,1), 
             r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/m_{jjl_x}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_magic', mass, region)
-            cutsmagic[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_magic, mass, region, r"$pT_{min}^{rel}/m_{jjl_x}$", 'CompareMagic')
+            cutsmagic[i],minratiomagic[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_magic, mass, region, r"$pT_{min}^{rel}/m_{jjl_x}$", 'CompareMagic')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_magic3, n_errors_magic3, n4_values_magic3, n4_errors_magic3, x_bins_magic3, y_bins_magic3, (-1000,1000), (0,1),
             r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/m_{jjjl_x}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_magic3', mass, region)
-            cutsmagic3[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_magic3, mass, region, r"$pT_{min}^{rel}/m_{jjjl_x}$", 'CompareMagic3')
+            cutsmagic3[i],minratiomagic3[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_magic3, mass, region, r"$pT_{min}^{rel}/m_{jjjl_x}$", 'CompareMagic3')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pseudomagic, n_errors_pseudomagic, n4_values_pseudomagic, n4_errors_pseudomagic, x_bins_pseudomagic, y_bins_pseudomagic,
             (-1000,1000), (0,1), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/m_{jj}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pseudomagic', mass, region)
-            cutspseudomagic[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudomagic, mass, region, r"$pT_{min}^{rel}/m_{jj}$", 'ComparePseudomagic')
+            cutspseudomagic[i],minratiopseudomagic[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudomagic, mass, region, r"$pT_{min}^{rel}/m_{jj}$", 'ComparePseudomagic')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pseudomagic3, n_errors_pseudomagic3, n4_values_pseudomagic3, n4_errors_pseudomagic3, x_bins_pseudomagic3, y_bins_pseudomagic3,
             (-1000,1000), (0,1), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$pT_{min}^{rel}/m_{jjjl_x}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pseudomagic3', mass, region)
-            cutspseudomagic3[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudomagic3, mass, region, r"$pT_{min}^{rel}/m_{jjjl_x}$", 'ComparePseudomagic3')
+            cutspseudomagic3[i],minratiopseudomagic3[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudomagic3, mass, region, r"$pT_{min}^{rel}/m_{jjjl_x}$", 'ComparePseudomagic3')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pseudo, n_errors_pseudo, n4_values_pseudo, n4_errors_pseudo, x_bins_pseudo, y_bins_pseudo,
             (-1000,1000), (0,8000), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$m_{jj}$ [GeV]", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pseudo', mass, region)
-            cutspseudo[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudo, mass, region, r"$m_{jj}$ [GeV]", 'ComparePseudo')
+            cutspseudo[i],minratiopseudo[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudo, mass, region, r"$m_{jj}$ [GeV]", 'ComparePseudo')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_pseudo3, n_errors_pseudo3, n4_values_pseudo3, n4_errors_pseudo3, x_bins_pseudo3, y_bins_pseudo3,
             (-1000,1000), (0,8000), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$m_{jjj}$ [GeV]", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_pseudo3', mass, region)
-            cutspseudo3[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudo3, mass, region, r"$m_{jjj}$ [GeV]", 'ComparePseudo3')
+            cutspseudo3[i],minratiopseudo3[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_pseudo3, mass, region, r"$m_{jjj}$ [GeV]", 'ComparePseudo3')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_neutrino, n_errors_neutrino, n4_values_neutrino, n4_errors_neutrino, x_bins_neutrino, y_bins_neutrino,
             (-1000,1000), (0,8000), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$m_{jjl_x}$ [GeV]", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_neutrino', mass, region)
-            cutsneutrino[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_neutrino, mass, region, r"$m_{jjl_x}$ [GeV]", 'CompareNeutrino')
+            cutsneutrino[i],minrationeutrino[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_neutrino, mass, region, r"$m_{jjl_x}$ [GeV]", 'CompareNeutrino')
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_neutrino3, n_errors_neutrino3, n4_values_neutrino3, n4_errors_neutrino3, x_bins_neutrino3, y_bins_neutrino3,
             (-1000,1000), (0,8000), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$m_{jjjl_x}$ [GeV]", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_neutrino3', mass, region)
-            cutsneutrino3[i],_=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_neutrino3, mass, region, r"$m_{jjjl_x}$ [GeV]", 'CompareNeutrino3')
+            cutsneutrino3[i],minrationeutrino3[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_neutrino3, mass, region, r"$m_{jjjl_x}$ [GeV]", 'CompareNeutrino3')
             i=i+1
         
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsdelr,region,r"$\Delta R_{min}$",'DelR')
@@ -680,7 +701,18 @@ def main():
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsneutrino,region,r"$m_{jjl_x}$ [GeV]",'Neutrino')
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsneutrino3,region,r"$m_{jjjl_x}$ [GeV]",'Neutrino3')
             
-            
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiodelr,region,r"$\Delta R_{min}$",'DelR_ratio',True)
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiopt,region,r"$pT_{min}^{rel}$",'pTrel_ratio',True)
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiosin,region,r"$sin_{min}$",'Sin_ratio',True)
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratioptn,region,r"$pT_{min}^{rel}/pT_3$",'pTnorm_ratio',True)
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiomagic,region,r"$pT_{min}^{rel}/m_{jjl_x}$",'Magic_ratio',True)
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiomagic3,region,r"$pT_{min}^{rel}/m_{jjjl_x}$",'Magic3_ratio',True)
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiopseudomagic,region,r"$pT_{min}^{rel}/m_{jj}$",'Pseudomagic_ratio',True)
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiopseudomagic3,region,r"$pT_{min}^{rel}/m_{jjjl_x}$",'Pseudomagic3_ratio',True)
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiopseudo,region,r"$m_{jj}$",'Pseudo_ratio',True)
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiopseudo3,region,r"$m_{jjj}$",'Pseudo3_ratio')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minrationeutrino,region,r"$m_{jjl_x}$",'Neutrino_ratio',True)
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),minrationeutrino3,region,r"$m_{jjjl_x}$",'Neutrino3_ratio',True)
             
 if __name__ == "__main__":
     main()
