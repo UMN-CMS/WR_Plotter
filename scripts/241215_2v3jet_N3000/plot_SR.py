@@ -20,6 +20,8 @@ from pathlib import Path
 from scipy.optimize import curve_fit
 from scipy.interpolate import pchip_interpolate
 
+import csv
+
 parser = argparse.ArgumentParser(description="Run2 vs Run3 Histogram Comparison Script")
 parser.add_argument('--umn', action='store_true', default=False,help="Enable UMN-specific paths and configurations. Default: False")
 parser.add_argument("--exc", action="store_true", help="Exclusively 2 & 3 jets")
@@ -333,6 +335,20 @@ def plotcomparisn(Nmasses,WRmasses,cuts,region,ylab,filename,ratios=False):
         mylib.save_and_upload_plot(fig, f"plots/Comparisn/{region.name}{exclu}/{filename}.pdf", args.umn)
     plt.close(fig)
 
+def interpval(x1,y1,x2,y2,y):
+    slope = (y2 - y1) / (x2 - x1)
+    x = x1 + (y - y1) / slope
+    return x
+
+def fwhm(content,x_bins):
+    """Calculate the Full Width at Half Maximum (FWHM) of a histogram."""
+    half_max = np.max(content) / 2
+    indices = np.where(content >= half_max)[0]
+    lidx = indices[0]
+    ridx = indices[-1]
+    fwhm_value =interpval(x_bins[ridx+1],content[ridx+1],x_bins[ridx],content[ridx],half_max) - interpval(x_bins[lidx-1],content[lidx-1],x_bins[lidx],content[lidx],half_max)
+    return fwhm_value
+
 def main():
     matplotlib.use('Agg')
     
@@ -344,7 +360,6 @@ def main():
                     "WR2400_N600", "WR2400_N800", "WR2400_N1200", "WR2400_N1800", "WR2400_N2300",
                     "WR2800_N600", "WR2800_N1000", "WR2800_N1400", "WR2800_N2000", "WR2800_N2700",
                     "WR3200_N800", "WR3200_N1200", "WR3200_N1600", "WR3200_N2400", "WR3200_N3000"]
-    
     valueat1=[]
     valueat1mean=[]
     WRmasses=[1200,1600,2000,2400,2800,3200]
@@ -397,6 +412,7 @@ def main():
         cutspseudomagic3=np.zeros(len(Nmasses))
         cutsneutrino=np.zeros(len(Nmasses))
         cutsneutrino3=np.zeros(len(Nmasses))
+        cutsdelrrest= np.zeros(len(Nmasses))
 
         minratiodelr= np.zeros(len(Nmasses))
         minratiopt= np.zeros(len(Nmasses))
@@ -410,10 +426,10 @@ def main():
         minratiopseudomagic3= np.zeros(len(Nmasses))
         minrationeutrino= np.zeros(len(Nmasses))
         minrationeutrino3= np.zeros(len(Nmasses))
+        minratiodelrrest= np.zeros(len(Nmasses))
         i=0
         
         for mass in mass_options:
-            
             file_path = Path(f"rootfiles/RunII/2018/RunIISummer20UL18/3jets/WRAnalyzer_signal_{mass}.root")
             file_path2= Path(f"rootfiles/RunII/2018/RunIISummer20UL18/exclusive/WRAnalyzer_signal_{mass}.root")
             file_path3= Path(f"rootfiles/RunII/2018/RunIISummer20UL18/WRAnalyzer_signal_{mass}.root")
@@ -560,6 +576,11 @@ def main():
                 n4_errors_neutrino3[:,0] = np.sqrt(n4_errors_neutrino3[:,0]**2 + zroadd_err**2)
                 make2Dplot(n4_values_neutrino3, x_bins_neutrino3, y_bins_neutrino3, r"$m_{lljj}$ [GeV]", r"$m_{jjjl_x}$ [GeV]",'2d4obj_neutrino3', mass, region)
 
+                hist = load_histogram(file_run, region.name , 'WRMass4_restDeltaR', -1, lumi,False)
+                n4_values_restDeltaR, n4_errors_restDeltaR, x_bins_restDeltaR, y_bins_restDeltaR= mylib.get_2Ddata(hist)
+                n4_values_restDeltaR[:,0] += zroadd
+                n4_errors_restDeltaR[:,0] = np.sqrt(n4_errors_restDeltaR[:,0]**2 + zroadd_err**2)
+                make2Dplot(n4_values_restDeltaR, x_bins_restDeltaR, y_bins_restDeltaR, r"$m_{lljj}$ [GeV]", r"$\Delta R_{rest}$",'2d4obj_restDeltaR', mass, region)
                 
 
                 hist = load_histogram(file_run, region.name , 'WRMass5_DeltaR', -1, lumi,False)
@@ -637,6 +658,12 @@ def main():
                 n_values_neutrino3[:,0] += zroadd
                 n_errors_neutrino3[:,0] = np.sqrt(n_errors_neutrino3[:,0]**2 + zroadd_err**2)
                 make2Dplot(n_values_neutrino3, x_bins_neutrino3, y_bins_neutrino3, r"$m_{lljjj}$ [GeV]", r"$m_{jjjl_x}$ [GeV]",'2d5obj_neutrino3', mass, region)
+
+                hist = load_histogram(file_run, region.name , 'WRMass5_restDeltaR', -1, lumi,False)
+                n_values_restDeltaR, n_errors_restDeltaR, x_bins_restDeltaR, y_bins_restDeltaR= mylib.get_2Ddata(hist)
+                n_values_restDeltaR[:,0] += zroadd
+                n_errors_restDeltaR[:,0] = np.sqrt(n_errors_restDeltaR[:,0]**2 + zroadd_err**2)
+                make2Dplot(n_values_restDeltaR, x_bins_restDeltaR, y_bins_restDeltaR, r"$m_{lljjj}$ [GeV]", r"$\Delta R_{rest}$",'2d5obj_restDeltaR', mass, region)
             
             
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values,n_errors,n4_values,n4_errors,x_bins,y_bins,(-1000,1000),(0.3,3.3),r"$\sigma_L$ and $\sigma_R$ [GeV]",r"$\Delta R_{min}$",
@@ -686,6 +713,11 @@ def main():
             sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_neutrino3, n_errors_neutrino3, n4_values_neutrino3, n4_errors_neutrino3, x_bins_neutrino3, y_bins_neutrino3,
             (-1000,1000), (0,8000), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$m_{jjjl_x}$ [GeV]", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_neutrino3', mass, region)
             cutsneutrino3[i],minrationeutrino3[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_neutrino3, mass, region, r"$m_{jjjl_x}$ [GeV]", 'CompareNeutrino3')
+            
+            sl, sr, sle, sre, s4l, s4r, s4le, s4re = makeSigmaPlots(n_values_restDeltaR, n_errors_restDeltaR, n4_values_restDeltaR, n4_errors_restDeltaR, x_bins_restDeltaR, y_bins_restDeltaR,
+            (-1000,1000), (0.3,3.3), r"$\sigma_L$ and $\sigma_R$ [GeV]", r"$\Delta R_{rest}$", r'$\sigma$ 5 object', r'$\sigma$ 4 object', 'sigma_restDeltaR', mass, region)
+            cutsdelrrest[i],minratiodelrrest[i]=comparesigmas(sl, sr, sle, sre, s4l, s4r, s4le, s4re, y_bins_restDeltaR, mass, region, r"$\Delta R_{rest}$", 'CompareRestDeltaR')
+            
             i=i+1
         
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsdelr,region,r"$\Delta R_{min}$",'DelR')
@@ -700,6 +732,7 @@ def main():
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutspseudo3,region,r"$m_{jjj}$ [GeV]",'Pseudo3')
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsneutrino,region,r"$m_{jjl_x}$ [GeV]",'Neutrino')
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsneutrino3,region,r"$m_{jjjl_x}$ [GeV]",'Neutrino3')
+        plotcomparisn(np.array(Nmasses),np.array(WRmasses),cutsdelrrest,region,r"$\Delta R_{rest}$",'DelR_rest')
             
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiodelr,region,r"$\Delta R_{min}$",'DelR_ratio',True)
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiopt,region,r"$pT_{min}^{rel}$",'pTrel_ratio',True)
@@ -713,6 +746,7 @@ def main():
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),minratiopseudo3,region,r"$m_{jjj}$",'Pseudo3_ratio')
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),minrationeutrino,region,r"$m_{jjl_x}$",'Neutrino_ratio',True)
         plotcomparisn(np.array(Nmasses),np.array(WRmasses),minrationeutrino3,region,r"$m_{jjjl_x}$",'Neutrino3_ratio',True)
+        plotcomparisn(np.array(Nmasses), np.array(WRmasses), minratiodelrrest, region, r"$\Delta R_{rest}$", 'DelR_rest_ratio', True)
             
 if __name__ == "__main__":
     main()
