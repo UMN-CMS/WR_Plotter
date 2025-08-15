@@ -39,8 +39,8 @@ def load_histogram(file, region_name, variable_name, n_rebin, lum=None,normalize
     if lum is not None:
         hist.Scale(lum * 1000)
 
-    integral = hist.Integral()
-    if integral > 0 and normalized: hist.Scale(1.0 / integral)
+    # integral = hist.Integral()
+    # if integral > 0 and normalized: hist.Scale(1.0 / integral)
 
 
 
@@ -349,8 +349,11 @@ def fwhm(content,x_bins):
     fwhm_value =interpval(x_bins[ridx+1],content[ridx+1],x_bins[ridx],content[ridx],half_max) - interpval(x_bins[lidx-1],content[lidx-1],x_bins[lidx],content[lidx],half_max)
     return fwhm_value
 
+def exponential_func(x, a, b):
+    return a*np.exp(b*x)
+
 def main():
-    matplotlib.use('Agg')
+    #matplotlib.use('Agg')
     
     plotter = Plotter()
 
@@ -360,14 +363,17 @@ def main():
                     "WR2400_N600", "WR2400_N800", "WR2400_N1200", "WR2400_N1800", "WR2400_N2300",
                     "WR2800_N600", "WR2800_N1000", "WR2800_N1400", "WR2800_N2000", "WR2800_N2700",
                     "WR3200_N800", "WR3200_N1200", "WR3200_N1600", "WR3200_N2400", "WR3200_N3000"]
+    
+    mass_options = ["WR2400_N1800"]
+
     valueat1=[]
     valueat1mean=[]
     WRmasses=[1200,1600,2000,2400,2800,3200]
     Nmasses=[200,400,600,800,1100,400,600,800,1200,1500,400,800,1000,1400,1900,600,800,1200,1800,2300,600,1000,1400,2000,2700,800,1200,1600,2400,3000]
 
     plotter.regions_to_draw = [
-        Region('WR_EE_Resolved_SR', 'EGamma', unblind_data=True, logy=1, tlatex_alias='ee\nResolved SR'),
-        Region('WR_MuMu_Resolved_SR', 'SingleMuon', unblind_data=True, logy=1, tlatex_alias='$\mu\mu$\nResolved SR'),
+        Region('wr_ee_resolved_sr', 'EGamma', unblind_data=True, logy=1, tlatex_alias='ee\nResolved SR'),
+        Region('wr_mumu_resolved_sr', 'SingleMuon', unblind_data=True, logy=1, tlatex_alias='$\mu\mu$\nResolved SR'),
     ]
 
     plotter.print_regions()
@@ -434,7 +440,54 @@ def main():
             file_path2= Path(f"rootfiles/RunII/2018/RunIISummer20UL18/exclusive/WRAnalyzer_signal_{mass}.root")
             file_path3= Path(f"rootfiles/RunII/2018/RunIISummer20UL18/WRAnalyzer_signal_{mass}.root")
             
-            with ROOT.TFile.Open(str(file_path)) as file_run, ROOT.TFile.Open(str(file_path2)) as file_run2, ROOT.TFile.Open(str(file_path3)) as file_run3:
+            with ROOT.TFile.Open(str(file_path)) as file_run, ROOT.TFile.Open(str(file_path2)) as file_run2, ROOT.TFile.Open(str(file_path3)) as file_run3:#, open(f'signal_data_{region.name}.csv', mode='w', newline='') as csvfile:
+            #     lumi = 59.74
+            #     hist5 = load_histogram(file_run, region.name , 'best_fiveobject', -1, lumi)
+            #     hist4e= load_histogram(file_run2, region.name , 'mass_fourobject', -1, lumi)
+            #     hist4 = load_histogram(file_run3, region.name , 'mass_fourobject', -1, lumi)
+            #     content5, errors5, x_bins = mylib.get_data(hist5)
+            #     content4, errors4, _ = mylib.get_data(hist4)
+            #     content4e,errors4e, _ = mylib.get_data(hist4e)
+            #     content5+=content4e
+            #     writer = csv.writer(csvfile)
+            #     writer.writerow(['Bin Start (GeV)','Bin End (Gev)', 'm_lljj', 'm_lljj(j)'])
+            #     for i in range(x_bins.size-1):
+            #         writer.writerow([x_bins[i],x_bins[i+1],content4[i],content5[i]])
+
+            # file_path = Path(f"rootfiles/RunII/2018/RunIISummer20UL18/WRAnalyzer_DYJets.root")
+            # file_path2= Path(f"rootfiles/RunII/2018/RunIISummer20UL18/WRAnalyzer_TTbar.root")
+            # print(region.name)
+            # with ROOT.TFile.Open(str(file_path)) as file_run, ROOT.TFile.Open(str(file_path2)) as file_run2, open(f'Background_{region.name}.csv', mode='w', newline='') as backcsvfile:
+            #     histdy=load_histogram(file_run, region.name , 'mass_fourobject', -1, lumi)
+            #     histtt=load_histogram(file_run2, region.name , 'mass_fourobject', -1, lumi)
+            #     contentdy, errorsdy, x_bins = mylib.get_data(histdy)
+            #     contenttt,errorstt,_= mylib.get_data(histtt)
+            #     xmids=(x_bins[1:]+x_bins[:-1])/2
+            #     # contentdy=np.log(contentdy)
+            #     # contenttt=np.log(contenttt)
+            #     paramsdy,_= curve_fit(exponential_func, xmids[17:], contentdy[17:], p0=(60,-0.001))
+            #     paramstt,_= curve_fit(exponential_func, xmids[17:], contenttt[17:], p0=(200,-0.001))
+            #     xvals=np.linspace(0,8000,1000)
+            #     yvalsdy=paramsdy[0]*np.exp(paramsdy[1]*xvals)
+            #     yvalstt=paramstt[0]*np.exp(paramstt[1]*xvals)
+            #     print("DY: "+str(paramsdy))
+            #     print("TT: "+str(paramstt))   
+            #     plt.plot(xmids,contenttt,'.')
+            #     plt.plot(xvals,yvalstt,'-')
+            #     plt.ylim((0,0.5))
+            #     plt.xlim((2000,3500))
+            #     plt.show()
+            #     plt.plot(xmids,contentdy,'.')
+            #     plt.plot(xvals,yvalsdy,'-')
+            #     plt.ylim((0,1))
+            #     plt.xlim((2000,3500))
+            #     plt.show()
+            #     print(str(contentdy[60])+','+str(yvalsdy[375]))
+            #     print(str(contenttt[60])+','+str(yvalstt[375]))
+            #     writer = csv.writer(backcsvfile)
+            #     writer.writerow(['Bin Start (GeV)','Bin End (Gev)', 'm_lljj DY', 'm_lljj TT'])
+            #     for i in range(x_bins.size-1):
+            #         writer.writerow([x_bins[i],x_bins[i+1],contentdy[i],contenttt[i]])                   
                 lumi = 59.74
                 hist5 = load_histogram(file_run, region.name , 'WRCand_Mass', -1, lumi)
                 hist4 = load_histogram(file_run3, region.name , 'WRCand_Mass', -1, lumi)
