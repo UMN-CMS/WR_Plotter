@@ -1,27 +1,23 @@
-# WR_Plotter Documentation
+# WR Plotter Documentation
 
 Welcome to the WR plotter! This repository provides tools for processing and plotting WR background, data, and signal events. Below, you’ll find instructions on setting up the environment, and how to make some stack plots.
 
 ## Table of Contents
-- [Creating Filesets](docs/filesets.md) – Instructions for creating both skimmed and unskimmed filesets.
-- [Running the Analyzer](docs/run_analysis.md) – How to execute `run_analysis.py` to perform a basic analysis.
-- [Condor](docs/condor.md) – How to run the analyzer on Condor at the LPC.
-- [Plotting](docs/plotting.md) – Instructions for generating plots from histogram ROOT files.
 - [Repository Structure](README.md#repository-structure) – Overview of how the repository is organized.
-- [Getting Started](README.md#getting-started) – Instructions for installing and setting up the analyzer.
+- [Getting Started](README.md#getting-started) – Instructions for installing and setting up the plotter.
+- [Examples](README.md#examples) – How to make control region plots.
 ---
 
 ## 📂 Repository Structure
 This repository is structured to separate executable scripts, core analysis logic, and documentation.
 
 ```
-WR_Plotter/ # Submodule where ROOT histograms are saved and plotted.
-bin/        # Holds the main script for running the analysis.
-data/       # Configuration files, all json files, and important logging info are stored here.
+bin/        # user-facing CLI entrypoints (tiny wrappers).
+data/       # configs & static metadata (tracked, human-editable)
 docs/       # Contains documentation markdown.
-python/     # Includes reusable Python modules.
-scripts/    # Contains helper scripts for setup and post-processing.
-src/        # Includes the core analysis code.
+python/     # the importable library (public API)
+scripts/    # developer & maintenance utilities
+rootfiles/  # input ROOT/hist files 
 test/       # Holds test and development scripts.
 ```
 
@@ -57,4 +53,11 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc13-opt/setup.sh
 If using UMN’s setup, use:
 ```bash
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104/x86_64-centos8-gcc11-opt/setup.sh
+```
+
+## Examples
+
+### Making control region plots
+```
+TO-DO
 ```
