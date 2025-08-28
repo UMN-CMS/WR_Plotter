@@ -64,7 +64,7 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_104/x86_64-centos8-gcc11-opt/setup.sh
 ## Examples
 
 ### Prerequisites
-First, ensure you have ran over at least Run3Summer22 in the main analyzer. The following files should exist:
+First, check that you have ran over at least Run3Summer22 in the main analyzer. The following files should exist:
 ```  
 rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_Diboson.root
 rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_DYJets.root
@@ -79,10 +79,10 @@ rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_TTV.root
 rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_TW.root
 rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_WJets.root
 ```
-If you also have these files for `Run3Summer22EE`, then you can plot all of 2022.
+If you also have these files for `Run3Summer22EE` then you can plot all of 2022.
 
 ### Making a simple control region plot
-If these files exist, then try making a single plot with 
+Try making a single plot with 
 ```
 python3 bin/plot_control_regions.py --era Run3Summer22 -r wr_mumu_resolved_dy_cr -v mass_dilepton
 ```
