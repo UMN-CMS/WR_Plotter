@@ -1,6 +1,6 @@
 # WR Plotter Documentation
 
-Welcome to the WR plotter! This repository provides tools for processing and plotting WR background, data, and signal events. Below, you’ll find instructions on setting up the environment, and how to make some stack plots.
+Welcome to the WR plotter submodule! This repository provides tools for processing and plotting WR background, data, and signal events. Below, you’ll find instructions on setting up the environment, and how to make some stack plots.
 
 ## Table of Contents
 - [Repository Structure](README.md#repository-structure) – Overview of how the repository is organized.
@@ -57,18 +57,58 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_104/x86_64-centos8-gcc11-opt/setup.sh
 
 ## Examples
 
-### Making control region plots
-To make control region plots 
+### Prerequisites
+First, ensure you have ran over at least Run3Summer22 in the main analyzer. The following files should exist:
+```  
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_Diboson.root
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_DYJets.root
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_TW.root 
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_EGamma.root
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_Muon.root
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_SingleTop.root
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_Triboson.root
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_TTbar.root
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_TTbarSemileptonic.root
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_TTV.root
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_TW.root
+rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_WJets.root
 ```
-python3 bin/plot_control_regions.py --era 2022 --dir dy_ht
-```
-One can also specify `--era Run3Summer22` or `--era Run3Summer22EE`.
+If you also have these files for `Run3Summer22EE`, then you can plot all of 2022.
 
-The `--dir` argument will look for ROOT files saved in that directory, so `--dir` must match whatever was used with `bin/run_analysis.py`.
+### Making a simple control region plot
+If these files exist, then try making a single plot with 
+```
+python3 bin/plot_control_regions.py --era Run3Summer22 -r wr_mumu_resolved_dy_cr -v mass_dilepton
+```
+This will make a stack plot of the dimuon mass in the Drell-Yan control region.
 
-Note that in order for this to run, ROOT files must exist for the following samples:
+### Other examples
+To plot multiple variables,
 ```
-Run3Summer22/WR_Analyzer/DYJets.root
-Run3Summer22/WR_Analyzer/TTbar.root
+python3 bin/plot_control_regions.py --era Run3Summer22 -r wr_mumu_resolved_dy_cr -v mass_dilepton,mass_fourobject
 ```
-TBC
+
+To make plots for both the electron and muon channels, remove the `-r` argument
+```
+python3 bin/plot_control_regions.py --era Run3Summer22 -v mass_dilepton
+```
+
+To make plots for all variables, remove the `-v` argument
+```
+python3 bin/plot_control_regions.py --era Run3Summer22
+```
+
+If you used the `--dir` argument in `bin/run_analysis.py` (so that the files are saved under `dir/`), you can use the same argument here
+```
+python3 bin/plot_control_regions.py --era Run3Summer22 --dir dy_nlo
+```
+
+To run over all of 2022 (Run3Summer22 and Run3Summer22EE combined), use
+```
+python3 bin/plot_control_regions.py --era 2022
+```
+
+To make plots of the flavor sideband, use
+```
+python3 bin/plot_control_regions.py --era 2022 --dir dy_ht --cat flavor_cr
+```
