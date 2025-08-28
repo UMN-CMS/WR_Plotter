@@ -1,23 +1,10 @@
 #!/usr/bin/env python3
-"""
-plot_sr.py
-
-Generate stacked control‐region plots (DY_CR or Flavor_CR) for a given era.
-Usage example:
-    python3 bin/plot_control_regions.py --era 2022 --dir dy_ht
-    python3 bin/plot_sr.py --era Run3Summer22EE --dir dy_ht
-    python3 bin/plot_sr.py --era Run3Summer22
-    python3 bon/plot_sr.py --era RunIISummer20UL18 --dir dy_ht
-"""
-
-# Standard library
 import sys
 import logging
 from pathlib import Path
 import argparse
 import os
 
-# Third‐party
 import yaml
 import numpy as np
 import hist
@@ -30,14 +17,13 @@ import mplhep as hep
 from hist.intervals import ratio_uncertainty
 import subprocess
 
-# Custom imports
 repo_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(repo_root))
 from python.plotter import SampleGroup, Variable, Region, Plotter
 from python import predefined_samples as ps
 from src import custom_log_formatter, save_figure, set_y_label
+from python.util import resolve_eos_user, build_output_path, repo_root
 
-# Configuration for supported eras
 ERA_CONFIG = {
     "RunIISummer20UL18":   {"run": "RunII", "year": "2018", "lumi": 59.832422397},
     "Run3Summer22":        {"run": "Run3",  "year": "2022", "lumi": 7.9804},
@@ -45,95 +31,31 @@ ERA_CONFIG = {
     "2022":                {"run": "Run3",  "year": "2022", "lumi": 26.6717 + 7.9804},
 }
 
-# Set of data‐like sample groups
 DATA_GROUPS = {"EGamma", "SingleMuon", "Muon"}
 
-# Font size constants
 FONT_SIZE_TITLE  = 20
 FONT_SIZE_LABEL  = 20
 FONT_SIZE_LEGEND = 18
 
-# CERNBox username
 username = os.environ.get("USER")
 first_letter = username[0]
 
-print("username", username)
-print("first letter", first_letter)
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='CR plot commands')
-    parser.add_argument(
-        '--era',
-        dest='era',
-        type=str,
-        choices=list(ERA_CONFIG.keys()),
-        required=True,
-        help='Specify the era (e.g. Run3Summer22EE)'
-    )
-    parser.add_argument(
-        "--dir",
-        dest="dir",
-        type=str,
-        default="",
-        help="Optional subdirectory under the input & default EOS output paths"
-    )
-    parser.add_argument(
-        '--name',
-        type=str,
-        default="",
-        help='Append a suffix to the filenames'
-    )
-    parser.add_argument(
-        '--plot-config',
-        dest='plot_config',
-        type=str,
-        default=None,
-        help='YAML file with rebin/xlim/ylim for each (region,variable)'
-    )
-
-    parser.add_argument(
-        '--cat',
-        dest='category',
-        type=str,
-        choices=["dy_cr", "flavor_cr"],
-        default="dy_cr",
-        help='Append a suffix to the filenames'
-    )
-
-    parser.add_argument(
-        '--signal-mode',
-        action='store_true',
-        help='Ignore backgrounds/data; plot each WRAnalyzer_signal_*.root per mass point'
-    )
-
+    parser.add_argument('--era',dest='era',type=str,choices=list(ERA_CONFIG.keys()),required=True,help='Specify the era (e.g. Run3Summer22EE)')
+    parser.add_argument("--dir",dest="dir",type=str,default="",help="Optional subdirectory under the input & default EOS output paths")
+    parser.add_argument('--name',type=str,default="",help='Append a suffix to the filenames')
+    parser.add_argument('--plot-config',dest='plot_config',type=str,default=None,help='YAML file with rebin/xlim/ylim for each (region,variable)')
+    parser.add_argument('--cat',dest='category',type=str,choices=["dy_cr", "flavor_cr"],default="dy_cr",help='Append a suffix to the filenames')
+    parser.add_argument('--signal-mode',action='store_true',help='Ignore backgrounds/data; plot each WRAnalyzer_signal_*.root per mass point')
     return parser.parse_args()
 
-def setup_logging():
-    """
-    Configure root logger to INFO level using a simple default format.
-    """
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-
 def load_plot_settings(config_path: str) -> dict:
-    """
-    Load YAML configuration for rebin/xlim/ylim.
-    """
     with open(config_path) as f:
         return yaml.safe_load(f)
 
-
 def setup_plotter(args) -> Plotter:
-    """
-    Create and configure a Plotter instance based on CLI args.
-    - Sets run/year/lumi from ERA_CONFIG
-    - Builds input_directory (list of Paths) and input_lumis (list of floats)
-    - Defines sample_groups, regions_to_draw, and variables_to_draw
-    """
-    working_dir = Path('/uscms/home/bjackson/nobackup/WrCoffea/WR_Plotter')
+    working_dir = repo_root()
     config = ERA_CONFIG[args.era]
 
     plotter = Plotter()
@@ -143,8 +65,6 @@ def setup_plotter(args) -> Plotter:
     plotter.lumi  = config["lumi"]  # total lumi (for CMS label)
     plotter.scale = True
 
-    # ── BUILD A LIST OF INPUT DIRECTORIES ──
-    # If era == "2022", use both Run3Summer22 and Run3Summer22EE
     if args.era == "2022":
         dir1 = working_dir / 'rootfiles' / plotter.run / plotter.year / 'Run3Summer22'
         dir2 = working_dir / 'rootfiles' / plotter.run / plotter.year / 'Run3Summer22EE'
@@ -152,8 +72,6 @@ def setup_plotter(args) -> Plotter:
             dir1 = dir1 / args.dir
             dir2 = dir2 / args.dir
         plotter.input_directory = [dir1, dir2]
-
-        # Build a parallel list of lumis (same order as input_directory)
         lumi1 = ERA_CONFIG["Run3Summer22"]["lumi"]     # 7.9804
         lumi2 = ERA_CONFIG["Run3Summer22EE"]["lumi"]   # 26.6717
         plotter.input_lumis = [lumi1, lumi2]
@@ -163,20 +81,14 @@ def setup_plotter(args) -> Plotter:
             base = base / args.dir
         plotter.input_directory = [base]
 
-        # Single‐era case: use that era’s lumi
         plotter.input_lumis = [config["lumi"]]
 
-    # ── OUTPUT DIRECTORY (unchanged) ──
+    eos_user = resolve_eos_user()
     if args.dir:
-        plotter.output_directory = Path(
-            f"/eos/user/w/wijackso/{plotter.run}/{plotter.year}/{plotter.era}/{args.dir}"
-        )
+        plotter.output_directory = build_output_path(plotter.run, plotter.year, plotter.era, args.dir, eos_user)
     else:
-        plotter.output_directory = Path(
-            f"/eos/user/w/wijackso/{plotter.run}/{plotter.year}/{plotter.era}"
-        )
+        plotter.output_directory = build_output_path(plotter.run, plotter.year, plotter.era, None, eos_user)
 
-    # Define sample group ordering (DY, TTbar, etc.)
     base_groups = [
         f"SampleGroup_{args.era}_Other",
         f"SampleGroup_{args.era}_Nonprompt",
@@ -200,34 +112,20 @@ def setup_plotter(args) -> Plotter:
             sys.exit(1)
         plotter.sample_groups.append(sg)
 
-    # Define regions to draw
     if args.category == "dy_cr":
         plotter.regions_to_draw = [
-            Region(
-                'wr_mumu_resolved_dy_cr',
-                'Muon',
-                unblind_data = True,
-                tlatex_alias=f"$\\mu\\mu$\nResolved DY CR\n{args.era}\nNLO $p_{{T}}^{{ll}}$ DY" #NLO $p_{{T}}^{{ll}}$ LO HT DY
-            ),
-            Region(
-                'wr_ee_resolved_dy_cr',
-                'EGamma',
-                unblind_data = True,
-                tlatex_alias=f"ee\nResolved DY CR\n{args.era}\nNLO $p_{{T}}^{{ll}}$ DY" #NLO $p_{{T}}^{{ll}}$ DY or LO HT DY
-            ),
+            Region('wr_mumu_resolved_dy_cr','Muon',unblind_data = True,tlatex_alias=f"$\\mu\\mu$\nResolved DY CR\n{args.era}\nNLO $p_{{T}}^{{ll}}$ DY"),
+            Region('wr_ee_resolved_dy_cr', 'EGamma', unblind_data = True, tlatex_alias=f"ee\nResolved DY CR\n{args.era}\nNLO $p_{{T}}^{{ll}}$ DY"),
         ]
     else:  # flavor_cr
         plotter.regions_to_draw = [
-            Region('wr_resolved_flavor_cr', 'Muon', unblind_data = True,
-                   tlatex_alias=f"$e\\mu$\nResolved Flavor CR\n{args.era}"),
-            Region('wr_resolved_flavor_cr', 'EGamma', unblind_data = True,
-                   tlatex_alias=f"$e\\mu$\nResolved Flavor CR\n{args.era}"),
+            Region('wr_resolved_flavor_cr', 'Muon', unblind_data = True,tlatex_alias=f"$e\\mu$\nResolved Flavor CR\n{args.era}"),
+            Region('wr_resolved_flavor_cr', 'EGamma', unblind_data = True,tlatex_alias=f"$e\\mu$\nResolved Flavor CR\n{args.era}"),
         ]
 
     plotter.print_samples()
     plotter.print_regions()
 
-    # Define Variables
     plotter.variables_to_draw = [
         Variable('mass_fourobject', r'$m_{lljj}$', 'GeV'),
         Variable('pt_leading_jet', r'$p_{T}$ of the leading jet', 'GeV'),
@@ -258,31 +156,17 @@ def setup_plotter(args) -> Plotter:
     return plotter
 
 
-def load_and_rebin(
-    input_dirs: list[Path],
-    sample: str,
-    hist_key: str,
-    plotter: Plotter,
-    is_data_group: bool
-):
-    """
-    Try to open WRAnalyzer_{sample}.root in each directory of input_dirs,
-    extract hist_key, rebin it, and—if this is MC—scale it by the corresponding
-    lumi in plotter.input_lumis. Sum across sub-eras. Return the combined Hist, or None.
-    """
+def load_and_rebin(input_dirs: list[Path],sample: str,hist_key: str,plotter: Plotter,is_data_group: bool):
     combined = None
 
-    # Save original lumi so we can restore it afterward
     original_lumi = plotter.lumi
 
     for indir, sublumi in zip(plotter.input_directory, plotter.input_lumis):
         fp = indir / f"WRAnalyzer_{sample}.root"
-        print(fp)
         try:
             with uproot.open(fp) as f:
                 raw_hist = f[hist_key].to_hist()
         except (FileNotFoundError, KeyError):
-            # Skip if file missing or histogram not present
             continue
 
         # Rebin first
@@ -299,26 +183,17 @@ def load_and_rebin(
         rebinned = plotter.rebin_hist(raw_hist)
 
         if not is_data_group:
-            # Only MC gets scaled by its sub-era lumi
             plotter.lumi = sublumi
             rebinned = plotter.scale_hist(rebinned)
             if sample == "DYJets": #ptll: 0.941. #HT: 1.4, NLO: ?
-                print("rebinning")
                 rebinned = rebinned * 0.941
         combined = rebinned if (combined is None) else (combined + rebinned)
 
-    # Restore the original (total) lumi for CMS label
     plotter.lumi = original_lumi
     return combined
 
 
 def reorder_legend(ax, priority_labels=("MC stat. unc.", "Data"), fontsize=FONT_SIZE_LEGEND):
-    """
-    Reorder the legend so that:
-      1) 'MC stat. unc.' appears first
-      2) 'Data' appears second
-      3) All other backgrounds appear in reverse order
-    """
     handles, labels = ax.get_legend_handles_labels()
     idx_map = {label: i for i, label in enumerate(labels)}
     mc_idx = idx_map.get(priority_labels[0], None)
@@ -340,12 +215,6 @@ def reorder_legend(ax, priority_labels=("MC stat. unc.", "Data"), fontsize=FONT_
 
 
 def plot_stack(plotter, region, variable):
-    """
-    Draws:
-      - Top pad: stacked MC histograms + data points + MC stat band
-      - Bottom pad: Data/MC ratio with Poisson‐based error bars on data
-                    and a hatched MC stat‐uncertainty band centered at 1.
-    """
     bkg_stack = plotter.stack_list
     bkg_labels = plotter.stack_labels
     bkg_colors = plotter.stack_colors
@@ -354,45 +223,16 @@ def plot_stack(plotter, region, variable):
     data = sum(plotter.data_hist)     # “data” histogram
     edges = tot.axes[0].edges
 
-    # -- Top pad styling --
     hep.style.use("CMS")
-    fig, (ax, rax) = plt.subplots(
-        2, 1,
-        gridspec_kw=dict(height_ratios=[3, 1], hspace=0.1),
-        sharex=True
-    )
+    fig, (ax, rax) = plt.subplots(2, 1,gridspec_kw=dict(height_ratios=[3, 1], hspace=0.1),sharex=True)
 
-    # (1) Plot stacked MC (filled histograms)
-    hep.histplot(
-        bkg_stack,
-        stack=True,
-        label=bkg_labels,
-        color=bkg_colors,
-        histtype='fill',
-        ax=ax
-    )
+    hep.histplot(bkg_stack,stack=True,label=bkg_labels,color=bkg_colors,histtype='fill',ax=ax)
 
-    # (2) Plot data (points + Poisson error bars)
-    hep.histplot(
-        data,
-        label="Data",
-        xerr=True,
-        color='k',
-        histtype='errorbar',
-        ax=ax
-    )
+    hep.histplot(data,label="Data",xerr=True,color='k',histtype='errorbar',ax=ax)
 
-    # (3) Over‐draw MC stat. uncertainty band on top pad
     errps = {'hatch': '////', 'facecolor': 'none', 'lw': 0, 'edgecolor': 'k', 'alpha': 0.5}
-    hep.histplot(
-        tot,
-        histtype='band',
-        ax=ax,
-        **errps,
-        label='MC stat. unc.'
-    )
+    hep.histplot(tot,histtype='band',ax=ax,**errps,label='MC stat. unc.')
 
-    # -- Compute Data/MC ratio and errors for the bottom pad --
     data_vals = data.values()
     tot_vals  = tot.values()
     ratio     = np.zeros_like(data_vals, dtype=float)
@@ -408,46 +248,19 @@ def plot_stack(plotter, region, variable):
     rel_err = np.zeros_like(tot_vals, dtype=float)
     rel_err[mask] = mc_err[mask] / tot_vals[mask]
 
-    # -- Bottom pad: draw data points with error bars --
-    hep.histplot(
-        ratio,
-        edges,
-        yerr=ratio_err,
-        xerr=True,
-        ax=rax,
-        histtype="errorbar",
-        color="k",
-        capsize=4,
-        label="Data",
-    )
+    hep.histplot(ratio,edges,yerr=ratio_err,xerr=True,ax=rax,histtype="errorbar",color="k",capsize=4,label="Data",)
 
-    # -- Bottom pad: draw a *single* hatched MC‐uncertainty band around y=1.0 --
     band_low  = np.ones_like(rel_err) - rel_err
     band_high = np.ones_like(rel_err) + rel_err
     band_low[~mask] = np.nan
     band_high[~mask] = np.nan
     rax.stairs(band_low, edges, baseline=band_high, **errps)
 
-    # -- Axes formatting --
     ax.set_yscale("log")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
     ax.set_ylim(*plotter.ylim)
-    ax.text(
-        0.05, 0.96,
-        region.tlatex_alias,
-        transform=ax.transAxes,
-        fontsize=FONT_SIZE_TITLE,
-        verticalalignment='top'
-    )
-    hep.cms.label(
-        loc=0,
-        ax=ax,
-        data=region.unblind_data,
-        label="Work in Progress",
-        lumi=f"{plotter.lumi:.1f}",
-        com=13.6,
-        fontsize=FONT_SIZE_LABEL
-    )
+    ax.text(0.05, 0.96,region.tlatex_alias,transform=ax.transAxes,fontsize=FONT_SIZE_TITLE,verticalalignment='top')
+    hep.cms.label(loc=0,ax=ax,data=region.unblind_data,label="Work in Progress",lumi=f"{plotter.lumi:.1f}",com=13.6,fontsize=FONT_SIZE_LABEL)
 
     if variable.unit:
         xlabel = f"{variable.tlatex_alias} [{variable.unit}]"
@@ -466,29 +279,22 @@ def plot_stack(plotter, region, variable):
 
     return fig
 
-
 def main():
     args = parse_args()
-    setup_logging()
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-    # Build & configure the Plotter
     plotter = setup_plotter(args)
 
-    # If the user did not supply --plot-config, fill it in now:
     if args.plot_config is None:
-        args.plot_config = f"data/{plotter.run}/{plotter.year}/{plotter.era}/cr_config.yaml"
-        print(args.plot_config)
+        args.plot_config = f"data/plot_settings/2022.yaml"
 
-    # Verify that the YAML config exists
     if not Path(args.plot_config).is_file():
         logging.error(f"Plot‐config YAML not found: {args.plot_config}")
         sys.exit(1)
 
-    # Load YAML configurations
     plot_settings = load_plot_settings(args.plot_config)
     plotter.plot_settings = plot_settings
 
-    # Validate YAML entries for each region
     missing_regions = [
         r.name for r in plotter.regions_to_draw
         if r.name not in plot_settings
@@ -513,11 +319,7 @@ def main():
             xmin, xmax = map(float, cfg['xlim'])
             ymin, ymax = map(float, cfg['ylim'])
 
-            plotter.configure_axes(
-                nrebin=rebin,
-                xlim=(xmin, xmax),
-                ylim=(ymin, ymax)
-            )
+            plotter.configure_axes(nrebin=rebin,xlim=(xmin, xmax),ylim=(ymin, ymax))
             plotter.reset_stack()
             plotter.reset_data()
 
@@ -531,10 +333,7 @@ def main():
                     continue
 
                 for sample in sample_group.samples:
-                    print(sample)
-                    hist_obj = load_and_rebin(
-                        input_dirs, sample, hist_key, plotter, is_data_group
-                    )
+                    hist_obj = load_and_rebin(input_dirs, sample, hist_key, plotter, is_data_group)
                     if hist_obj is None:
                         continue
 
@@ -547,11 +346,7 @@ def main():
                 if is_data_group:
                     plotter.store_data(combined)
                 else:
-                    plotter.accumulate_histogram(
-                        combined,
-                        sample_group.color,
-                        sample_group.tlatex_alias
-                    )
+                    plotter.accumulate_histogram(combined, sample_group.color,sample_group.tlatex_alias)
 
             fig = plot_stack(plotter, region, variable)
             outpath = f"{plotter.output_directory}/{region.name}_{region.primary_dataset}/{variable.name}_{region.name}.pdf"
