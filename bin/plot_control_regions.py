@@ -29,7 +29,11 @@ from python.plotter import Variable, Region, Plotter
 from python import predefined_samples as ps
 from src import custom_log_formatter, save_figure, set_y_label
 from python.util import resolve_eos_user, build_output_path
-from python.config import load_lumi
+from python.regions import build_regions
+from python.variables import build_variables
+from python.config import load_lumi, load_kfactors, get_kfactor
+
+SCALES = load_kfactors()
 
 DATA_GROUPS = {"EGamma", "SingleMuon", "Muon"}
 
@@ -44,7 +48,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--name',type=str,default="",help='Append a suffix to the filenames')
     parser.add_argument('--plot-config',dest='plot_config',type=str,default=None,help='YAML file with rebin/xlim/ylim for each (region,variable)')
     parser.add_argument('--cat',dest='category',type=str,choices=["dy_cr", "flavor_cr"],default="dy_cr",help='Append a suffix to the filenames')
-    parser.add_argument('--signal-mode',action='store_true',help='Ignore backgrounds/data; plot each WRAnalyzer_signal_*.root per mass point')
     return parser.parse_args()
 
 def load_plot_settings(config_path: str) -> dict:
@@ -109,45 +112,14 @@ def setup_plotter(args) -> Plotter:
             sys.exit(1)
         plotter.sample_groups.append(sg)
 
-    if args.category == "dy_cr":
-        plotter.regions_to_draw = [
-            Region('wr_mumu_resolved_dy_cr','Muon',unblind_data = True,tlatex_alias=f"$\\mu\\mu$\nResolved DY CR\n{args.era}\nNLO $p_{{T}}^{{ll}}$ DY"),
-            Region('wr_ee_resolved_dy_cr', 'EGamma', unblind_data = True, tlatex_alias=f"ee\nResolved DY CR\n{args.era}\nNLO $p_{{T}}^{{ll}}$ DY"),
-        ]
-    else:  # flavor_cr
-        plotter.regions_to_draw = [
-            Region('wr_resolved_flavor_cr', 'Muon', unblind_data = True,tlatex_alias=f"$e\\mu$\nResolved Flavor CR\n{args.era}"),
-            Region('wr_resolved_flavor_cr', 'EGamma', unblind_data = True,tlatex_alias=f"$e\\mu$\nResolved Flavor CR\n{args.era}"),
-        ]
-
     plotter.print_samples()
+
+    regions = build_regions(args.era, args.category)
+    plotter.regions_to_draw = regions
     plotter.print_regions()
 
-    plotter.variables_to_draw = [
-        Variable('mass_fourobject', r'$m_{lljj}$', 'GeV'),
-        Variable('pt_leading_jet', r'$p_{T}$ of the leading jet', 'GeV'),
-        Variable('mass_dijet', r'$m_{jj}$', 'GeV'),
-        Variable('pt_leading_lepton', r'$p_{T}$ of the leading lepton', 'GeV'),
-        Variable('eta_leading_lepton', r'$\eta$ of the leading lepton', ''),
-        Variable('phi_leading_lepton', r'$\phi$ of the leading lepton', ''),
-        Variable('pt_subleading_lepton', r'$p_{T}$ of the subleading lepton', 'GeV'),
-        Variable('eta_subleading_lepton', r'$\eta$ of the subleading lepton', ''),
-        Variable('phi_subleading_lepton', r'$\phi$ of the subleading lepton', ''),
-        Variable('eta_leading_jet', r'$\eta$ of the leading jet', ''),
-        Variable('phi_leading_jet', r'$\phi$ of the leading jet', ''),
-        Variable('pt_subleading_jet', r'$p_{T}$ of the subleading jet', 'GeV'),
-        Variable('eta_subleading_jet', r'$\eta$ of the subleading jet', ''),
-        Variable('phi_subleading_jet', r'$\phi$ of the subleading jet', ''),
-        Variable('mass_dilepton', r'$m_{ll}$', 'GeV'),
-        Variable('pt_dilepton', r'$p_{T}^{ll}$', 'GeV'),
-        Variable('pt_dijet', r'$p_{T}^{jj}$', 'GeV'),
-        Variable('mass_threeobject_leadlep', r'$m_{l_{\mathrm{pri}}jj}$', 'GeV'),
-        Variable('pt_threeobject_leadlep', r'$p^{T}_{l_{\mathrm{pri}}jj}$', 'GeV'),
-        Variable('mass_threeobject_subleadlep', r'$m_{l_{\mathrm{sec}}jj}$', 'GeV'),
-        Variable('pt_threeobject_subleadlep', r'$p^{T}_{l_{\mathrm{sec}}jj}$', 'GeV'),
-        Variable('pt_fourobject', r'$p^{T}_{lljj}$', 'GeV'),
-    ]
-
+    variables = build_variables()
+    plotter.variables_to_draw = variables
     plotter.print_variables()
 
     return plotter
@@ -167,23 +139,27 @@ def load_and_rebin(input_dirs: list[Path],sample: str,hist_key: str,plotter: Plo
             continue
 
         # Rebin first
-#        if "mass_fourobject" in hist_key:
-#            variable_edges = [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
-#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
-#        elif "pt_leading_jet" in hist_key:
-#            variable_edges = [0, 40, 100, 200, 400, 600, 800, 1000, 1500, 2000]
-#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
-#        elif "mass_dijet" in hist_key:
-#            variable_edges = [0, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 4000]
-#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
-#        else:
-        rebinned = plotter.rebin_hist(raw_hist)
+        if "mass_fourobject" in hist_key:
+            variable_edges = [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
+            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+        elif "pt_leading_jet" in hist_key:
+            variable_edges = [0, 40, 100, 200, 400, 600, 800, 1000, 1500, 2000]
+            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+        elif "mass_dijet" in hist_key:
+            variable_edges = [0, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 4000]
+            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+        else:
+            rebinned = plotter.rebin_hist(raw_hist)
 
         if not is_data_group:
             plotter.lumi = sublumi
             rebinned = plotter.scale_hist(rebinned)
-            if sample == "DYJets": #ptll: 0.941. #HT: 1.4, NLO: ?
-                rebinned = rebinned * 0.941
+
+        # apply per-era per-sample k-factor
+        era_for_scale = indir.name if indir.name in SCALES else plotter.era
+        k = get_kfactor(SCALES, era_for_scale, sample, default=1.0)
+        rebinned = rebinned * k
+
         combined = rebinned if (combined is None) else (combined + rebinned)
 
     plotter.lumi = original_lumi

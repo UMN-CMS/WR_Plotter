@@ -2,6 +2,25 @@
 from pathlib import Path
 from typing import Dict, Any
 import json
+import yaml
+
+_REPO_DIR = Path(__file__).resolve().parents[1]
+_SCALES_PATH = _REPO_DIR / "data" / "kfactors.yaml"
+
+def load_kfactors(path: Path = _SCALES_PATH) -> dict:
+    if not path.is_file():
+        return {}
+    return yaml.safe_load(path.read_text()) or {}
+
+def get_kfactor(scales: dict, era: str, sample: str, default: float = 1.0) -> float:
+    # Order: exact era->sample → era->_default → ALL->sample → ALL->_default → default
+    era_map   = scales.get(era, {})
+    all_map   = scales.get("ALL", {})
+    if sample in era_map:               return float(era_map[sample])
+    if "_default" in era_map:           return float(era_map["_default"])
+    if sample in all_map:               return float(all_map[sample])
+    if "_default" in all_map:           return float(all_map["_default"])
+    return float(default)
 
 def _data_dir() -> Path:
     return Path(__file__).resolve().parent.parent / "data"

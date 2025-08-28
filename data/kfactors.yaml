@@ -1,0 +1,14 @@
+# Per-era scale factors (apply to MC only)
+Run3Summer22:
+  DYJets: 0.941
+  _default: 1.0
+
+Run3Summer22EE:
+  DYJets: 0.941
+
+RunIISummer20UL18:
+  _default: 1.0
+
+# Global fallback (used if era block missing)
+ALL:
+  _default: 1.0
