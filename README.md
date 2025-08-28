@@ -107,3 +107,8 @@ To run over all of 2022 (Run3Summer22 and Run3Summer22EE combined), use
 ```
 python3 bin/plot_control_regions.py --era 2022
 ```
+
+To make plots of the flavor sideband, use
+```
+python3 bin/plot_control_regions.py --era 2022 --dir dy_ht --cat flavor_cr
+```
