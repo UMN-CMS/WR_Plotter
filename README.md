@@ -98,7 +98,7 @@ To make plots for all variables, remove the `-v` argument
 python3 bin/plot_control_regions.py --era Run3Summer22
 ```
 
-If you used the `--dir` argument in `bin/run_analysis.py` (so that the files are saved under `dir/`, you can use the same argument here
+If you used the `--dir` argument in `bin/run_analysis.py` (so that the files are saved under `dir/`), you can use the same argument here
 ```
 python3 bin/plot_control_regions.py --era Run3Summer22 --dir dy_nlo
 ```
