@@ -58,6 +58,17 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_104/x86_64-centos8-gcc11-opt/setup.sh
 ## Examples
 
 ### Making control region plots
+To make control region plots 
 ```
-TO-DO
+python3 bin/plot_control_regions.py --era 2022 --dir dy_ht
 ```
+One can also specify `--era Run3Summer22` or `--era Run3Summer22EE`.
+
+The `--dir` argument will look for ROOT files saved in that directory, so `--dir` must match whatever was used with `bin/run_analysis.py`.
+
+Note that in order for this to run, ROOT files must exist for the following samples:
+```
+Run3Summer22/WR_Analyzer/DYJets.root
+Run3Summer22/WR_Analyzer/TTbar.root
+```
+TBC
