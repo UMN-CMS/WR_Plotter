@@ -20,18 +20,16 @@ import mplhep as hep
 # Add repo root to sys.path so we can import our local packages
 REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
+import json
+_LUMI_PATH = REPO_DIR / "data" / "lumi.json"
+with open(_LUMI_PATH) as _f:
+    _ERA_CHOICES = sorted(json.load(_f).keys())
 
 from python.plotter import Variable, Region, Plotter
 from python import predefined_samples as ps
 from src import custom_log_formatter, save_figure, set_y_label
 from python.util import resolve_eos_user, build_output_path
-
-ERA_CONFIG = {
-    "RunIISummer20UL18":   {"run": "RunII", "year": "2018", "lumi": 59.832422397},
-    "Run3Summer22":        {"run": "Run3",  "year": "2022", "lumi": 7.9804},
-    "Run3Summer22EE":      {"run": "Run3",  "year": "2022", "lumi": 26.6717},
-    "2022":                {"run": "Run3",  "year": "2022", "lumi": 26.6717 + 7.9804},
-}
+from python.config import load_lumi
 
 DATA_GROUPS = {"EGamma", "SingleMuon", "Muon"}
 
@@ -41,7 +39,7 @@ FONT_SIZE_LEGEND = 18
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='CR plot commands')
-    parser.add_argument('--era',dest='era',type=str,choices=list(ERA_CONFIG.keys()),required=True,help='Specify the era (e.g. Run3Summer22EE)')
+    parser.add_argument('--era', dest='era', type=str, choices=_ERA_CHOICES, required=True, help='Specify the era')
     parser.add_argument("--dir",dest="dir",type=str,default="",help="Optional subdirectory under the input & default EOS output paths")
     parser.add_argument('--name',type=str,default="",help='Append a suffix to the filenames')
     parser.add_argument('--plot-config',dest='plot_config',type=str,default=None,help='YAML file with rebin/xlim/ylim for each (region,variable)')
@@ -55,32 +53,32 @@ def load_plot_settings(config_path: str) -> dict:
 
 def setup_plotter(args) -> Plotter:
     working_dir = REPO_DIR
-    config = ERA_CONFIG[args.era]
+    info = load_lumi(args.era)
 
     plotter = Plotter()
-    plotter.era   = args.era
-    plotter.run   = config["run"]
-    plotter.year  = config["year"]
-    plotter.lumi  = config["lumi"]  # total lumi (for CMS label)
+    plotter.era  = args.era
+    plotter.run  = info["run"]
+    plotter.year = info["year"]
+    plotter.lumi = info["lumi"]
     plotter.scale = True
 
-    if args.era == "2022":
-        dir1 = working_dir / 'rootfiles' / plotter.run / plotter.year / 'Run3Summer22'
-        dir2 = working_dir / 'rootfiles' / plotter.run / plotter.year / 'Run3Summer22EE'
-        if args.dir:
-            dir1 = dir1 / args.dir
-            dir2 = dir2 / args.dir
-        plotter.input_directory = [dir1, dir2]
-        lumi1 = ERA_CONFIG["Run3Summer22"]["lumi"]     # 7.9804
-        lumi2 = ERA_CONFIG["Run3Summer22EE"]["lumi"]   # 26.6717
-        plotter.input_lumis = [lumi1, lumi2]
+    # Build input directories and lumis (supports combined eras via sub_eras)
+    if "sub_eras" in info:
+        dirs = []
+        for se in info["sub_eras"]:
+            se_info = load_lumi(se)  # ensures sub-era exists and has run/year
+            d = working_dir / "rootfiles" / se_info["run"] / se_info["year"] / se
+            if args.dir:
+                d = d / args.dir
+            dirs.append(d)
+        plotter.input_directory = dirs
+        plotter.input_lumis = info["sub_lumis"]
     else:
-        base = working_dir / 'rootfiles' / plotter.run / plotter.year / plotter.era
+        base = working_dir / "rootfiles" / plotter.run / plotter.year / plotter.era
         if args.dir:
             base = base / args.dir
         plotter.input_directory = [base]
-
-        plotter.input_lumis = [config["lumi"]]
+        plotter.input_lumis = [plotter.lumi]
 
     eos_user = resolve_eos_user()
     if args.dir:
