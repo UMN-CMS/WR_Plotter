@@ -24,16 +24,22 @@ test/       # Holds test and development scripts.
 ---
 
 ## Getting Started
-Begin by cloning the repository:
+If you have cloned WrCoffea, and the WR_Plotter submodule is empty, run this from the WrCoffea repo
 ```bash
-git clone git@github.com:UMN-CMS/WrCoffea.git
-cd WrCoffea
+git submodule update --init --recursive
 ```
-Create and source a virtual Python environment:
+Alternatively, next time you can clone with
 ```bash
-python3 -m venv wr-env
-source wr-env/bin/activate
+git clone --recursive git@github.com:UMN-CMS/WrCoffea.git
 ```
+
+Then go to the submodule and make a new branch
+```
+cd WR_Plotter
+git checkout -b branch_name
+git push -u origin branch_name
+```
+
 Install the required packages:
 ```bash
 python3 -m pip install -r requirements.txt
