@@ -1,0 +1,49 @@
+# data/sample_groups/2022.yaml
+run: Run3
+year: 2022
+mc_campaign: "Run3Summer22EE"         # default for this combined era file
+
+order: [other, nonprompt, ttbar, dy, egamma, muon]
+
+groups:
+  dy:
+    name: DY
+    color: "#5790fc"
+    tlatex_alias: "Z+jets"
+    samples: [DYJets]
+    kind: mc
+
+  ttbar:
+    name: tt
+    color: "#f89c20"
+    tlatex_alias: "$t\\bar{t}$"
+    samples: [TTbar]
+    kind: mc
+
+  nonprompt:
+    name: NonPrompt
+    color: "#e42536"
+    tlatex_alias: "Nonprompt"
+    samples: [WJets, SingleTop, TTbarSemileptonic]
+    kind: mc
+
+  other:
+    name: Other
+    color: "#964a8b"
+    tlatex_alias: "Other backgrounds"
+    samples: [TTV, Diboson, Triboson]
+    kind: mc
+
+  egamma:
+    name: EGamma
+    color: "#000000"
+    tlatex_alias: "Data"
+    samples: [EGamma]
+    kind: data
+
+  muon:
+    name: Muon
+    color: "#000000"
+    tlatex_alias: "Data"
+    samples: [Muon]
+    kind: data

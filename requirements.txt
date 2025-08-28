@@ -1,0 +1,7 @@
+coffea>=2025.7.3
+hist>=2.8.1
+matplotlib>=3.9.4
+mplhep>=0.4.0
+numpy>=2.0.2
+PyYAML>=6.0.2
+uproot>=5.6.4
