@@ -1,28 +1,30 @@
 #!/usr/bin/env python3
+
+# ── Standard library ────────────────────────────────────────────────────────────
 import sys
 import logging
 from pathlib import Path
 import argparse
-import os
 
+# ── Third-party ────────────────────────────────────────────────────────────────
 import yaml
 import numpy as np
-import hist
 import uproot
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import mplhep as hep
-from hist.intervals import ratio_uncertainty
-import subprocess
 
-repo_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(repo_root))
-from python.plotter import SampleGroup, Variable, Region, Plotter
+# ── Local imports (after we add repo to sys.path below) ────────────────────────
+# Add repo root to sys.path so we can import our local packages
+REPO_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_DIR))
+
+from python.plotter import Variable, Region, Plotter
 from python import predefined_samples as ps
 from src import custom_log_formatter, save_figure, set_y_label
-from python.util import resolve_eos_user, build_output_path, repo_root
+from python.util import resolve_eos_user, build_output_path
 
 ERA_CONFIG = {
     "RunIISummer20UL18":   {"run": "RunII", "year": "2018", "lumi": 59.832422397},
@@ -36,9 +38,6 @@ DATA_GROUPS = {"EGamma", "SingleMuon", "Muon"}
 FONT_SIZE_TITLE  = 20
 FONT_SIZE_LABEL  = 20
 FONT_SIZE_LEGEND = 18
-
-username = os.environ.get("USER")
-first_letter = username[0]
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='CR plot commands')
@@ -55,7 +54,7 @@ def load_plot_settings(config_path: str) -> dict:
         return yaml.safe_load(f)
 
 def setup_plotter(args) -> Plotter:
-    working_dir = repo_root()
+    working_dir = REPO_DIR
     config = ERA_CONFIG[args.era]
 
     plotter = Plotter()
@@ -286,13 +285,15 @@ def main():
     plotter = setup_plotter(args)
 
     if args.plot_config is None:
-        args.plot_config = f"data/plot_settings/2022.yaml"
+        args.plot_config = f"data/plot_settings/{args.era}.yaml"
 
     if not Path(args.plot_config).is_file():
         logging.error(f"Plot‐config YAML not found: {args.plot_config}")
         sys.exit(1)
 
     plot_settings = load_plot_settings(args.plot_config)
+
+    common_vars = plot_settings.get("common_variables", {})
     plotter.plot_settings = plot_settings
 
     missing_regions = [
@@ -310,11 +311,14 @@ def main():
         for variable in plotter.variables_to_draw:
             logging.info(f"  Variable '{variable.name}'")
 
-            if variable.name not in plot_settings[region.name]:
-                logging.error(f"Missing '{variable.name}' under '{region.name}' in YAML")
+            cfg_region = plot_settings.get(region.name, {})
+            cfg = cfg_region.get(variable.name, common_vars.get(variable.name))
+
+            if cfg is None:
+                logging.error(f"Missing settings for '{variable.name}' (region '{region.name}') "
+                              f"and no common_variables fallback found")
                 continue
 
-            cfg = plot_settings[region.name][variable.name]
             rebin  = cfg['rebin']
             xmin, xmax = map(float, cfg['xlim'])
             ymin, ymax = map(float, cfg['ylim'])
