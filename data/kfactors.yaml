@@ -1,6 +1,6 @@
 # Per-era scale factors (apply to MC only)
 Run3Summer22:
-  DYJets: 0.941
+  DYJets: 1.40
   _default: 1.0
 
 Run3Summer22EE:
