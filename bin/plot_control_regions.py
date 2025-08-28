@@ -25,30 +25,109 @@ _LUMI_PATH = REPO_DIR / "data" / "lumi.json"
 with open(_LUMI_PATH) as _f:
     _ERA_CHOICES = sorted(json.load(_f).keys())
 
-from python.plotter import Variable, Region, Plotter
-from python import predefined_samples as ps
+from python.plotter import Plotter
 from src import custom_log_formatter, save_figure, set_y_label
 from python.util import resolve_eos_user, build_output_path
-from python.regions import build_regions
-from python.variables import build_variables
+from python.regions import Region, build_regions
+from python.variables import Variable, build_variables
 from python.config import load_lumi, load_kfactors, get_kfactor
+from python.sample_groups import load_sample_groups
 
 SCALES = load_kfactors()
-
-DATA_GROUPS = {"EGamma", "SingleMuon", "Muon"}
 
 FONT_SIZE_TITLE  = 20
 FONT_SIZE_LABEL  = 20
 FONT_SIZE_LEGEND = 18
 
+def _parse_multi(opt):
+    """
+    Accepts a list of strings from argparse with action='append'.
+    Each string may itself be a comma-separated list.
+    Returns a deduped list preserving first-seen order, or None if empty.
+    """
+    if not opt:
+        return None
+    items = []
+    for part in opt:
+        items.extend([x.strip() for x in part.split(",") if x.strip()])
+    seen, out = set(), []
+    for x in items:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out or None
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='CR plot commands')
-    parser.add_argument('--era', dest='era', type=str, choices=_ERA_CHOICES, required=True, help='Specify the era')
-    parser.add_argument("--dir",dest="dir",type=str,default="",help="Optional subdirectory under the input & default EOS output paths")
-    parser.add_argument('--name',type=str,default="",help='Append a suffix to the filenames')
-    parser.add_argument('--plot-config',dest='plot_config',type=str,default=None,help='YAML file with rebin/xlim/ylim for each (region,variable)')
-    parser.add_argument('--cat',dest='category',type=str,choices=["dy_cr", "flavor_cr"],default="dy_cr",help='Append a suffix to the filenames')
-    return parser.parse_args()
+    parser = argparse.ArgumentParser(description="CR plot commands")
+
+    # required era
+    parser.add_argument(
+        "--era",
+        dest="era",
+        type=str,
+        choices=_ERA_CHOICES,
+        required=True,
+        help="Specify the era",
+    )
+
+    # paths / config
+    parser.add_argument(
+        "--dir",
+        dest="dir",
+        type=str,
+        default="",
+        help="Optional subdirectory under the input & default EOS output paths",
+    )
+    parser.add_argument(
+        "--name",
+        dest="name",
+        type=str,
+        default="",
+        help="Append a suffix to the filenames",
+    )
+    parser.add_argument(
+        "--plot-config",
+        dest="plot_config",
+        type=str,
+        default=None,
+        help="YAML file with rebin/xlim/ylim for each (region,variable)",
+    )
+
+    # category
+    parser.add_argument(
+        "--cat",
+        dest="category",
+        type=str,
+        choices=["dy_cr", "flavor_cr"],
+        default="dy_cr",
+        help="Plot category",
+    )
+
+    # filters: allow multiple via repeat or commas
+    parser.add_argument(
+        "--region",
+        "-r",
+        dest="regions",
+        action="append",
+        default=None,
+        help="Region name(s). Repeat or comma-separate: -r a -r b  or  -r a,b",
+    )
+    parser.add_argument(
+        "--variable",
+        "-v",
+        dest="variables",
+        action="append",
+        default=None,
+        help="Variable name(s). Repeat or comma-separate: -v x -v y  or  -v x,y",
+    )
+
+    args = parser.parse_args()
+
+    # normalize multi-value args into lists (or None)
+    args.regions   = _parse_multi(args.regions)
+    args.variables = _parse_multi(args.variables)
+
+    return args
 
 def load_plot_settings(config_path: str) -> dict:
     with open(config_path) as f:
@@ -89,31 +168,27 @@ def setup_plotter(args) -> Plotter:
     else:
         plotter.output_directory = build_output_path(plotter.run, plotter.year, plotter.era, None, eos_user)
 
-    base_groups = [
-        f"SampleGroup_{args.era}_Other",
-        f"SampleGroup_{args.era}_Nonprompt",
-        f"SampleGroup_{args.era}_TTbar",
-        f"SampleGroup_{args.era}_DY",
-        f"SampleGroup_{args.era}_EGamma",
-        f"SampleGroup_{args.era}_Muon",
-    ]
-    if args.category == "dy_cr":
-        sample_group_names = base_groups.copy()
-    else:  # flavor_cr → swap TTbar and DY
-        sample_group_names = base_groups.copy()
-        sample_group_names[2], sample_group_names[3] = sample_group_names[3], sample_group_names[2]
+    # (Optional) ensure it exists if build_output_path doesn't create it
+#    Path(plotter.output_directory).mkdir(parents=True, exist_ok=True)
 
-    plotter.sample_groups = []
-    for name in sample_group_names:
-        try:
-            sg = getattr(ps, name)
-        except AttributeError:
-            logging.error(f"SampleGroup '{name}' not found in predefined_samples.py")
-            sys.exit(1)
-        plotter.sample_groups.append(sg)
+    # Load groups & order from YAML
+    groups, order = load_sample_groups(args.era)
+
+    # category-specific tweak: swap dy and ttbar for flavor_cr
+    if args.category == "flavor_cr":
+        swap = {"dy": "ttbar", "ttbar": "dy"}
+        order = [swap.get(k, k) for k in order]
+
+    # Ordered list of groups, but skip unknown keys gracefully
+    ordered_groups = [groups[k] for k in order if k in groups]
+    plotter.sample_groups = ordered_groups
+
+    # Expose data-group keys on the plotter (for later filtering in main)
+    plotter.data_group_keys = {k for k, g in groups.items() if g.kind == "data"}
 
     plotter.print_samples()
 
+    # Regions/variables
     regions = build_regions(args.era, args.category)
     plotter.regions_to_draw = regions
     plotter.print_regions()
@@ -123,7 +198,6 @@ def setup_plotter(args) -> Plotter:
     plotter.print_variables()
 
     return plotter
-
 
 def load_and_rebin(input_dirs: list[Path],sample: str,hist_key: str,plotter: Plotter,is_data_group: bool):
     combined = None
@@ -139,17 +213,17 @@ def load_and_rebin(input_dirs: list[Path],sample: str,hist_key: str,plotter: Plo
             continue
 
         # Rebin first
-        if "mass_fourobject" in hist_key:
-            variable_edges = [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
-            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
-        elif "pt_leading_jet" in hist_key:
-            variable_edges = [0, 40, 100, 200, 400, 600, 800, 1000, 1500, 2000]
-            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
-        elif "mass_dijet" in hist_key:
-            variable_edges = [0, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 4000]
-            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
-        else:
-            rebinned = plotter.rebin_hist(raw_hist)
+#        if "mass_fourobject" in hist_key:
+#            variable_edges = [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
+#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+#        elif "pt_leading_jet" in hist_key:
+#            variable_edges = [0, 40, 100, 200, 400, 600, 800, 1000, 1500, 2000]
+#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+#        elif "mass_dijet" in hist_key:
+#            variable_edges = [0, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 4000]
+#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+#        else:
+        rebinned = plotter.rebin_hist(raw_hist)
 
         if not is_data_group:
             plotter.lumi = sublumi
@@ -252,82 +326,132 @@ def plot_stack(plotter, region, variable):
 
     return fig
 
+def _index_plot_settings(plot_settings: dict) -> tuple[dict, dict]:
+    """Return (region_cfgs, common_vars)."""
+    common_vars = plot_settings.get("common_variables", {})
+    region_cfgs = {r: plot_settings.get(r, {}) for r in plot_settings.keys() if r != "common_variables"}
+    return region_cfgs, common_vars
+
+def _get_var_cfg(region_cfgs, common_vars, region_name, var_name):
+    reg = region_cfgs.get(region_name, {})
+    return reg.get(var_name, common_vars.get(var_name))
+
+def _ensure_output_leaf(plotter: Plotter, region: Region) -> None:
+    leaf = Path(plotter.output_directory) / f"{region.name}_{region.primary_dataset}"
+    leaf.mkdir(parents=True, exist_ok=True)
+
 def main():
     args = parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
     plotter = setup_plotter(args)
 
+    # Restrict regions if requested
+    if args.regions:
+        valid_regions = {r.name for r in build_regions(args.era, args.category)}
+        unknown = [r for r in args.regions if r not in valid_regions]
+        if unknown:
+            logging.error(f"Unknown region(s): {unknown}. Valid: {sorted(valid_regions)}")
+            sys.exit(2)
+        name_to_region = {r.name: r for r in plotter.regions_to_draw}
+        plotter.regions_to_draw = [name_to_region[n] for n in args.regions if n in name_to_region]
+        logging.info(f"Restricted to regions: {args.regions}")
+
+    # Restrict variables if requested
+    if args.variables:
+        valid_vars = {v.name for v in build_variables()}
+        unknown = [v for v in args.variables if v not in valid_vars]
+        if unknown:
+            logging.error(f"Unknown variable(s): {unknown}. Valid: {sorted(valid_vars)}")
+            sys.exit(2)
+        name_to_var = {v.name: v for v in plotter.variables_to_draw}
+        plotter.variables_to_draw = [name_to_var[n] for n in args.variables if n in name_to_var]
+        logging.info(f"Restricted to variables: {args.variables}")
+
+    # Pick default config file by era if not provided
     if args.plot_config is None:
         args.plot_config = f"data/plot_settings/{args.era}.yaml"
 
-    if not Path(args.plot_config).is_file():
-        logging.error(f"Plot‐config YAML not found: {args.plot_config}")
+    cfg_path = Path(args.plot_config)
+    if not cfg_path.is_file():
+        logging.error(f"Plot-config YAML not found: {cfg_path}")
         sys.exit(1)
 
-    plot_settings = load_plot_settings(args.plot_config)
+    # Load & index settings
+    plot_settings = load_plot_settings(str(cfg_path))
+    region_cfgs, common_vars = _index_plot_settings(plot_settings)
+    plotter.plot_settings = plot_settings  # if other internals want it
 
-    common_vars = plot_settings.get("common_variables", {})
-    plotter.plot_settings = plot_settings
-
-    missing_regions = [
-        r.name for r in plotter.regions_to_draw
-        if r.name not in plot_settings
-    ]
+    # Sanity: all planned regions must exist in YAML (or have common fallbacks for every var)
+    missing_regions = [r.name for r in plotter.regions_to_draw if r.name not in region_cfgs]
     if missing_regions:
-        logging.error(f"Missing YAML entries for regions: {missing_regions}")
-        sys.exit(1)
+        logging.warning(f"Regions missing explicit blocks in YAML (will use common_variables fallback where possible): {missing_regions}")
 
     input_dirs = plotter.input_directory
 
     for region in plotter.regions_to_draw:
         logging.info(f"Processing region '{region.name}'")
+#        _ensure_output_leaf(plotter, region)
+
         for variable in plotter.variables_to_draw:
-            logging.info(f"  Variable '{variable.name}'")
-
-            cfg_region = plot_settings.get(region.name, {})
-            cfg = cfg_region.get(variable.name, common_vars.get(variable.name))
-
-            if cfg is None:
-                logging.error(f"Missing settings for '{variable.name}' (region '{region.name}') "
-                              f"and no common_variables fallback found")
+            vcfg = _get_var_cfg(region_cfgs, common_vars, region.name, variable.name)
+            if vcfg is None:
+                logging.warning(f"  Skipping '{region.name}/{variable.name}': no settings and no common fallback.")
                 continue
 
-            rebin  = cfg['rebin']
-            xmin, xmax = map(float, cfg['xlim'])
-            ymin, ymax = map(float, cfg['ylim'])
+            rebin = vcfg.get('rebin', 1)
+            xmin, xmax = map(float, vcfg.get('xlim', (0.0, 1.0)))
+            ymin, ymax = map(float, vcfg.get('ylim', (1.0, 1e6)))
 
-            plotter.configure_axes(nrebin=rebin,xlim=(xmin, xmax),ylim=(ymin, ymax))
+            plotter.configure_axes(nrebin=rebin, xlim=(xmin, xmax), ylim=(ymin, ymax))
             plotter.reset_stack()
             plotter.reset_data()
 
             hist_key = f"{region.name}/{variable.name}_{region.name}"
 
+            # Load/accumulate
+            any_content = False
             for sample_group in plotter.sample_groups:
                 combined = None
 
-                is_data_group = (sample_group.name in DATA_GROUPS)
-                if is_data_group and sample_group.name != region.primary_dataset:
+                is_data_group = (getattr(sample_group, "kind", "mc") == "data")
+                # only the primary data stream (keys like "muon", "egamma")
+
+                # If in wr_mumu_resolved_dy_cr, skip the electron root file 
+                if is_data_group and sample_group.key != region.primary_dataset:
                     continue
+                
 
                 for sample in sample_group.samples:
                     hist_obj = load_and_rebin(input_dirs, sample, hist_key, plotter, is_data_group)
                     if hist_obj is None:
                         continue
-
                     combined = hist_obj if (combined is None) else (combined + hist_obj)
 
                 if combined is None:
-                    logging.warning(f"    No histograms found for group '{sample_group.name}'")
                     continue
 
+                any_content = True
                 if is_data_group:
                     plotter.store_data(combined)
                 else:
-                    plotter.accumulate_histogram(combined, sample_group.color,sample_group.tlatex_alias)
+                    color = getattr(sample_group, "color", "#000000")
+                    label = (
+                        getattr(sample_group, "tlatex_alias", None)
+                        or getattr(sample_group, "label", None)
+                        or getattr(sample_group, "name", None)
+                        or ""   # final fallback, no group_key
+                    )
+                    plotter.accumulate_histogram(combined, color, label)
+
+            # only skip if BOTH MC and Data are missing
+            if not plotter.stack_list and not plotter.data_hist:
+                logging.warning(f"  Skipped '{region.name}/{variable.name}' (no histograms found).")
+                continue
 
             fig = plot_stack(plotter, region, variable)
             outpath = f"{plotter.output_directory}/{region.name}_{region.primary_dataset}/{variable.name}_{region.name}.pdf"
+
             try:
                 save_figure(fig, outpath)
                 logging.info(f"    Saved: {outpath}")

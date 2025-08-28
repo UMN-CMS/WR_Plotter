@@ -1,8 +1,10 @@
-import numpy as np
-import tempfile
-import os 
-import subprocess
+import os
 import time
+import tempfile
+import subprocess
+from pathlib import Path
+from typing import Union
+import numpy as np
 
 def custom_log_formatter(y, pos):
     """
@@ -29,32 +31,60 @@ def set_y_label(ax, tot, variable):
     else:
         ax.set_ylabel(f"Events / X {variable.unit}")
 
-def save_figure(fig, eos_path):
-    # Ensure EOS directory exists
-    eos_dir = os.path.dirname(eos_path)
+def _eos_mkdir(eos_dir: str) -> bool:
     try:
         subprocess.run(["xrdfs", "eosuser.cern.ch", "mkdir", "-p", eos_dir], check=True)
+        return True
     except subprocess.CalledProcessError as e:
         print(f"Failed to create directory on EOS: {e}")
-        return  # Exit function if directory creation fails
+        return False
 
-    # Save plot to a temporary PDF file and upload it to EOS
-    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp_file:
-        fig.savefig(tmp_file.name, format="pdf")  # Save the plot as a PDF
-        tmp_file.flush()  # Ensure all data is written to disk
+def _save_and_upload(fig, tmp_suffix: str, fmt: str, eos_target: str,
+                     dpi: int = None, jpg_quality: int = None):
+    with tempfile.NamedTemporaryFile(suffix=tmp_suffix) as tmp_file:
+        save_kwargs = {"format": fmt, "bbox_inches": "tight"}
+        if dpi is not None and fmt != "pdf":
+            save_kwargs["dpi"] = dpi
+        if fmt == "jpeg" and jpg_quality is not None:
+            try:
+                save_kwargs["pil_kwargs"] = {"quality": jpg_quality, "optimize": True, "progressive": True}
+            except TypeError:
+                # Older Matplotlib: no pil_kwargs support
+                pass
 
-        # Upload the temporary PDF file to EOS
+        fig.savefig(tmp_file.name, **save_kwargs)
+        tmp_file.flush()
+
         while True:
             try:
                 subprocess.run(
-                    ["xrdcp", "-f", tmp_file.name, f"root://eosuser.cern.ch/{eos_path}"], 
-                    check=True,
-                    timeout=5
+                    ["xrdcp", "-f", tmp_file.name, f"root://eosuser.cern.ch/{eos_target}"],
+                    check=True, timeout=20
                 )
-                print(f"File uploaded: {eos_path}.")
-                break  # Exit the loop on successful upload
+                print(f"Uploaded: {eos_target}")
+                break
             except subprocess.TimeoutExpired:
-                print("xrdcp command timed out. Retrying...")
+                print("xrdcp timed out. Retrying...")
             except subprocess.CalledProcessError as e:
-                print(f"Failed to upload file to EOS: {e}. Retrying in 5 seconds...")
-            time.sleep(1)
+                print(f"Failed to upload {eos_target}: {e}. Retrying in 5 seconds...")
+                time.sleep(5)
+
+def save_figure(fig, eos_path: Union[str, Path], dpi_jpg: int = 600, jpg_quality: int = 95):
+    """
+    Save `fig` to EOS as both PDF (vector) and JPEG (raster, dpi_jpg).
+    `eos_path` can include an extension (.pdf/.jpg) or not; we normalize to a base.
+    """
+    eos_path = str(eos_path)
+    base, ext = os.path.splitext(eos_path)
+    eos_base = base if ext.lower() in (".pdf", ".jpg", ".jpeg", ".png") else eos_path
+
+    eos_dir = os.path.dirname(eos_base)
+    print(eos_dir)
+    if not _eos_mkdir(eos_dir):
+        return
+
+    # PDF (vector)
+    _save_and_upload(fig, ".pdf", "pdf", eos_base + ".pdf")
+
+    # JPEG (raster @ 300 dpi by default)
+    _save_and_upload(fig, ".jpg", "jpeg", eos_base + ".jpg", dpi=dpi_jpg, jpg_quality=jpg_quality)

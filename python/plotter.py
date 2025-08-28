@@ -15,51 +15,12 @@ from src import rebin_histogram, scale_histogram
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 hep.style.use("CMS")
 
-class SampleGroup:
-    def __init__(self, name, run, year, mc_campaign, color, tlatex_alias, samples=""):
-        self.name = name
-        self.run = run
-        self.year = year
-        self.mc_campaign = mc_campaign
-        self.color = color
-        self.tlatex_alias = tlatex_alias
-        self.samples = samples
-
-    def print(self):
-        logging.info(f'Sample group name = {self.name}')
-        logging.info(f'\t\tRun = {self.run}')
-        logging.info(f'\t\tYear = {self.year}')
-        logging.info(f'\t\tMC Campaign = {self.mc_campaign}')
-        logging.info(f'\t\tColor = {self.color}')
-        logging.info(f'\t\ttLatex alias = {self.tlatex_alias}')
-        logging.info(f'\t\tsamples = {self.samples}')
-
-class Variable:
-    def __init__(self, name, tlatex_alias, unit):
-        self.name = name
-        self.tlatex_alias = tlatex_alias
-        self.unit = unit
-
-    def print(self):
-        logging.info(f"{self.name}, {self.tlatex_alias}, {self.unit}")
-
-class Region:
-    def __init__(self, name, primary_dataset,  unblind_data, tlatex_alias=""):
-        self.name = name
-        self.primary_dataset = primary_dataset
-        self.unblind_data = unblind_data
-        self.tlatex_alias = tlatex_alias
-
-    def print(self):
-        logging.info(f"{self.name}, {self.primary_dataset}, unblind_data={self.unblind_data}, {self.tlatex_alias}")
-
 class Plotter:
     def __init__(self):
         # Basic info
         self.run = ""
         self.year = ""
         self.era = ""
-        self.input_directory = ""
         self.input_directory = ""
         self.dir = ""
         self.suffix = ""
@@ -77,7 +38,7 @@ class Plotter:
 
         # These will be set via configure_axes()
         self.scale = False
-        self.lumi = None
+        self.input_lumis = []
 
         # These will be set via configure_axes()
         self.n_rebin = None
@@ -163,9 +124,12 @@ class Plotter:
         else:
             logging.warning("Attempted to accumulate a None histogram.")
 
-    def rebin_hist(self, hist):
-        # Now using our generic utility function
-        return rebin_histogram(hist, self.n_rebin)
+    def rebin_hist(self, hist_obj, spec=None):
+        """
+        spec: int (merge‐N) or list of edges [e0,e1,…]
+        """
+        spec = spec if spec is not None else self.n_rebin
+        return rebin_histogram(hist_obj, spec)
 
     def scale_hist(self, hist):
         scale_factor = self.lumi * 1000

@@ -15,6 +15,7 @@ import sys
 import logging
 from pathlib import Path
 import argparse
+import os
 
 # Third‐party
 import yaml
@@ -52,6 +53,13 @@ FONT_SIZE_TITLE  = 20
 FONT_SIZE_LABEL  = 20
 FONT_SIZE_LEGEND = 18
 
+# CERNBox username
+username = os.environ.get("USER")
+first_letter = username[0]
+
+print("username", username)
+print("first letter", first_letter)
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='CR plot commands')
     parser.add_argument(
@@ -84,6 +92,14 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        '--cat',
+        dest='category',
+        type=str,
+        choices=["dy_cr", "flavor_cr"],
+        help='Append a suffix to the filenames'
+    )
+
+    parser.add_argument(
         '--signal-mode',
         action='store_true',
         help='Ignore backgrounds/data; plot each WRAnalyzer_signal_*.root per mass point'
@@ -108,6 +124,7 @@ def load_plot_settings(config_path: str) -> dict:
     with open(config_path) as f:
         return yaml.safe_load(f)
 
+
 def setup_plotter(args) -> Plotter:
     """
     Create and configure a Plotter instance based on CLI args.
@@ -124,8 +141,6 @@ def setup_plotter(args) -> Plotter:
     plotter.year  = config["year"]
     plotter.lumi  = config["lumi"]  # total lumi (for CMS label)
     plotter.scale = True
-
-    plotter.work_dir = working_dir
 
     # ── BUILD A LIST OF INPUT DIRECTORIES ──
     # If era == "2022", use both Run3Summer22 and Run3Summer22EE
@@ -161,7 +176,7 @@ def setup_plotter(args) -> Plotter:
         )
 
     # Define sample group ordering (DY, TTbar, etc.)
-    sample_group_names = [
+    base_groups = [
         f"SampleGroup_{args.era}_Other",
         f"SampleGroup_{args.era}_Nonprompt",
         f"SampleGroup_{args.era}_TTbar",
@@ -169,6 +184,11 @@ def setup_plotter(args) -> Plotter:
         f"SampleGroup_{args.era}_EGamma",
         f"SampleGroup_{args.era}_Muon",
     ]
+    if args.category == "dy_cr":
+        sample_group_names = base_groups.copy()
+    else:  # flavor_cr → swap TTbar and DY
+        sample_group_names = base_groups.copy()
+        sample_group_names[2], sample_group_names[3] = sample_group_names[3], sample_group_names[2]
 
     plotter.sample_groups = []
     for name in sample_group_names:
@@ -180,20 +200,28 @@ def setup_plotter(args) -> Plotter:
         plotter.sample_groups.append(sg)
 
     # Define regions to draw
-    plotter.regions_to_draw = [
-        Region(
-            'wr_mumu_resolved_sr',
-            'Muon',
-            unblind_data = True,
-            tlatex_alias=f"$\mu\mu$\nResolved SR" #"$\mu\mu$\nResolved SR\n{args.era}\nDY w/ dijet mass reweight"
-        ),
-        Region(
-            'wr_ee_resolved_sr',
-            'EGamma',
-            unblind_data = True,
-            tlatex_alias=f"ee\nResolved SR" #"ee\nResolved SR\n{args.era}\nDY w/ dijet mass reweight"
-        ),
-    ]
+    if args.category == "dy_cr":
+        plotter.regions_to_draw = [
+            Region(
+                'wr_mumu_resolved_dy_cr',
+                'Muon',
+                unblind_data = True,
+                tlatex_alias=f"$\\mu\\mu$\nResolved DY CR\n{args.era}\nNLO $p_{{T}}^{{ll}}$ DY" #NLO $p_{{T}}^{{ll}}$ LO HT DY
+            ),
+            Region(
+                'wr_ee_resolved_dy_cr',
+                'EGamma',
+                unblind_data = True,
+                tlatex_alias=f"ee\nResolved DY CR\n{args.era}\nNLO $p_{{T}}^{{ll}}$ DY" #NLO $p_{{T}}^{{ll}}$ DY or LO HT DY
+            ),
+        ]
+    else:  # flavor_cr
+        plotter.regions_to_draw = [
+            Region('wr_resolved_flavor_cr', 'Muon', unblind_data = True,
+                   tlatex_alias=f"$e\\mu$\nResolved Flavor CR\n{args.era}"),
+            Region('wr_resolved_flavor_cr', 'EGamma', unblind_data = True,
+                   tlatex_alias=f"$e\\mu$\nResolved Flavor CR\n{args.era}"),
+        ]
 
     plotter.print_samples()
     plotter.print_regions()
@@ -201,32 +229,33 @@ def setup_plotter(args) -> Plotter:
     # Define Variables
     plotter.variables_to_draw = [
         Variable('mass_fourobject', r'$m_{lljj}$', 'GeV'),
-#        Variable('pt_leading_jet', r'$p_{T}$ of the leading jet', 'GeV'),
-#        Variable('mass_dijet', r'$m_{jj}$', 'GeV'),
-#        Variable('pt_leading_lepton', r'$p_{T}$ of the leading lepton', 'GeV'),
-#        Variable('eta_leading_lepton', r'$\eta$ of the leading lepton', ''),
-#        Variable('phi_leading_lepton', r'$\phi$ of the leading lepton', ''),
-#        Variable('pt_subleading_lepton', r'$p_{T}$ of the subleading lepton', 'GeV'),
-#        Variable('eta_subleading_lepton', r'$\eta$ of the subleading lepton', ''),
-#        Variable('phi_subleading_lepton', r'$\phi$ of the subleading lepton', ''),
-#        Variable('eta_leading_jet', r'$\eta$ of the leading jet', ''),
-#        Variable('phi_leading_jet', r'$\phi$ of the leading jet', ''),
-#        Variable('pt_subleading_jet', r'$p_{T}$ of the subleading jet', 'GeV'),
-#        Variable('eta_subleading_jet', r'$\eta$ of the subleading jet', ''),
-#        Variable('phi_subleading_jet', r'$\phi$ of the subleading jet', ''),
-#        Variable('mass_dilepton', r'$m_{ll}$', 'GeV'),
-#        Variable('pt_dilepton', r'$p_{T}^{ll}$', 'GeV'),
-#        Variable('pt_dijet', r'$p_{T}^{jj}$', 'GeV'),
-#        Variable('mass_threeobject_leadlep', r'$m_{l_{\mathrm{pri}}jj}$', 'GeV'),
-#        Variable('pt_threeobject_leadlep', r'$p^{T}_{l_{\mathrm{pri}}jj}$', 'GeV'),
-#        Variable('mass_threeobject_subleadlep', r'$m_{l_{\mathrm{sec}}jj}$', 'GeV'),
-#        Variable('pt_threeobject_subleadlep', r'$p^{T}_{l_{\mathrm{sec}}jj}$', 'GeV'),
-#        Variable('pt_fourobject', r'$p^{T}_{lljj}$', 'GeV'),
+        Variable('pt_leading_jet', r'$p_{T}$ of the leading jet', 'GeV'),
+        Variable('mass_dijet', r'$m_{jj}$', 'GeV'),
+        Variable('pt_leading_lepton', r'$p_{T}$ of the leading lepton', 'GeV'),
+        Variable('eta_leading_lepton', r'$\eta$ of the leading lepton', ''),
+        Variable('phi_leading_lepton', r'$\phi$ of the leading lepton', ''),
+        Variable('pt_subleading_lepton', r'$p_{T}$ of the subleading lepton', 'GeV'),
+        Variable('eta_subleading_lepton', r'$\eta$ of the subleading lepton', ''),
+        Variable('phi_subleading_lepton', r'$\phi$ of the subleading lepton', ''),
+        Variable('eta_leading_jet', r'$\eta$ of the leading jet', ''),
+        Variable('phi_leading_jet', r'$\phi$ of the leading jet', ''),
+        Variable('pt_subleading_jet', r'$p_{T}$ of the subleading jet', 'GeV'),
+        Variable('eta_subleading_jet', r'$\eta$ of the subleading jet', ''),
+        Variable('phi_subleading_jet', r'$\phi$ of the subleading jet', ''),
+        Variable('mass_dilepton', r'$m_{ll}$', 'GeV'),
+        Variable('pt_dilepton', r'$p_{T}^{ll}$', 'GeV'),
+        Variable('pt_dijet', r'$p_{T}^{jj}$', 'GeV'),
+        Variable('mass_threeobject_leadlep', r'$m_{l_{\mathrm{pri}}jj}$', 'GeV'),
+        Variable('pt_threeobject_leadlep', r'$p^{T}_{l_{\mathrm{pri}}jj}$', 'GeV'),
+        Variable('mass_threeobject_subleadlep', r'$m_{l_{\mathrm{sec}}jj}$', 'GeV'),
+        Variable('pt_threeobject_subleadlep', r'$p^{T}_{l_{\mathrm{sec}}jj}$', 'GeV'),
+        Variable('pt_fourobject', r'$p^{T}_{lljj}$', 'GeV'),
     ]
 
     plotter.print_variables()
 
     return plotter
+
 
 def load_and_rebin(
     input_dirs: list[Path],
@@ -247,6 +276,7 @@ def load_and_rebin(
 
     for indir, sublumi in zip(plotter.input_directory, plotter.input_lumis):
         fp = indir / f"WRAnalyzer_{sample}.root"
+        print(fp)
         try:
             with uproot.open(fp) as f:
                 raw_hist = f[hist_key].to_hist()
@@ -255,25 +285,31 @@ def load_and_rebin(
             continue
 
         # Rebin first
-        if "mass_fourobject" in hist_key:
-            variable_edges = [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
-            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
-        elif "pt_leading_jet" in hist_key:
-            variable_edges = [0, 40, 100, 200, 400, 600, 800, 1000, 1500, 2000]
-            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
-        else:
-            rebinned = plotter.rebin_hist(raw_hist)
+#        if "mass_fourobject" in hist_key:
+#            variable_edges = [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
+#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+#        elif "pt_leading_jet" in hist_key:
+#            variable_edges = [0, 40, 100, 200, 400, 600, 800, 1000, 1500, 2000]
+#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+#        elif "mass_dijet" in hist_key:
+#            variable_edges = [0, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 4000]
+#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+#        else:
+        rebinned = plotter.rebin_hist(raw_hist)
 
         if not is_data_group:
             # Only MC gets scaled by its sub-era lumi
             plotter.lumi = sublumi
             rebinned = plotter.scale_hist(rebinned)
-
+            if sample == "DYJets": #ptll: 0.941. #HT: 1.4, NLO: ?
+                print("rebinning")
+                rebinned = rebinned * 0.941
         combined = rebinned if (combined is None) else (combined + rebinned)
 
     # Restore the original (total) lumi for CMS label
     plotter.lumi = original_lumi
     return combined
+
 
 def reorder_legend(ax, priority_labels=("MC stat. unc.", "Data"), fontsize=FONT_SIZE_LEGEND):
     """
@@ -301,6 +337,7 @@ def reorder_legend(ax, priority_labels=("MC stat. unc.", "Data"), fontsize=FONT_
     new_labels  = [labels[i]  for i in new_order]
     ax.legend(new_handles, new_labels, loc="best", fontsize=fontsize)
 
+
 def plot_stack(plotter, region, variable):
     """
     Draws:
@@ -315,21 +352,6 @@ def plot_stack(plotter, region, variable):
     tot = sum(plotter.stack_list)     # “total MC” histogram
     data = sum(plotter.data_hist)     # “data” histogram
     edges = tot.axes[0].edges
-
-#    vals  = tot.values()      # array of MC yields, one entry per bin
-#    vars  = tot.variances()   # array of per‐bin variances (None if unweighted)
-
-    # Find the approximate bin‐index whose center is ~500 GeV:
-#    bin_centers = 0.5*(edges[:-1] + edges[1:])
-#    i500 = np.argmin(np.abs(bin_centers - 480.0))
-
-#    print(f"480 GeV bin index = {i500}")
-#    print("bin_center (GeV):", bin_centers[i500])
-#    print(" tot_vals   =", vals[i500])
-#    print(" tot_vars   =", (vars[i500] if vars is not None else "None"))
-#    mc_err_i500 = np.sqrt(vars[i500]) if (vars is not None) else np.sqrt(vals[i500])
-#    print(" σ_MC (abs) =", mc_err_i500)
-#    print(" rel_err    =", mc_err_i500/vals[i500])
 
     # -- Top pad styling --
     hep.style.use("CMS")
@@ -353,9 +375,9 @@ def plot_stack(plotter, region, variable):
     hep.histplot(
         data,
         label="Data",
+        xerr=True,
         color='k',
         histtype='errorbar',
-        xerr=True,
         ax=ax
     )
 
@@ -369,57 +391,19 @@ def plot_stack(plotter, region, variable):
         label='MC stat. unc.'
     )
 
-    
-    # — overlay our three DYJets variants on top of the non-DY background stack —
-    dy_variants = [
-        ("dy_ht_leadjet_rewght",       "-",  "DYJets HT lead-jet reweight"),
-        ("dy_ht_lo",                  "--", "DYJets HT LO"),
-        ("dy_ht_lo_dijetmass_rewght", ":",  "DYJets HT LO + dijet-mass reweight"),
-    ]
-    base_dir  = plotter.work_dir / "rootfiles" / plotter.run / plotter.year / plotter.era
-    hist_key  = f"{region.name}/{variable.name}_{region.name}"
-    for subdir, ls, lbl in dy_variants:
-        fp = base_dir / subdir / "WRAnalyzer_DYJets.root"
-        with uproot.open(fp) as f:
-            raw_h = f[hist_key].to_hist()
-        # rebin & scale exactly as your other MC
-        if "mass_fourobject" in hist_key:
-            edges = [0,800,1000,1200,1400,1600,2000,2400,2800,3200,8000]
-            h = plotter.rebin_hist(raw_h, edges)
-        elif "pt_leading_jet" in hist_key:
-            edges = [0,40,100,200,400,600,800,1000,1500,2000]
-            h = plotter.rebin_hist(raw_h, edges)
-        else:
-            h = plotter.rebin_hist(raw_h)
-       # now scale
-        h = plotter.scale_hist(h)
-        hep.histplot(
-            tot+h,
-            histtype='step',
-            linestyle=ls,
-            linewidth=2,
-            label=lbl,
-            ax=ax,
-            zorder=10
-        )
-
     # -- Compute Data/MC ratio and errors for the bottom pad --
-    data_vals = data.values()        # array of bin contents for data
-    tot_vals  = tot.values()         # array of bin contents for MC/stack
+    data_vals = data.values()
+    tot_vals  = tot.values()
     ratio     = np.zeros_like(data_vals, dtype=float)
     ratio_err = np.zeros_like(data_vals, dtype=float)
     mask = tot_vals > 0
 
     if np.any(mask):
-        # (a) Data/MC ratio and data‐only Poisson error
         ratio[mask]     = data_vals[mask] / tot_vals[mask]
         ratio_err[mask] = np.sqrt(data_vals[mask]) / tot_vals[mask]
 
-    # (b) MC stat error: try to read tot.variances(), else fallback to √(tot_vals)
-    tot_vars = tot.variances()  # returns array of per‐bin variances
+    tot_vars = tot.variances()
     mc_err = np.sqrt(tot_vars)
-
-    # Now form relative MC error = mc_err / tot_vals  (only where tot_vals > 0)
     rel_err = np.zeros_like(tot_vals, dtype=float)
     rel_err[mask] = mc_err[mask] / tot_vals[mask]
 
@@ -428,30 +412,25 @@ def plot_stack(plotter, region, variable):
         ratio,
         edges,
         yerr=ratio_err,
+        xerr=True,
         ax=rax,
         histtype="errorbar",
         color="k",
         capsize=4,
         label="Data",
-        xerr=True
     )
 
     # -- Bottom pad: draw a *single* hatched MC‐uncertainty band around y=1.0 --
     band_low  = np.ones_like(rel_err) - rel_err
     band_high = np.ones_like(rel_err) + rel_err
-
-    # Mask out zero‐MC bins so no patch is drawn there
     band_low[~mask] = np.nan
     band_high[~mask] = np.nan
-
-    # Use stairs(...) with baseline=band_high to fill from band_high down to band_low
     rax.stairs(band_low, edges, baseline=band_high, **errps)
 
     # -- Axes formatting --
     ax.set_yscale("log")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
     ax.set_ylim(*plotter.ylim)
-
     ax.text(
         0.05, 0.96,
         region.tlatex_alias,
@@ -459,103 +438,33 @@ def plot_stack(plotter, region, variable):
         fontsize=FONT_SIZE_TITLE,
         verticalalignment='top'
     )
-
     hep.cms.label(
         loc=0,
         ax=ax,
         data=region.unblind_data,
         label="Work in Progress",
         lumi=f"{plotter.lumi:.1f}",
-        com=13,
+        com=13.6,
         fontsize=FONT_SIZE_LABEL
     )
 
-    # Ratio pad labeling
     if variable.unit:
         xlabel = f"{variable.tlatex_alias} [{variable.unit}]"
     else:
         xlabel = variable.tlatex_alias
 
     rax.set_xlabel(xlabel)
-    ax.set_xlabel("")  # no x‐label on the top pad
+    ax.set_xlabel("")
     rax.set_ylabel("Data/Sim.")
-    rax.set_ylim(0, 2.8)
-    rax.set_yticks([0, 1, 2])
+    rax.set_ylim(0.7, 1.3)
+    rax.set_yticks([0.8, 1.0, 1.2])
     rax.axhline(1.0, ls='--', color='k')
-
     ax.set_xlim(*plotter.xlim)
     set_y_label(ax, tot, variable)
-
     reorder_legend(ax)
+
     return fig
 
-def plot_signals(plotter, plot_settings):
-    base = plotter.input_directory[0]
-    for fp in sorted(base.glob("WRAnalyzer_signal_*.root")):
-        masspoint = fp.stem.replace("WRAnalyzer_signal_", "")
-        outdir = plotter.output_directory / masspoint
-        # ... mkdir logic unchanged ...
-
-        with uproot.open(fp) as f:
-            for region in plotter.regions_to_draw:
-                for variable in plotter.variables_to_draw:
-                    hist_key = f"{region.name}/{variable.name}_{region.name}"
-                    try:
-                        raw = f[hist_key].to_hist()
-                    except KeyError:
-                        logging.warning(f"{masspoint}: missing {hist_key}")
-                        continue
-
-                    # --- load cfg up‐front ---
-                    cfg = plot_settings[region.name][variable.name]
-                    rebin_spec = cfg['rebin']
-
-                    # --- now rebin with a valid spec ---
-                    h = plotter.rebin_hist(raw, rebin_spec)
-
-                    # --- scale & axes config as before ---
-                    h = plotter.scale_hist(h)
-                    plotter.configure_axes(
-                        nrebin=cfg['rebin'],
-                        xlim=tuple(map(float, cfg['xlim'])),
-                        ylim=tuple(map(float, cfg['ylim']))
-                    )
-
-                    # draw single-histogram
-                    fig, ax = plt.subplots()
-                    hep.style.use("CMS")
-                    hep.histplot(h, histtype='step', label=masspoint, ax=ax)
-                    ax.set_yscale('log')
-
-                    x_bins     = h.axes[0].edges
-                    bin_widths = np.round(np.diff(x_bins), 1)
-                    if np.all(bin_widths == bin_widths[0]):  # uniform binning
-                        bw = bin_widths[0]
-                        formatted = int(bw) if bw.is_integer() else f"{bw:.1f}"
-                        ax.set_ylabel(f"Events / {formatted} {variable.unit}".strip())
-                    else:                                    # variable bin widths
-                        ax.set_ylabel(f"Events / bin {variable.unit}".strip())
-
-                    # ─── continue with x-label, CMS label, legend, etc. ───
-                    xlabel = variable.tlatex_alias + (f" [{variable.unit}]" if variable.unit else "")
-                    ax.set_xlabel(xlabel)
-
-#                    set_y_label(ax, tot, variable)
-#                    ax.set_ylabel("Events")
-                    ax.text(0.05,0.97, region.tlatex_alias,
-                            transform=ax.transAxes, fontsize=FONT_SIZE_TITLE,
-                            verticalalignment='top')
-                    hep.cms.label(loc=0, ax=ax, data=False,
-                                  label="Work in Progress",
-                                  lumi=f"{plotter.lumi:.1f}",
-                                  com=13, fontsize=FONT_SIZE_LABEL)
-                    ax.set_xlim(*plotter.xlim)
-                    ax.set_ylim(*plotter.ylim)
-                    ax.legend(loc='best', fontsize=FONT_SIZE_LEGEND)
-
-                    outname = outdir / f"{region.name}_{variable.name}.pdf"
-                    save_figure(fig, outname)
-                    plt.close(fig)
 
 def main():
     args = parse_args()
@@ -566,7 +475,8 @@ def main():
 
     # If the user did not supply --plot-config, fill it in now:
     if args.plot_config is None:
-        args.plot_config = f"data/{plotter.run}/{plotter.year}/{plotter.era}/sr_config.yaml"
+        args.plot_config = f"data/{plotter.run}/{plotter.year}/{plotter.era}/cr_config.yaml"
+        print(args.plot_config)
 
     # Verify that the YAML config exists
     if not Path(args.plot_config).is_file():
@@ -577,10 +487,6 @@ def main():
     plot_settings = load_plot_settings(args.plot_config)
     plotter.plot_settings = plot_settings
 
-    if args.signal_mode:
-        plot_signals(plotter, plot_settings)
-        return
-
     # Validate YAML entries for each region
     missing_regions = [
         r.name for r in plotter.regions_to_draw
@@ -590,7 +496,6 @@ def main():
         logging.error(f"Missing YAML entries for regions: {missing_regions}")
         sys.exit(1)
 
-    # Now a list of 1 or 2 input dirs
     input_dirs = plotter.input_directory
 
     for region in plotter.regions_to_draw:
@@ -602,7 +507,7 @@ def main():
                 logging.error(f"Missing '{variable.name}' under '{region.name}' in YAML")
                 continue
 
-            cfg = plotter.plot_settings[region.name][variable.name]
+            cfg = plot_settings[region.name][variable.name]
             rebin  = cfg['rebin']
             xmin, xmax = map(float, cfg['xlim'])
             ymin, ymax = map(float, cfg['ylim'])
@@ -621,18 +526,11 @@ def main():
                 combined = None
 
                 is_data_group = (sample_group.name in DATA_GROUPS)
-                # Only accept data from the region’s primary_dataset:
                 if is_data_group and sample_group.name != region.primary_dataset:
-                    # skip any data‐group that is not exactly the primary_dataset for this region
                     continue
 
                 for sample in sample_group.samples:
                     print(sample)
-                    # skip nominal DYJets here; we’ll overlay our 3 variants later
-                    if (not is_data_group) and ("DYJets" in sample):
-                        continue
-                        
-
                     hist_obj = load_and_rebin(
                         input_dirs, sample, hist_key, plotter, is_data_group
                     )
