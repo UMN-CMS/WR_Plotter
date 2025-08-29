@@ -4,7 +4,6 @@
 import sys
 import logging
 from pathlib import Path
-from collections import defaultdict
 import argparse
 
 # ── Third-party ────────────────────────────────────────────────────────────────
@@ -22,13 +21,12 @@ REPO_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_DIR))
 
 from python.plotter import Plotter
-from src.plotting_helpers import custom_log_formatter, set_y_label, plot_stack
-from python.io import data_path, read_yaml, read_json,output_dir, save_figure
-from python.histo import load_and_rebin
-from python.regions import regions_for_era, expand_region_requests
+from src import custom_log_formatter, set_y_label
+from python.io import (data_path, read_yaml, read_json,output_dir, save_figure)
+from python.regions import Region, build_regions
 from python.variables import Variable, build_variables
 from python.sample_groups import load_sample_groups
-from python.config import list_eras,load_lumi,load_plot_settings,load_kfactors,get_kfactor,index_plot_settings, get_var_cfg
+from python.config import (list_eras,load_lumi,load_plot_settings,load_kfactors,get_kfactor,)
 
 _ERA_CHOICES = list_eras()
 SCALES = load_kfactors()
@@ -58,21 +56,50 @@ def _parse_multi(opt):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="CR plot commands")
 
+    # required era
     parser.add_argument("--era",dest="era",type=str,choices=_ERA_CHOICES,required=True,help="Specify the era",)
+
+    # paths / config
     parser.add_argument("--dir",dest="dir",type=str,default="",help="Optional subdirectory under the input & default EOS output paths",)
     parser.add_argument("--name",dest="name",type=str,default="",help="Append a suffix to the filenames",)
     parser.add_argument("--plot-config",dest="plot_config",type=str,default=None,help="YAML file with rebin/xlim/ylim for each (region,variable)",)
+
+    # category
+    parser.add_argument("--cat",dest="category",type=str,choices=["dy_cr", "flavor_cr"],default="dy_cr",help="Plot category",)
+
+    # filters: allow multiple via repeat or commas
     parser.add_argument("--region","-r",dest="regions",action="append",default=None,help="Region name(s). Repeat or comma-separate: -r a -r b  or  -r a,b",)
     parser.add_argument("--variable","-v",dest="variables",action="append",default=None,help="Variable name(s). Repeat or comma-separate: -v x -v y  or  -v x,y",)
 
-    parser.add_argument("--local-plots",action="store_true",help="Save plots to a local folder instead of EOS.",)
-
     args = parser.parse_args()
 
+    # normalize multi-value args into lists (or None)
     args.regions   = _parse_multi(args.regions)
     args.variables = _parse_multi(args.variables)
 
     return args
+
+def all_regions_for_era(era: str):
+    """
+    Return a de-duplicated list of regions for `era` across known categories.
+    Keeps first-seen order if names collide.
+    """
+    names_seen = set()
+    out = []
+    for cat in ("dy_cr", "flavor_cr"):
+        try:
+            regs = build_regions(era, cat)
+        except Exception:
+            continue
+        for r in regs:
+            if r.name not in names_seen:
+                names_seen.add(r.name)
+                out.append(r)
+    return out
+
+def load_plot_settings(config_path: str) -> dict:
+    with open(config_path) as f:
+        return yaml.safe_load(f)
 
 def setup_plotter(args) -> Plotter:
     working_dir = REPO_DIR
@@ -88,7 +115,7 @@ def setup_plotter(args) -> Plotter:
     if "sub_eras" in info:
         dirs = []
         for se in info["sub_eras"]:
-            se_info = load_lumi(se)
+            se_info = load_lumi(se)  # ensures sub-era exists and has run/year
             d = working_dir / "rootfiles" / se_info["run"] / se_info["year"] / se
             if args.dir:
                 d = d / args.dir
@@ -102,14 +129,7 @@ def setup_plotter(args) -> Plotter:
         plotter.input_directory = [base]
         plotter.input_lumis = [plotter.lumi]
 
-    if args.local_plots:
-        local_base = REPO_DIR / "plots" / plotter.run / plotter.year / plotter.era
-        if args.dir:
-            local_base = local_base / args.dir
-        local_base.mkdir(parents=True, exist_ok=True)
-        plotter.output_directory = local_base
-    else:
-        plotter.output_directory = output_dir(plotter.run, plotter.year, plotter.era, args.dir or None)
+    plotter.output_directory = output_dir(plotter.run, plotter.year, plotter.era, args.dir or None)
 
     groups, order = load_sample_groups(args.era)
 
@@ -120,7 +140,7 @@ def setup_plotter(args) -> Plotter:
 
     plotter.print_samples()
 
-    regions = regions_for_era(args.era)
+    regions = all_regions_for_era(args.era)
     plotter.regions_to_draw = regions
     plotter.print_regions()
 
@@ -130,6 +150,143 @@ def setup_plotter(args) -> Plotter:
 
     return plotter
 
+def load_and_rebin(input_dirs: list[Path],sample: str,hist_key: str,plotter: Plotter,is_data_group: bool):
+    combined = None
+
+    original_lumi = plotter.lumi
+
+    for indir, sublumi in zip(plotter.input_directory, plotter.input_lumis):
+        fp = indir / f"WRAnalyzer_{sample}.root"
+        try:
+            with uproot.open(fp) as f:
+                raw_hist = f[hist_key].to_hist()
+        except (FileNotFoundError, KeyError):
+            continue
+
+        # Rebin first
+#        if "mass_fourobject" in hist_key:
+#            variable_edges = [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
+#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+#        elif "pt_leading_jet" in hist_key:
+#            variable_edges = [0, 40, 100, 200, 400, 600, 800, 1000, 1500, 2000]
+#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+#        elif "mass_dijet" in hist_key:
+#            variable_edges = [0, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 4000]
+#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+#        else:
+        rebinned = plotter.rebin_hist(raw_hist)
+
+        if not is_data_group:
+            plotter.lumi = sublumi
+            rebinned = plotter.scale_hist(rebinned)
+
+        # apply per-era per-sample k-factor
+        era_for_scale = indir.name if indir.name in SCALES else plotter.era
+        k = get_kfactor(SCALES, era_for_scale, sample, default=1.0)
+        rebinned = rebinned * k
+
+        combined = rebinned if (combined is None) else (combined + rebinned)
+
+    plotter.lumi = original_lumi
+    return combined
+
+
+def reorder_legend(ax, priority_labels=("MC stat. unc.", "Data"), fontsize=FONT_SIZE_LEGEND):
+    handles, labels = ax.get_legend_handles_labels()
+    idx_map = {label: i for i, label in enumerate(labels)}
+    mc_idx = idx_map.get(priority_labels[0], None)
+    data_idx = idx_map.get(priority_labels[1], None)
+
+    bkg_idxs = [i for i in range(len(labels)) if i not in {mc_idx, data_idx}]
+    bkg_idxs.reverse()
+
+    new_order = []
+    if mc_idx is not None:
+        new_order.append(mc_idx)
+    if data_idx is not None:
+        new_order.append(data_idx)
+    new_order.extend(bkg_idxs)
+
+    new_handles = [handles[i] for i in new_order]
+    new_labels  = [labels[i]  for i in new_order]
+    ax.legend(new_handles, new_labels, loc="best", fontsize=fontsize)
+
+
+def plot_stack(plotter, region, variable):
+    bkg_stack = plotter.stack_list
+    bkg_labels = plotter.stack_labels
+    bkg_colors = plotter.stack_colors
+
+    tot = sum(plotter.stack_list)     # “total MC” histogram
+    data = sum(plotter.data_hist)     # “data” histogram
+    edges = tot.axes[0].edges
+
+    hep.style.use("CMS")
+    fig, (ax, rax) = plt.subplots(2, 1,gridspec_kw=dict(height_ratios=[3, 1], hspace=0.1),sharex=True)
+
+    hep.histplot(bkg_stack,stack=True,label=bkg_labels,color=bkg_colors,histtype='fill',ax=ax)
+
+    hep.histplot(data,label="Data",xerr=True,color='k',histtype='errorbar',ax=ax)
+
+    errps = {'hatch': '////', 'facecolor': 'none', 'lw': 0, 'edgecolor': 'k', 'alpha': 0.5}
+    hep.histplot(tot,histtype='band',ax=ax,**errps,label='MC stat. unc.')
+
+    data_vals = data.values()
+    tot_vals  = tot.values()
+    ratio     = np.zeros_like(data_vals, dtype=float)
+    ratio_err = np.zeros_like(data_vals, dtype=float)
+    mask = tot_vals > 0
+
+    if np.any(mask):
+        ratio[mask]     = data_vals[mask] / tot_vals[mask]
+        ratio_err[mask] = np.sqrt(data_vals[mask]) / tot_vals[mask]
+
+    tot_vars = tot.variances()
+    mc_err = np.sqrt(tot_vars)
+    rel_err = np.zeros_like(tot_vals, dtype=float)
+    rel_err[mask] = mc_err[mask] / tot_vals[mask]
+
+    hep.histplot(ratio,edges,yerr=ratio_err,xerr=True,ax=rax,histtype="errorbar",color="k",capsize=4,label="Data",)
+
+    band_low  = np.ones_like(rel_err) - rel_err
+    band_high = np.ones_like(rel_err) + rel_err
+    band_low[~mask] = np.nan
+    band_high[~mask] = np.nan
+    rax.stairs(band_low, edges, baseline=band_high, **errps)
+
+    ax.set_yscale("log")
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
+    ax.set_ylim(*plotter.ylim)
+    ax.text(0.05, 0.96,region.tlatex_alias,transform=ax.transAxes,fontsize=FONT_SIZE_TITLE,verticalalignment='top')
+    hep.cms.label(loc=0,ax=ax,data=region.unblind_data,label="Work in Progress",lumi=f"{plotter.lumi:.1f}",com=13.6,fontsize=FONT_SIZE_LABEL)
+
+    if variable.unit:
+        xlabel = f"{variable.tlatex_alias} [{variable.unit}]"
+    else:
+        xlabel = variable.tlatex_alias
+
+    rax.set_xlabel(xlabel)
+    ax.set_xlabel("")
+    rax.set_ylabel("Data/Sim.")
+    rax.set_ylim(0.7, 1.3)
+    rax.set_yticks([0.8, 1.0, 1.2])
+    rax.axhline(1.0, ls='--', color='k')
+    ax.set_xlim(*plotter.xlim)
+    set_y_label(ax, tot, variable)
+    reorder_legend(ax)
+
+    return fig
+
+def _index_plot_settings(plot_settings: dict) -> tuple[dict, dict]:
+    """Return (region_cfgs, common_vars)."""
+    common_vars = plot_settings.get("common_variables", {})
+    region_cfgs = {r: plot_settings.get(r, {}) for r in plot_settings.keys() if r != "common_variables"}
+    return region_cfgs, common_vars
+
+def _get_var_cfg(region_cfgs, common_vars, region_name, var_name):
+    reg = region_cfgs.get(region_name, {})
+    return reg.get(var_name, common_vars.get(var_name))
+
 def main():
     args = parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -137,16 +294,14 @@ def main():
     plotter = setup_plotter(args)
 
     if args.regions:
-        try:
-            expanded = expand_region_requests(args.era, args.regions)
-            plotter.regions_to_draw = expanded
-            logging.info(
-                "Restricted to regions (expanded): %s",
-                [f"{r.name}:{r.primary_dataset}" for r in expanded],
-            )
-        except ValueError as e:
-            logging.error(str(e))
+        valid_regions = {r.name for r in all_regions_for_era(args.era)}
+        unknown = [r for r in args.regions if r not in valid_regions]
+        if unknown:
+            logging.error(f"Unknown region(s): {unknown}. Valid: {sorted(valid_regions)}")
             sys.exit(2)
+        name_to_region = {r.name: r for r in plotter.regions_to_draw}
+        plotter.regions_to_draw = [name_to_region[n] for n in args.regions if n in name_to_region]
+        logging.info(f"Restricted to regions: {args.regions}")
 
     if args.variables:
         valid_vars = {v.name for v in build_variables()}
@@ -163,8 +318,8 @@ def main():
 
     plot_settings = load_plot_settings(args.plot_config or args.era)
 
-    region_cfgs, common_vars = index_plot_settings(plot_settings)
-    plotter.plot_settings = plot_settings
+    region_cfgs, common_vars = _index_plot_settings(plot_settings)
+    plotter.plot_settings = plot_settings  # if other internals want it
 
     missing_regions = [r.name for r in plotter.regions_to_draw if r.name not in region_cfgs]
     if missing_regions:
@@ -176,7 +331,7 @@ def main():
         logging.info(f"Processing region '{region.name}'")
 
         for variable in plotter.variables_to_draw:
-            vcfg = get_var_cfg(region_cfgs, common_vars, region.name, variable.name)
+            vcfg = _get_var_cfg(region_cfgs, common_vars, region.name, variable.name)
             if vcfg is None:
                 logging.warning(f"  Skipping '{region.name}/{variable.name}': no settings and no common fallback.")
                 continue
@@ -199,17 +354,7 @@ def main():
                     continue
                 
                 for sample in sample_group.samples:
-                    hist_obj = load_and_rebin(
-                        input_dirs=plotter.input_directory,
-                        sample=sample,
-                        hist_key=hist_key,
-                        plotter=plotter,
-                        is_data_group=is_data_group,
-                        sublumis=plotter.input_lumis,
-                        era_for_scale=plotter.era,
-                        get_kfactor_fn=get_kfactor,
-                        scales=SCALES,
-                    )
+                    hist_obj = load_and_rebin(input_dirs, sample, hist_key, plotter, is_data_group)
                     if hist_obj is None:
                         continue
                     combined = hist_obj if (combined is None) else (combined + hist_obj)
@@ -226,7 +371,7 @@ def main():
                         getattr(sample_group, "tlatex_alias", None)
                         or getattr(sample_group, "label", None)
                         or getattr(sample_group, "name", None)
-                        or ""
+                        or ""   # final fallback, no group_key
                     )
                     plotter.accumulate_histogram(combined, color, label)
 
