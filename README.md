@@ -14,7 +14,6 @@ This repository is structured to separate executable scripts, core analysis logi
 ```
 bin/        # user-facing CLI entrypoints (tiny wrappers).
 data/       # configs & static metadata (tracked, human-editable)
-docs/       # Contains documentation markdown.
 python/     # the importable library (public API)
 scripts/    # developer & maintenance utilities
 rootfiles/  # input ROOT/hist files 
