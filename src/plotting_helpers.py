@@ -134,8 +134,14 @@ def plot_stack(plotter, region, variable,
     ax.set_yscale("log")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
     ax.set_ylim(*plotter.ylim)
-    ax.text(0.05, 0.96, region.tlatex_alias, transform=ax.transAxes,
-            fontsize=fontsize_title, va="top")
+    alias = region.tlatex_alias.replace("\\n", "\n")
+    ax.text(
+        0.05, 0.96, alias,
+        transform=ax.transAxes,
+        fontsize=fontsize_title,
+        va="top"
+    )
+
     hep.cms.label(loc=0, ax=ax, data=region.unblind_data,
                   label="Work in Progress", lumi=f"{plotter.lumi:.1f}",
                   com=13.6, fontsize=fontsize_label)

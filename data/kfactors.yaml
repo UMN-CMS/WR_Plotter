@@ -4,7 +4,7 @@ Run3Summer22:
   _default: 1.0
 
 Run3Summer22EE:
-  DYJets: 0.941
+  DYJets: 1.4
 
 RunIISummer20UL18:
   _default: 1.0
