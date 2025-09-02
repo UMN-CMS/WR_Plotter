@@ -1,0 +1,24 @@
+{
+  "RunIISummer20UL18": {
+    "run": "RunII",
+    "year": "2018",
+    "lumi": 59.832422397
+  },
+  "Run3Summer22": {
+    "run": "Run3",
+    "year": "2022",
+    "lumi": 7.9804
+  },
+  "Run3Summer22EE": {
+    "run": "Run3",
+    "year": "2022",
+    "lumi": 26.6717
+  },
+  "2022": {
+    "run": "Run3",
+    "year": "2022",
+    "lumi": 34.6521,
+    "sub_eras": ["Run3Summer22", "Run3Summer22EE"],
+    "sub_lumis": [7.9804, 26.6717]
+  }
+}

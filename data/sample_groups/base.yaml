@@ -1,0 +1,43 @@
+run: Run3
+year: 2022
+mc_campaign: ""   # default; override per era if needed
+
+groups:
+  dy:
+    color: "#5790fc"
+    tlatex_alias: "Z+jets"
+    samples: []       # filled per era
+    kind: mc
+
+  ttbar:
+    color: "#f89c20"
+    tlatex_alias: "$t\\bar{t}$"
+    samples: []
+    kind: mc
+
+  nonprompt:
+    color: "#e42536"
+    tlatex_alias: "Nonprompt"
+    samples: []
+    kind: mc
+
+  other:
+    color: "#964a8b"
+    tlatex_alias: "Other backgrounds"
+    samples: []
+    kind: mc
+
+  egamma:
+    color: "#000000"
+    tlatex_alias: "Data"
+    samples: []
+    kind: data
+
+  muon:
+    color: "#000000"
+    tlatex_alias: "Data"
+    samples: []
+    kind: data
+
+# default legend order (can be overridden per era)
+order: [other, nonprompt, ttbar, dy, egamma, muon]

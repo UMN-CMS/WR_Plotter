@@ -1,0 +1,25 @@
+# data/sample_groups/2022.yaml
+# Combined era “2022” (Run3Summer22 + Run3Summer22EE)
+mc_campaign: "Run3Summer22"   # keep empty for combined; set per sub-era if you ever split
+
+groups:
+  dy:
+    samples: [DYJets]
+
+  ttbar:
+    samples: [TTbar]
+
+  nonprompt:
+    samples: [WJets, SingleTop, TTbarSemileptonic]
+
+  other:
+    samples: [TTV, Diboson, Triboson]
+
+  egamma:
+    samples: [EGamma]
+
+  muon:
+    samples: [Muon]
+
+# Optionally override legend order (or omit to inherit from base)
+order: [other, nonprompt, ttbar, dy, egamma, muon]
