@@ -85,6 +85,7 @@ To make stack plots of all of 2022 (Run3Summer22 and Run3Summer22EE combined), u
 ```
 python3 bin/plot_control_regions.py --era 2022
 ```
+One can also use `Run3Summer22` and `RunIISummer20UL18`.
 
 ### Making a simple control region plot
 Make a single plot with 
