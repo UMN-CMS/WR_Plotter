@@ -24,11 +24,11 @@ test/       # Holds test and development scripts.
 ---
 
 ## Getting Started
-If you have cloned WrCoffea, and the WR_Plotter submodule is empty, run this from the WrCoffea repo
+If you have cloned WrCoffea and the WR_Plotter submodule is empty, run this from the WrCoffea repo
 ```bash
 git submodule update --init --recursive
 ```
-Alternatively, next time you can clone with
+Alternatively, next time clone the repo with the `--recursive` flag
 ```bash
 git clone --recursive git@github.com:UMN-CMS/WrCoffea.git
 ```
@@ -81,12 +81,18 @@ rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_WJets.root
 ```
 If you also have these files for `Run3Summer22EE` then you can plot all of 2022.
 
+### Make 2022 control region plots
+To make stack plots of all of 2022 (Run3Summer22 and Run3Summer22EE combined), use
+```
+python3 bin/plot_control_regions.py --era 2022
+```
+
 ### Making a simple control region plot
-Try making a single plot with 
+Make a single plot with 
 ```
 python3 bin/plot_control_regions.py --era Run3Summer22 -r wr_mumu_resolved_dy_cr -v mass_dilepton
 ```
-This will make a stack plot of the dimuon mass in the Drell-Yan control region.
+This will make a stack plot of the dimuon mass in the Drell-Yan control region for Run3Summer22.
 
 ### Other examples
 To plot multiple variables,
@@ -107,11 +113,6 @@ python3 bin/plot_control_regions.py --era Run3Summer22
 If you used the `--dir` argument in `bin/run_analysis.py` (so that the files are saved under `dir/`), you can use the same argument here
 ```
 python3 bin/plot_control_regions.py --era Run3Summer22 --dir dy_nlo
-```
-
-To run over all of 2022 (Run3Summer22 and Run3Summer22EE combined) and over every variable, use
-```
-python3 bin/plot_control_regions.py --era 2022
 ```
 
 To make plots of the flavor sideband, use
