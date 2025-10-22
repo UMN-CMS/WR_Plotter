@@ -24,7 +24,7 @@ common_variables: &common_vars
   mass_threeobject_subleadlep: { rebin: 2,  xlim: [0, 4000],    ylim: [1e-2, 1e5] }
   pt_threeobject_subleadlep:   { rebin: 2,  xlim: [0, 1500],    ylim: [1e-1, 1e6] }
   pt_fourobject:               { rebin: 2,  xlim: [0, 2000],    ylim: [1e-1, 1e6] }
-
+  LSF_leading_AK8Jets:         {rebin: 2,  xlim: [0, 1.1],    ylim: [1e-1, 1e6]}
 # 2) CONTROL REGION blocks
 wr_mumu_resolved_dy_cr:
   <<: *common_vars
@@ -37,6 +37,15 @@ wr_ee_resolved_dy_cr:
 wr_resolved_flavor_cr:
   <<: *common_vars
   pt_dijet:        { rebin: 2, xlim: [0, 1000],  ylim: [5e-2, 5e6] }
+wr_mumu_boosted_dy_cr:
+  <<: *common_vars
+wr_ee_boosted_dy_cr:
+  <<: *common_vars
+wr_boosted_flavor_emu_cr:
+  <<: *common_vars
+wr_boosted_flavor_mue_cr:
+  <<: *common_vars
+
 
 # 3) SIGNAL REGION blocks
 wr_mumu_resolved_sr:
@@ -51,3 +60,11 @@ wr_ee_resolved_sr:
 wr_resolved_sr:   # if you have a flavor-agnostic SR key
   <<: *common_vars
   pt_fourobject:  { rebin: 2, xlim: [200, 2000],   ylim: [1e-2, 1e5] }
+
+
+wr_mumu_boosted_sr:
+  <<: *common_vars
+
+wr_ee_boosted_sr:
+  <<: *common_vars
+
