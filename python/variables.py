@@ -66,5 +66,14 @@ def build_variables() -> list[Variable]:
         Variable("mass_threeobject_subleadlep", r"$m_{l_{\mathrm{sec}}jj}$", "GeV", nbins=40, xmin=0, xmax=4000),
         Variable("pt_threeobject_subleadlep", r"$p^{T}_{l_{\mathrm{sec}}jj}$", "GeV", nbins=40, xmin=0, xmax=800),
         Variable("pt_fourobject", r"$p^{T}_{lljj}$", "GeV", nbins=50, xmin=0, xmax=1500),
+        Variable("LSF_leading_AK8Jets", r"LSF3_leadingAK8Jets", "" , nbins = 100, xmin=0, xmax=1.1),
+        Variable("pt_leading_loose_lepton",r"$p_{T}$ of the leading loose lepton","GeV",nbins=30, xmin=0, xmax=300),
+        Variable("eta_leading_loose_lepton", r"$\eta$ of the leading loose lepton", "", nbins=50, xmin=-2.5, xmax=2.5),
+        Variable("phi_leading_loose_lepton", r"$\phi$ of the leading loose lepton", "", nbins=64, xmin=-3.2, xmax=3.2),
+        Variable("pt_leading_AK8Jets", r"$p_{T}$ of the leading AK8 jet", "GeV", nbins=30, xmin=0, xmax=600),
+        Variable("eta_leading_AK8Jets", r"$\eta$ of the leading AK8 jet", "", nbins=60, xmin=-3.0, xmax=3.0),
+        Variable("phi_leading_AK8Jets", r"$\phi$ of the leading AK8 jet", "", nbins=64, xmin=-3.2, xmax=3.2),
+        Variable("pt_twoobject", r"$p^{T}_{lj}$", "GeV", nbins=50, xmin=0, xmax=1500),
+        Variable("mass_twoobject", r"$m_{lj}$", "GeV", nbins=40, xmin=0,   xmax=4000),
     ]
     return defs

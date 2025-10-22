@@ -27,6 +27,21 @@ def regions_for_era(era: str) -> List[Region]:
         # Flavor CR: SAME NAME, two datasets
         Region("wr_resolved_flavor_cr", "muon",   True, rf"$e\mu$\nResolved Flavor CR\n{era}"),
         Region("wr_resolved_flavor_cr", "egamma", True, rf"$e\mu$\nResolved Flavor CR\n{era}"),
+
+        ## boosted SR
+        Region("wr_mumu_boosted_sr", "muon", True, rf"$\mu\mu$\nBoosted SR\n{era}"),
+        Region("wr_ee_boosted_sr",   "egamma", True, rf"ee\nBoosted SR\n{era}"),
+        
+        ## boosted DY CR
+        Region("wr_mumu_boosted_dy_cr", "muon",   True, rf"$\mu\mu$\nBoosted DY CR\n{era}"),
+        Region("wr_ee_boosted_dy_cr",   "egamma", True, rf"ee\nBoosted DY CR\n{era}"),
+
+        ## Flavor CR : boosted
+        Region("wr_emu_boosted_flavor_cr", "muon",   True, rf"e($\mu$-jet)\nBoosted Flavor CR\n{era}"),
+        Region("wr_emu_boosted_flavor_cr",  "egamma", True, rf"e($\mu$-jet)\nBoosted Flavor CR\n{era}"),
+        Region("wr_mue_boosted_flavor_cr", "muon",   True, rf"$\mu$ (e-jet)\nBoosted Flavor CR\n{era}"),
+        Region("wr_mue_boosted_flavor_cr",  "egamma", True, rf"$\mu$ (e-jet)\nBoosted Flavor CR\n{era}"),
+
     ]
 
 def regions_by_name(era: str) -> Dict[str, List[Region]]:
