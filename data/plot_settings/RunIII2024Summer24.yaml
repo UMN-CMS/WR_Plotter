@@ -1,0 +1,26 @@
+# data/plot_settings/RunIII2024Summer24.yaml
+
+# 1) Variables used everywhere (base)
+common_variables: &common_vars
+  mass_fourobject:             { rebin: 10, xlim: [800, 6000],  ylim: [1e0, 1e7] }
+  pt_leadjet:                  { rebin: 5,  xlim: [0, 1000],    ylim: [1e0, 1e7] }
+  mass_dijet:                  { rebin: 10,  xlim: [0, 4000],    ylim: [1e0, 1e7] }
+  pt_leadlep:                  { rebin: 1,  xlim: [0, 1000],    ylim: [1e0, 1e7] }
+  eta_leadlep:                 { rebin: 1,  xlim: [-2.5, 2.5],  ylim: [1e0, 1e7] }
+  phi_leadlep:                 { rebin: 1,  xlim: [-3.2, 3.2],  ylim: [1e0, 1e7] }
+  pt_subleadlep:               { rebin: 1,  xlim: [0, 800],     ylim: [1e0, 1e7] }
+  eta_subleadlep:              { rebin: 1,  xlim: [-2.5, 2.5],  ylim: [1e0, 1e7] }
+  phi_subleadlep:              { rebin: 1,  xlim: [-3.2, 3.2],  ylim: [1e0, 1e7] }
+  eta_leadjet:                 { rebin: 1,  xlim: [-2.5, 2.5],  ylim: [1e0, 1e7] }
+  phi_leadjet:                 { rebin: 1,  xlim: [-3.2, 3.2],  ylim: [1e0, 1e7] }
+  pt_subleadjet:               { rebin: 1,  xlim: [0, 800],     ylim: [1e0, 1e7] }
+  eta_subleadjet:              { rebin: 1,  xlim: [-2.5, 2.5],  ylim: [1e0, 1e7] }
+  phi_subleadjet:              { rebin: 1,  xlim: [-3.2, 3.2],  ylim: [1e0, 1e7] }
+  mass_dilepton:               { rebin: 1,  xlim: [60, 150],    ylim: [1e0, 1e7] }
+  pt_dilepton:                 { rebin: 1,  xlim: [0, 1000],    ylim: [1e0, 1e7] }
+  pt_dijet:                    { rebin: 2,  xlim: [0, 1000],    ylim: [1e0, 1e7] }
+  mass_threeobject_leadlep:    { rebin: 5,  xlim: [0, 4000],    ylim: [1e0, 1e7] }
+  pt_threeobject_leadlep:      { rebin: 1,  xlim: [0, 1500],    ylim: [1e0, 1e7] }
+  mass_threeobject_subleadlep: { rebin: 5,  xlim: [0, 4000],    ylim: [1e0, 1e7] }
+  pt_threeobject_subleadlep:   { rebin: 1,  xlim: [0, 1500],    ylim: [1e0, 1e7] }
+  pt_fourobject:               { rebin: 1,  xlim: [0, 2000],    ylim: [1e0, 1e7] }

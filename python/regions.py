@@ -21,12 +21,16 @@ def regions_for_era(era: str) -> List[Region]:
     """All supported regions for an era."""
     return [
         # DY CRs
-        Region("wr_mumu_resolved_dy_cr", "muon",   True, rf"$\mu\mu$\nResolved DY CR\n{era}"),
-        Region("wr_ee_resolved_dy_cr",   "egamma", True, rf"ee\nResolved DY CR\n{era}"),
+#        Region("wr_mumu_resolved_dy_cr", "muon",   True, rf"$\mu\mu$\nResolved DY CR\n{era}"),
+#        Region("wr_ee_resolved_dy_cr",   "egamma", True, rf"ee\nResolved DY CR\n{era}"),
 
         # Flavor CR: SAME NAME, two datasets
-        Region("wr_resolved_flavor_cr", "muon",   True, rf"$e\mu$\nResolved Flavor CR\n{era}"),
-        Region("wr_resolved_flavor_cr", "egamma", True, rf"$e\mu$\nResolved Flavor CR\n{era}"),
+#        Region("wr_resolved_flavor_cr", "muon",   True, rf"$e\mu$\nResolved Flavor CR\n{era}"),
+#        Region("wr_resolved_flavor_cr", "egamma", True, rf"$e\mu$\nResolved Flavor CR\n{era}"),
+
+                # DY CRs
+        Region("wr_mumu_resolved_sr", "muon",   True, rf"$\mu\mu$\nResolved SR\n{era}"),
+        Region("wr_ee_resolved_sr",   "egamma", True, rf"ee\nResolved SR\n{era}"),
     ]
 
 def regions_by_name(era: str) -> Dict[str, List[Region]]:

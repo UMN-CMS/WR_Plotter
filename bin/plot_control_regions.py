@@ -113,6 +113,9 @@ def setup_plotter(args) -> Plotter:
 
     groups, order = load_sample_groups(args.era)
 
+
+    print(groups)
+    print(order)
     ordered_groups = [groups[k] for k in order if k in groups]
     plotter.sample_groups = ordered_groups
 
@@ -213,6 +216,33 @@ def main():
                     if hist_obj is None:
                         continue
                     combined = hist_obj if (combined is None) else (combined + hist_obj)
+
+                    # --- load systematic variations ---
+                    if not hasattr(plotter, "syst_hists"):
+                        plotter.syst_hists = {}
+
+                    for syst in ["lumi"]:  # add more later (PU, JES, etc.)
+                        for direction in ["up", "down"]:
+                            syst_hist_key = (
+                                f"syst_{syst}{direction}_{region.name}/"
+                                f"{variable.name}_syst_{syst}{direction}_{region.name}"
+                            )
+                            syst_obj = load_and_rebin(
+                                input_dirs=plotter.input_directory,
+                                sample=sample,
+                                hist_key=syst_hist_key,
+                                plotter=plotter,
+                                is_data_group=is_data_group,
+                                sublumis=plotter.input_lumis,
+                                era_for_scale=plotter.era,
+                                get_kfactor_fn=get_kfactor,
+                                scales=SCALES,
+                            )
+                            if syst_obj is not None:
+                                plotter.syst_hists.setdefault(region.name, {}) \
+                                                   .setdefault(variable.name, {}) \
+                                                   .setdefault(syst, {}) \
+                                                   .setdefault(direction, {})[sample] = syst_obj
 
                 if combined is None:
                     continue

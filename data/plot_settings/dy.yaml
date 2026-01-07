@@ -1,0 +1,53 @@
+# data/plot_settings/2022.yaml
+
+# 1) Variables used everywhere (base)
+common_variables: &common_vars
+  mass_fourobject:             { rebin: 2,  xlim: [0, 8000], ylim: [1e-6, 5e-1] }
+  pt_leading_jet:              { rebin: 2,  xlim: [0, 1000],    ylim: [1e-1, 1e7] }
+  mass_dijet:                  { rebin: 2,  xlim: [0, 4000],    ylim: [1e-2, 1e7] }
+  pt_leading_lepton:           { rebin: 2,  xlim: [0, 1000],    ylim: [1e-1, 1e7] }
+  eta_leading_lepton:          { rebin: 2,  xlim: [-2.5, 2.5],  ylim: [1e-1, 1e7] }
+  phi_leading_lepton:          { rebin: 4,  xlim: [-3.2, 3.2],  ylim: [1e-1, 1e7] }
+  pt_subleading_lepton:        { rebin: 2,  xlim: [0, 800],     ylim: [1e-1, 1e7] }
+  eta_subleading_lepton:       { rebin: 2,  xlim: [-2.5, 2.5],  ylim: [1e-1, 1e7] }
+  phi_subleading_lepton:       { rebin: 4,  xlim: [-3.2, 3.2],  ylim: [1e-1, 1e7] }
+  eta_leading_jet:             { rebin: 2,  xlim: [-2.5, 2.5],  ylim: [1e-1, 1e7] }
+  phi_leading_jet:             { rebin: 4,  xlim: [-3.2, 3.2],  ylim: [1e-1, 1e7] }
+  pt_subleading_jet:           { rebin: 2,  xlim: [0, 800],     ylim: [1e-1, 1e7] }
+  eta_subleading_jet:          { rebin: 2,  xlim: [-2.5, 2.5],  ylim: [1e-1, 1e7] }
+  phi_subleading_jet:          { rebin: 4,  xlim: [-3.2, 3.2],  ylim: [1e-1, 1e7] }
+  mass_dilepton:               { rebin: 2,  xlim: [60, 120],    ylim: [1e-1, 1e7] }
+  pt_dilepton:                 { rebin: 2,  xlim: [0, 1000],    ylim: [1e-1, 1e7] }
+  pt_dijet:                    { rebin: 2,  xlim: [0, 1000],    ylim: [1e-1, 1e7] }
+  mass_threeobject_leadlep:    { rebin: 2,  xlim: [0, 4000],    ylim: [1e-2, 1e7] }
+  pt_threeobject_leadlep:      { rebin: 2,  xlim: [0, 1500],    ylim: [1e-1, 1e7] }
+  mass_threeobject_subleadlep: { rebin: 2,  xlim: [0, 4000],    ylim: [1e-2, 1e7] }
+  pt_threeobject_subleadlep:   { rebin: 2,  xlim: [0, 1500],    ylim: [1e-1, 1e7] }
+  pt_fourobject:               { rebin: 2,  xlim: [0, 2000],    ylim: [1e-1, 1e7] }
+
+# 2) CONTROL REGION blocks
+wr_mumu_resolved_dy_cr:
+  <<: *common_vars
+  mass_fourobject: { rebin: 2, xlim: [0, 6000], ylim: [5e-3, 2e7] } 
+
+wr_ee_resolved_dy_cr:
+  <<: *common_vars
+  mass_dilepton:   { rebin: 2, xlim: [70, 110],  ylim: [1e-1, 1e6] }   # Z-peak tighter
+
+wr_resolved_flavor_cr:
+  <<: *common_vars
+  pt_dijet:        { rebin: 2, xlim: [0, 1000],  ylim: [5e-2, 5e6] }
+
+# 3) SIGNAL REGION blocks
+wr_mumu_resolved_sr:
+  <<: *common_vars
+  mass_fourobject: { rebin: 20, xlim: [800, 8000], ylim: [1e-1, 1e5] }
+  mass_dijet:      { rebin: 2, xlim: [500, 4000],  ylim: [1e-3, 1e4] }
+
+wr_ee_resolved_sr:
+  <<: *common_vars
+  mass_fourobject: { rebin: 20, xlim: [800, 8000], ylim: [1e-1, 1e5] }
+
+wr_resolved_sr:   # if you have a flavor-agnostic SR key
+  <<: *common_vars
+  pt_fourobject:  { rebin: 2, xlim: [200, 2000],   ylim: [1e-2, 1e5] }

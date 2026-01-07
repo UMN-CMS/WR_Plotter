@@ -64,7 +64,7 @@ def reorder_legend(ax, priority=("MC stat. unc.", "Data"), fontsize=18) -> None:
     first  = idx.get(priority[0])
     second = idx.get(priority[1])
     rest = [i for i in range(len(labels)) if i not in {first, second}]
-    rest.reverse()  # stacks read from bottom to top
+#    rest.reverse()  # stacks read from bottom to top
     order = ([first] if first is not None else []) + \
             ([second] if second is not None else []) + rest
     if not order:
@@ -102,13 +102,32 @@ def plot_stack(plotter, region, variable,
     hep.histplot(data, label="Data", xerr=True, color="k",
                  histtype="errorbar", ax=ax)
 
-    # MC stat uncertainty band
+    # --- stat ⊕ syst uncertainties ---
+    tot_vals = tot.values()
+    tot_vars = tot.variances()
+    syst_err2 = np.zeros_like(tot_vals)
+
+    if hasattr(plotter, "syst_hists"):
+        systs_for_region = plotter.syst_hists.get(region.name, {}).get(variable.name, {})
+        for syst, dirs in systs_for_region.items():
+            if "up" in dirs and "down" in dirs:
+                up_total   = sum(h.values(flow=False) for h in dirs["up"].values())
+                down_total = sum(h.values(flow=False) for h in dirs["down"].values())
+
+                delta_up   = np.abs(up_total   - tot_vals)
+                delta_down = np.abs(down_total - tot_vals)
+                delta = np.maximum(delta_up, delta_down)
+
+                syst_err2 += delta**2
+
+    mc_total_errs = np.sqrt(tot_vars + syst_err2)
+
+    # MC total uncertainty band (stat ⊕ syst)
     errps = {"hatch": "////", "facecolor": "none", "lw": 0, "edgecolor": "k", "alpha": 0.5}
-    hep.histplot(tot, histtype="band", ax=ax, **errps, label="MC stat. unc.")
+    hep.histplot(tot, histtype="band", yerr=mc_total_errs, ax=ax, **errps, label="MC stat. + syst. unc.")
 
     # ratio
     data_vals = data.values()
-    tot_vals  = tot.values()
     ratio = np.divide(data_vals, tot_vals,
                       out=np.zeros_like(data_vals, dtype=float),
                       where=(tot_vals > 0))
@@ -116,19 +135,18 @@ def plot_stack(plotter, region, variable,
                           out=np.zeros_like(data_vals, dtype=float),
                           where=(tot_vals > 0))
 
-    tot_vars = tot.variances()
-    mc_err = np.sqrt(tot_vars)
-    rel_err = np.divide(mc_err, tot_vals,
+    rel_err = np.divide(mc_total_errs, tot_vals,
                         out=np.zeros_like(tot_vals, dtype=float),
                         where=(tot_vals > 0))
 
-    hep.histplot(ratio, edges, yerr=ratio_err, xerr=True, ax=rax,
+    hep.histplot(ratio, edges, yerr=ratio_err, xerr=False, ax=rax,
                  histtype="errorbar", color="k", capsize=4, label="Data")
     band_low, band_high = 1 - rel_err, 1 + rel_err
     bad = tot_vals <= 0
     band_low[bad] = np.nan
     band_high[bad] = np.nan
     rax.stairs(band_low, edges, baseline=band_high, **errps)
+    rax.axhline(1.6, color="r", linestyle="--", linewidth=1.2)
 
     # cosmetics
     ax.set_yscale("log")
@@ -150,11 +168,10 @@ def plot_stack(plotter, region, variable,
     rax.set_xlabel(xlabel)
     ax.set_xlabel("")
     rax.set_ylabel("Data/Sim.")
-    rax.set_ylim(0.7, 1.3)
-    rax.set_yticks([0.8, 1.0, 1.2])
+    rax.set_ylim(0.3, 3.2)
+    rax.set_yticks([1, 2, 3])
     rax.axhline(1.0, ls="--", color="k")
     ax.set_xlim(*plotter.xlim)
-
     # y label (per-bin width)
     set_y_label(ax, tot, variable)
 

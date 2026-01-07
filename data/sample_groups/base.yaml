@@ -11,7 +11,7 @@ groups:
 
   ttbar:
     color: "#f89c20"
-    tlatex_alias: "$t\\bar{t}$"
+    tlatex_alias: "$t\\bar{t}$+tW"
     samples: []
     kind: mc
 
