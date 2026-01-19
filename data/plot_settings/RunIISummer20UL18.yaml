@@ -256,5 +256,3 @@ wr_ee_boosted_sr:
   pt_leading_lepton:           { rebin: 2,  xlim: [0, 1000],    ylim: [1e-1, 1e6] }
   pt_subleading_lepton:        { rebin: 2,  xlim: [0, 800],     ylim: [1e-1, 1e6] }
   pt_twoobject:                { rebin: 5,  xlim: [0, 1000],    ylim: [1e-1, 1e6] }
-
-

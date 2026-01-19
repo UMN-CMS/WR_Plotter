@@ -28,22 +28,25 @@ def regions_for_era(era: str) -> List[Region]:
         Region("wr_resolved_flavor_cr", "muon",   True, rf"$e\mu$\nResolved Flavor CR\n{era}"),
         Region("wr_resolved_flavor_cr", "egamma", True, rf"$e\mu$\nResolved Flavor CR\n{era}"),
 
+    
         # Resolved SRs
         Region("wr_mumu_resolved_sr", "muon",   True, rf"$\mu\mu$\nResolved SR\n{era}"),
         Region("wr_ee_resolved_sr",   "egamma", True, rf"ee\nResolved SR\n{era}"),
 
-        # Boosted DY CRs
+        ## boosted DY CR
         Region("wr_mumu_boosted_dy_cr", "muon",   True, rf"$\mu\mu$\nBoosted DY CR\n{era}"),
         Region("wr_ee_boosted_dy_cr",   "egamma", True, rf"ee\nBoosted DY CR\n{era}"),
-
-        # Boosted Flavor CRs: separate e-mu and mu-e regions
-        Region("wr_emu_boosted_flavor_cr", "egamma", True, rf"$e\mu$\nBoosted Flavor CR\n{era}"),
-        Region("wr_mue_boosted_flavor_cr", "muon",   True, rf"$\mu e$\nBoosted Flavor CR\n{era}"),
-
+      
         # Boosted SRs
         Region("wr_mumu_boosted_sr", "muon",   True, rf"$\mu\mu$\nBoosted SR\n{era}"),
         Region("wr_ee_boosted_sr",   "egamma", True, rf"ee\nBoosted SR\n{era}"),
-    ]
+      
+        ## Flavor CR : boosted
+        Region("wr_emu_boosted_flavor_cr", "muon",   True, rf"e($\mu$-jet)\nBoosted Flavor CR\n{era}"),
+        Region("wr_emu_boosted_flavor_cr",  "egamma", True, rf"e($\mu$-jet)\nBoosted Flavor CR\n{era}"),
+        Region("wr_mue_boosted_flavor_cr", "muon",   True, rf"$\mu$ (e-jet)\nBoosted Flavor CR\n{era}"),
+        Region("wr_mue_boosted_flavor_cr",  "egamma", True, rf"$\mu$ (e-jet)\nBoosted Flavor CR\n{era}"),
+
 
 def regions_by_name(era: str) -> Dict[str, List[Region]]:
     """Map name -> all Region variants (e.g. both muon/egamma for flavor CR)."""

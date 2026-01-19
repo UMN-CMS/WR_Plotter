@@ -27,19 +27,20 @@ def load_and_rebin(
             continue
 
 
-        # Rebin first
-#        if "mass_fourobject" in hist_key:
-#            variable_edges = [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
-#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
-#        elif "pt_leading_jet" in hist_key:
-#            variable_edges = [0, 40, 100, 200, 400, 600, 800, 1000, 1500, 2000]
-#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
-#        elif "mass_dijet" in hist_key:
-#            variable_edges = [0, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 4000]
-#            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
-#        else:
+        # #Rebin first
+        if "mass_fourobject" in hist_key : # or "mass_twoobject" in hist_key:
 
-        rebinned = plotter.rebin_hist(raw_hist)
+            variable_edges = [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
+            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+        elif "mass_twoobject" in hist_key: #"pt_leading_AK8Jets" in hist_key:
+            print(hist_key)
+            variable_edges = [0, 800, 1000, 1200, 1400, 1600, 2000, 8000]
+            rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+        # elif "mass_dijet" in hist_key:
+        #     variable_edges = [0, 200, 400, 600, 800, 1000, 1250, 1500, 2000, 4000]
+        #     rebinned = plotter.rebin_hist(raw_hist, variable_edges)
+        else:
+            rebinned = plotter.rebin_hist(raw_hist)
 
         if not is_data_group:
             plotter.lumi = sublumi
