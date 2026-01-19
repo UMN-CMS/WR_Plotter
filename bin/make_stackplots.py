@@ -58,7 +58,7 @@ def _parse_multi(opt):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="CR plot commands")
 
-    parser.add_argument("--era",dest="era",type=str,choices=_ERA_CHOICES,required=True,help="Specify the era",)
+    parser.add_argument("--era",dest="era",type=str,choices=_ERA_CHOICES,required=False,help="Specify the era",)
     parser.add_argument("--dir",dest="dir",type=str,default="",help="Optional subdirectory under the input & default EOS output paths",)
     parser.add_argument("--name",dest="name",type=str,default="",help="Append a suffix to the filenames",)
     parser.add_argument("--plot-config",dest="plot_config",type=str,default=None,help="YAML file with rebin/xlim/ylim for each (region,variable)",)
@@ -66,8 +66,62 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--variable","-v",dest="variables",action="append",default=None,help="Variable name(s). Repeat or comma-separate: -v x -v y  or  -v x,y",)
 
     parser.add_argument("--local-plots",action="store_true",help="Save plots to a local folder instead of EOS.",)
+    parser.add_argument("--unblind",action="store_true",help="Show data in signal regions (default: blinded).",)
+
+    # List options for discovery
+    parser.add_argument("--list-eras",action="store_true",help="List all available eras and exit.",)
+    parser.add_argument("--list-regions",action="store_true",help="List all available regions for the specified era and exit.",)
+    parser.add_argument("--list-variables",action="store_true",help="List all available variables and exit.",)
 
     args = parser.parse_args()
+
+    # Handle list commands early
+    if args.list_eras:
+        print("Available eras:")
+        for era in _ERA_CHOICES:
+            print(f"  - {era}")
+        sys.exit(0)
+
+    if args.list_variables:
+        print("Available variables:")
+        for var in sorted([v.name for v in build_variables()]):
+            print(f"  - {var}")
+        sys.exit(0)
+
+    if args.list_regions:
+        if not args.era:
+            print("Error: --list-regions requires --era to be specified")
+            sys.exit(1)
+        from python.regions import regions_by_name
+        regions_map = regions_by_name(args.era)
+        print(f"Available regions for era '{args.era}':")
+        print("\nRegion names (use with --region):")
+        for name in sorted(regions_map.keys()):
+            variants = regions_map[name]
+            datasets = ", ".join(sorted(set(r.primary_dataset for r in variants)))
+            print(f"  - {name:35s} (datasets: {datasets})")
+
+        # Show shorthands
+        print("\nShorthand aliases:")
+        shorthands = {
+            "resolved_dy_cr": "wr_ee_resolved_dy_cr, wr_mumu_resolved_dy_cr",
+            "resolved_sr": "wr_ee_resolved_sr, wr_mumu_resolved_sr",
+            "resolved_flavor_cr": "wr_resolved_flavor_cr",
+            "boosted_dy_cr": "wr_ee_boosted_dy_cr, wr_mumu_boosted_dy_cr",
+            "boosted_sr": "wr_ee_boosted_sr, wr_mumu_boosted_sr",
+            "boosted_flavor_cr": "wr_emu_boosted_flavor_cr, wr_mue_boosted_flavor_cr",
+        }
+        for shorthand, expands_to in shorthands.items():
+            print(f"  - {shorthand:35s} -> {expands_to}")
+
+        print("\nDataset-specific syntax:")
+        print("  - <region_name>:muon    (e.g., wr_resolved_flavor_cr:muon)")
+        print("  - <region_name>:egamma  (e.g., wr_resolved_flavor_cr:egamma)")
+        sys.exit(0)
+
+    # Now era is required for normal operation
+    if not args.era:
+        parser.error("--era is required (unless using --list-eras or --list-variables)")
 
     args.regions   = _parse_multi(args.regions)
     args.variables = _parse_multi(args.variables)
@@ -187,8 +241,10 @@ def main():
             rebin = vcfg.get('rebin', 1)
             xmin, xmax = map(float, vcfg.get('xlim', (0.0, 1.0)))
             ymin, ymax = map(float, vcfg.get('ylim', (1.0, 1e6)))
+            ratio_ymin, ratio_ymax = map(float, vcfg.get('ratio_ylim', (0.5, 2.0)))
 
             plotter.configure_axes(nrebin=rebin, xlim=(xmin, xmax), ylim=(ymin, ymax))
+            plotter.ratio_ylim = (ratio_ymin, ratio_ymax)
             plotter.reset_stack()
             plotter.reset_data()
 
@@ -264,7 +320,11 @@ def main():
                 logging.warning(f"  Skipped '{region.name}/{variable.name}' (no histograms found).")
                 continue
 
-            fig = plot_stack(plotter, region, variable)
+            # Determine if this is a signal region and if we should blind it
+            is_signal_region = 'sr' in region.name.lower()
+            show_data = args.unblind or not is_signal_region
+
+            fig = plot_stack(plotter, region, variable, show_data=show_data)
             outpath = f"{plotter.output_directory}/{region.name}_{region.primary_dataset}/{variable.name}_{region.name}.pdf"
 
             try:

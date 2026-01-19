@@ -6,13 +6,13 @@ groups:
     samples: [DYJets]
 
   ttbar:
-    samples: [TTbar, tW]
+    samples: [tt_tW]
 
   nonprompt:
-    samples: [WJets, SingleTop, TTbarSemileptonic]
+    samples: [Nonprompt]
 
   other:
-    samples: [TTV, Diboson, Triboson]
+    samples: [Other]
 
   egamma:
     samples: [EGamma]

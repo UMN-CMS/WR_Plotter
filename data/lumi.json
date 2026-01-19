@@ -17,9 +17,7 @@
   "2022": {
     "run": "Run3",
     "year": "2022",
-    "lumi": 34.6521,
-    "sub_eras": ["Run3Summer22", "Run3Summer22EE"],
-    "sub_lumis": [7.9804, 26.6717]
+    "lumi": 34.6521
   },
   "RunIII2024Summer24": {
     "run": "Run3",
