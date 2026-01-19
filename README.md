@@ -6,7 +6,6 @@ Welcome to the WR plotter submodule! This repository provides tools for processi
 - [Quick Start](README.md#quick-start) – How to make stack-plots.
 - [Repository Structure](README.md#repository-structure) – Overview of how the repository is organized.
 - [Getting Started](README.md#getting-started) – Instructions for installing and setting up the plotter.
-- [Examples](README.md#examples) – How to make control region plots.
 ---
 
 ## Quick Start
@@ -25,14 +24,17 @@ rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_Muon.root
 
 To make stack plots, run
 ```
-python3 bin/make_stackplots.py --era RunIII2024Summer24
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --local-plots
 ```
 This will make stackplots of all major variables in all analysis regions (resolved/boosted control/signal regions). The signal region is blinded.
+
+The `--local-plots` saves plots locally. Removing it will upload them to CERNBox.
 
 To see avaliable eras, run
 ```
 python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-eras
 ```
+
 
 ### Plotting specific regions
 To run over a particular region, include the `-r` flag,
@@ -64,11 +66,12 @@ To default, the signal region is blinded. To unblind, include the `--unblind` fl
 python3 bin/make_stackplots.py --era RunIISummer20UL18 --unblind
 ```
 
-### Other
 If you used the `--dir` argument in `bin/run_analysis.py` (so that the files are saved under `dir/`), you can use the same argument here
 ```
 python3 bin/make_stackplots.py --era RunIISummer20UL18 --dir my_directory
 ```
+
+---
 
 ## 📂 Repository Structure
 This repository is structured to separate executable scripts, core analysis logic, and documentation.
