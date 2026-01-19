@@ -39,7 +39,7 @@ python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-eras
 ### Plotting specific regions
 To run over a particular region, include the `-r` flag,
 ```
-python3 bin/make_stackplots.py--era RunIII2024Summer24 -r resolved_dy_cr
+python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr  --local-plots
 ```
 To see avaliable regions,
 ```
@@ -49,11 +49,11 @@ python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-regions
 ### Plotting specific variables
 To plot a particular variable, include the `-v` flag,
 ```
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet
+python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet  --local-plots
 ```
 which also accepts list arguments, i.e.
 ```
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet,pt_leading_lepton
+python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet,pt_leading_lepton  --local-plots
 ```
 To see avaliable variables,
 ```
@@ -63,12 +63,12 @@ python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-variables
 ### Unblinding
 To default, the signal region is blinded. To unblind, include the `--unblind` flag,
 ```
-python3 bin/make_stackplots.py --era RunIISummer20UL18 --unblind
+python3 bin/make_stackplots.py --era RunIISummer20UL18 --unblind  --local-plots
 ```
 
 If you used the `--dir` argument in `bin/run_analysis.py` (so that the files are saved under `dir/`), you can use the same argument here
 ```
-python3 bin/make_stackplots.py --era RunIISummer20UL18 --dir my_directory
+python3 bin/make_stackplots.py --era RunIISummer20UL18 --dir my_directory  --local-plots
 ```
 
 ---
