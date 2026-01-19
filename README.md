@@ -3,10 +3,53 @@
 Welcome to the WR plotter submodule! This repository provides tools for processing and plotting WR background, data, and signal events. Below, you’ll find instructions on setting up the environment, and how to make some stack plots.
 
 ## Table of Contents
+- [Quick Start](README.md#quick-start) – How to make stack-plots.
 - [Repository Structure](README.md#repository-structure) – Overview of how the repository is organized.
 - [Getting Started](README.md#getting-started) – Instructions for installing and setting up the plotter.
 - [Examples](README.md#examples) – How to make control region plots.
 ---
+
+## Quick Start
+
+### To make a full set of stack plots for a given era, 
+
+To make stack plots of all of 2022 (Run3Summer22 and Run3Summer22EE combined), use
+```
+python3 bin/plot_control_regions.py --era 2022
+```
+One can also use `Run3Summer22` and `RunIISummer20UL18`.
+
+### Making a simple control region plot
+Make a single plot with 
+```
+python3 bin/plot_control_regions.py --era Run3Summer22 -r wr_mumu_resolved_dy_cr -v mass_dilepton
+```
+This will make a stack plot of the dimuon mass in the Drell-Yan control region for Run3Summer22.
+
+### Other examples
+To plot multiple variables,
+```
+python3 bin/plot_control_regions.py --era Run3Summer22 -r wr_mumu_resolved_dy_cr -v mass_dilepton,mass_fourobject
+```
+
+To make plots for both the electron and muon channels, remove the `-r` argument
+```
+python3 bin/plot_control_regions.py --era Run3Summer22 -v mass_dilepton
+```
+
+To make plots for all variables, remove the `-v` argument
+```
+python3 bin/plot_control_regions.py --era Run3Summer22
+```
+
+If you used the `--dir` argument in `bin/run_analysis.py` (so that the files are saved under `dir/`), you can use the same argument here
+```
+python3 bin/plot_control_regions.py --era Run3Summer22 --dir dy_nlo
+```
+
+To make plots of the flavor sideband, use
+```
+python3 bin/plot_control_regions.py --era Run3Summer22 -r wr_resolved_flavor_cr -v ma
 
 ## 📂 Repository Structure
 This repository is structured to separate executable scripts, core analysis logic, and documentation.
@@ -79,43 +122,5 @@ rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_TW.root
 rootfiles/Run3/2022/Run3Summer22/WRAnalyzer_WJets.root
 ```
 If you also have these files for `Run3Summer22EE` then you can plot all of 2022.
-
-### Make 2022 control region plots
-To make stack plots of all of 2022 (Run3Summer22 and Run3Summer22EE combined), use
-```
-python3 bin/plot_control_regions.py --era 2022
-```
-One can also use `Run3Summer22` and `RunIISummer20UL18`.
-
-### Making a simple control region plot
-Make a single plot with 
-```
-python3 bin/plot_control_regions.py --era Run3Summer22 -r wr_mumu_resolved_dy_cr -v mass_dilepton
-```
-This will make a stack plot of the dimuon mass in the Drell-Yan control region for Run3Summer22.
-
-### Other examples
-To plot multiple variables,
-```
-python3 bin/plot_control_regions.py --era Run3Summer22 -r wr_mumu_resolved_dy_cr -v mass_dilepton,mass_fourobject
-```
-
-To make plots for both the electron and muon channels, remove the `-r` argument
-```
-python3 bin/plot_control_regions.py --era Run3Summer22 -v mass_dilepton
-```
-
-To make plots for all variables, remove the `-v` argument
-```
-python3 bin/plot_control_regions.py --era Run3Summer22
-```
-
-If you used the `--dir` argument in `bin/run_analysis.py` (so that the files are saved under `dir/`), you can use the same argument here
-```
-python3 bin/plot_control_regions.py --era Run3Summer22 --dir dy_nlo
-```
-
-To make plots of the flavor sideband, use
-```
-python3 bin/plot_control_regions.py --era Run3Summer22 -r wr_resolved_flavor_cr -v mass_fourobject --dir dy_ht
+ss_fourobject --dir dy_ht
 ```
