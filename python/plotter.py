@@ -132,7 +132,7 @@ class Plotter:
         return rebin_histogram(hist_obj, spec)
 
     def scale_hist(self, hist):
-        scale_factor = self.lumi * 1000
+        scale_factor = 1
         return scale_histogram(hist, scale_factor)
 
     def accumulate_histogram(self, combined_hist, color, label):

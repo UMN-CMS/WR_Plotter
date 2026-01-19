@@ -1,0 +1,24 @@
+# data/sample_groups/RunIISummer20UL18.yaml
+mc_campaign: "RunIISummer20UL18"
+
+groups:
+  dy:
+    samples: [DYJets]
+
+  ttbar:
+    samples: [tt_tW]
+
+  nonprompt:
+    samples: [Nonprompt]
+
+  other:
+    samples: [Other]
+
+  egamma:
+    samples: [EGamma]
+
+  muon:
+    samples: [Muon]
+
+# Optionally override legend order (or omit to inherit from base)
+order: [other, nonprompt, ttbar, dy, egamma, muon]

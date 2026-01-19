@@ -44,6 +44,7 @@ class Variable:
 def build_variables() -> list[Variable]:
     # Give each variable sensible uniform defaults; tune as you like
     defs = [
+        # Resolved region variables
         Variable("mass_fourobject", r"$m_{lljj}$", "GeV", nbins=40, xmin=0,   xmax=4000),
         Variable("pt_leading_jet", r"$p_{T}$ of the leading jet", "GeV", nbins=30, xmin=0, xmax=600),
         Variable("mass_dijet", r"$m_{jj}$", "GeV", nbins=36, xmin=0,   xmax=3600),

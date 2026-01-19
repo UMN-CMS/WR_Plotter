@@ -5,3 +5,8 @@ plots/
 # Ignore Python cache files
 __pycache__/
 *.pyc
+
+bin/compare_22_24_dy.py
+bin/compare_dy.py
+bin/compare_lo_nlo_dy.py
+make_cutflow_table.py
