@@ -1,6 +1,6 @@
 # WR Plotter Documentation
 
-Welcome to the WR plotter submodule! This repository provides tools for processing and plotting WR background, data, and signal events. Below, you’ll find instructions on setting up the environment, and how to make some stack plots.
+This repository provides tools for processing and plotting WR background, data, and signal events. 
 
 ## Table of Contents
 - [Quick Start](README.md#quick-start) – How to make stack-plots.
