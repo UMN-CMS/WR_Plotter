@@ -3,9 +3,16 @@
 This repository provides tools for processing and plotting WR background, data, and signal events. 
 
 ## Table of Contents
-- [Quick Start](README.md#quick-start) – How to make stack-plots.
-- [Repository Structure](README.md#repository-structure) – Overview of how the repository is organized.
-- [Getting Started](README.md#getting-started) – Instructions for installing and setting up the plotter.
+- [Quick Start](#quick-start) – Get started making stack plots
+  - [Prerequisites](#prerequisites) – Required ROOT files
+  - [Stackplots](#stackplots) – Basic plotting commands
+  - [Output Locations](#output-locations) – Where plots are saved
+  - [Plotting Specific Regions](#plotting-specific-regions) – Filter by region
+  - [Plotting Specific Variables](#plotting-specific-variables) – Filter by variable
+  - [Unblinding](#unblinding) – Show data in signal regions
+- [Command Reference](#command-reference) – Complete flag reference and examples
+- [Repository Structure](#-repository-structure) – Overview of how the codebase is organized
+- [Getting Started](#getting-started) – Installation and environment setup
 ---
 
 ## Quick Start
@@ -145,16 +152,67 @@ python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-variables
 ---
 
 ## 📂 Repository Structure
-This repository is structured to separate executable scripts, core analysis logic, and documentation.
+
+The repository follows a clean architecture separating user-facing scripts, core library code, configuration, and data storage.
+
+### Directory Overview
 
 ```
-bin/        # user-facing CLI entrypoints (tiny wrappers).
-data/       # configs & static metadata (tracked, human-editable)
-python/     # the importable library (public API)
-scripts/    # developer & maintenance utilities
-rootfiles/  # input ROOT/hist files 
-test/       # Holds test and development scripts.
+bin/         # User-facing CLI scripts (production workflows)
+python/      # Core analysis library (public API)
+src/         # Low-level plotting and histogram utilities
+data/        # Configuration files (YAML/JSON)
+rootfiles/   # Input ROOT histograms from analyzer
+plots/       # Generated output plots (PDF format)
+test/        # Development and validation scripts
 ```
+
+### Key Directories
+
+**`bin/`** - Production Scripts
+- [`make_stackplots.py`](bin/make_stackplots.py) - Main script for generating stacked histogram plots
+- [`compare_dy.py`](bin/compare_dy.py) - Compare LO vs NLO DYJets samples
+- [`compare_22_24_dy.py`](bin/compare_22_24_dy.py) - Compare 2022 vs 2024 data
+- Thin wrappers around the core library functionality
+
+**`python/`** - Core Library
+- [`config.py`](python/config.py) - Load and manage YAML/JSON configurations (lumi, kfactors, plot settings)
+- [`plotter.py`](python/plotter.py) - Main `Plotter` class orchestrating the plotting workflow
+- [`regions.py`](python/regions.py) - Define analysis regions (resolved/boosted, control/signal regions)
+- [`variables.py`](python/variables.py) - Define physics variables to plot (mass, pT, eta, phi, etc.)
+- [`io.py`](python/io.py) - File I/O utilities and EOS/CERNBox integration
+- [`histo.py`](python/histo.py) - Histogram loading and rebinning functions
+- [`sample_groups.py`](python/sample_groups.py) - Sample organization and styling
+
+**`src/`** - Utilities
+- [`histogram_utils.py`](src/histogram_utils.py) - Histogram rebinning and manipulation
+- [`plotting_helpers.py`](src/plotting_helpers.py) - Matplotlib styling and CMS plot formatting
+
+**`data/`** - Configuration Files
+- `plot_settings/` - Per-era plot configurations (rebin, x/y limits)
+  - [`RunIII2024Summer24.yaml`](data/plot_settings/RunIII2024Summer24.yaml)
+  - [`RunIISummer20UL18.yaml`](data/plot_settings/RunIISummer20UL18.yaml)
+- `sample_groups/` - Sample grouping and colors
+- [`lumi.json`](data/lumi.json) - Luminosity values per era
+- [`kfactors.yaml`](data/kfactors.yaml) - MC scale factors
+
+**`rootfiles/`** - Input Data
+- Organized by `Run/Year/Era/` (e.g., `Run3/2024/RunIII2024Summer24/`)
+- Contains ROOT histograms from the upstream WrCoffea analyzer
+- Background samples: DYJets, tt_tW, Nonprompt, Other
+- Data samples: EGamma, Muon
+- Signal samples: WR4000_N2100, WR4000_N100
+
+**`plots/`** - Output Directory
+- Generated PDF plots organized by era and region
+- Created when using `--local-plots` flag
+- Structure: `plots/Run/Year/Era/Region_Dataset/Variable_Region.pdf`
+
+**`test/`** - Development Scripts
+- Analysis optimization studies (e.g., `mll_study/`)
+- Cross-era comparison scripts
+- Background fraction studies
+- Scale factor validation
 
 ---
 
