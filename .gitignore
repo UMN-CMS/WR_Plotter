@@ -6,6 +6,7 @@ plots/
 __pycache__/
 *.pyc
 
+run_me.sh
 bin/compare_22_24_dy.py
 bin/compare_dy.py
 bin/compare_lo_nlo_dy.py
