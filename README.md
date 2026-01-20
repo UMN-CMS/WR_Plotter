@@ -11,7 +11,7 @@ This repository provides tools for processing and plotting WR background, data, 
 ## Quick Start
 
 ### Prerequisites
-First, check that you have ran over at least RunIII2024Summer24 in the main analyzer. The following files should exist:
+Check that you have ran over at least RunIII2024Summer24 in the main analyzer. The following files should exist:
 ```  
 rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_DYJets.root
 rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_tt_tW.root
@@ -22,18 +22,34 @@ rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_Muon.root
 rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_signal_WR4000_N2100.root
 rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_signal_WR4000_N100.root
 ```
+---
 
-To make stack plots, run
+### Stackplots
+
+There is one command that will make stackplots of all variables in all analysis regions,
 ```
 python3 bin/make_stackplots.py --era RunIII2024Summer24 --local-plots
 ```
-This will make stackplots of all major variables in all analysis regions (resolved/boosted control/signal regions). The signal region is blinded.
+This will make plots of the resolved and boosted variables in the control and signal regions. 
 
-The `--local-plots` flag saves plots locally in the repository. Removing it will upload them to CERNBox.
+The signal region is blinded by default, and a signal sample is shown instead of data.
+
+To see avaliable eras, run
+```
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-eras
+```
+Right now `RunII2Summer20UL18` and `RunIII2024Summer24` are confirmed to work.
+
+If you used the `--dir` argument in `bin/run_analysis.py` (so that the files are saved under `dir/`), you can use the same argument here to point to those ROOT files
+```
+python3 bin/make_stackplots.py --era RunIISummer20UL18 --dir my_directory  --local-plots
+```
+
+---
 
 ### Output Locations
 
-**Local plots** (with `--local-plots`):
+The `--local-plots` flag saves plots locally in the `plots/` directory,
 ```
 plots/<Run>/<Year>/<Era>/<Region>_<Dataset>/<Variable>_<Region>.pdf
 ```
@@ -42,18 +58,13 @@ Example:
 plots/Run3/2024/RunIII2024Summer24/resolved_dy_cr_EGamma/pt_leading_jet_resolved_dy_cr.pdf
 ```
 
-**CERNBox plots** (without `--local-plots`):
-Plots are uploaded to your EOS area. The exact path depends on your CERNBox configuration.
+CERNBox plots (without `--local-plots`) are uploaded to your EOS area. The exact path depends on your CERNBox configuration.
 
 All plots are saved in **PDF format** and organized by:
 - Region name and primary dataset (e.g., `resolved_dy_cr_EGamma`)
 - Individual plot files named by variable and region (e.g., `pt_leading_jet_resolved_dy_cr.pdf`)
 
-To see avaliable eras, run
-```
-python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-eras
-```
-
+---
 
 ### Plotting specific regions
 To run over a particular region, include the `-r` flag,
@@ -64,30 +75,27 @@ To see avaliable regions,
 ```
 python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-regions
 ```
+---
 
 ### Plotting specific variables
 To plot a particular variable, include the `-v` flag,
 ```
 python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet  --local-plots
 ```
-which also accepts list arguments, i.e.
+it also accepts list arguments, i.e.
 ```
 python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet,pt_leading_lepton  --local-plots
 ```
-To see avaliable variables,
+To see all avaliable variables,
 ```
 python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-variables
 ```
 
+---
 ### Unblinding
-To default, the signal region is blinded. To unblind, include the `--unblind` flag,
+To default, the signal region is blinded. To unblind, include the `--unblind` flag (safe for `RunII`),
 ```
 python3 bin/make_stackplots.py --era RunIISummer20UL18 --unblind  --local-plots
-```
-
-If you used the `--dir` argument in `bin/run_analysis.py` (so that the files are saved under `dir/`), you can use the same argument here
-```
-python3 bin/make_stackplots.py --era RunIISummer20UL18 --dir my_directory  --local-plots
 ```
 
 ---
