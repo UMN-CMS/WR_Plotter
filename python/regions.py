@@ -46,7 +46,7 @@ def regions_for_era(era: str) -> List[Region]:
         Region("wr_emu_boosted_flavor_cr",  "egamma", True, rf"e($\mu$-jet)\nBoosted Flavor CR\n{era}"),
         Region("wr_mue_boosted_flavor_cr", "muon",   True, rf"$\mu$ (e-jet)\nBoosted Flavor CR\n{era}"),
         Region("wr_mue_boosted_flavor_cr",  "egamma", True, rf"$\mu$ (e-jet)\nBoosted Flavor CR\n{era}"),
-
+    ]
 
 def regions_by_name(era: str) -> Dict[str, List[Region]]:
     """Map name -> all Region variants (e.g. both muon/egamma for flavor CR)."""

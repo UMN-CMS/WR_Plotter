@@ -126,6 +126,12 @@ def parse_args() -> argparse.Namespace:
     args.regions   = _parse_multi(args.regions)
     args.variables = _parse_multi(args.variables)
 
+    # Check for Run3 unblinding
+    if args.unblind and args.era:
+        info = load_lumi(args.era)
+        if info.get("run") == "Run3":
+            parser.error("Run3 data is not ready to be unblinded. Remove --unblind flag.")
+
     return args
 
 def setup_plotter(args) -> Plotter:
@@ -215,9 +221,7 @@ def main():
         plotter.variables_to_draw = [name_to_var[n] for n in args.variables if n in name_to_var]
         logging.info(f"Restricted to variables: {args.variables}")
 
-    if args.plot_config is None:
-        args.plot_config = f"data/plot_settings/{args.era}.yaml"
-
+    # If no plot config specified, load_plot_settings will use the era key
     plot_settings = load_plot_settings(args.plot_config or args.era)
 
     region_cfgs, common_vars = index_plot_settings(plot_settings)
@@ -324,7 +328,42 @@ def main():
             is_signal_region = 'sr' in region.name.lower()
             show_data = args.unblind or not is_signal_region
 
-            fig = plot_stack(plotter, region, variable, show_data=show_data)
+            # --- Load signal overlays for signal regions ---
+            signal_hists = {}
+            if is_signal_region:
+                # Try to load signal files (if they exist in the input directories)
+                # Different signal samples for boosted vs resolved regions
+                is_boosted_region = 'boosted' in region.name.lower()
+
+                if is_boosted_region:
+                    # Boosted regions use WR4000_N100
+                    signal_samples = ["signal_WR4000_N100"]
+                else:
+                    # Resolved regions use different naming by era
+                    if plotter.run == "RunII":
+                        signal_samples = ["signal_WR4000_N2000"]
+                    else:  # Run3
+                        signal_samples = ["signal_WR4000_N2100"]
+
+                for sig_sample in signal_samples:
+                    sig_hist = load_and_rebin(
+                        input_dirs=plotter.input_directory,
+                        sample=sig_sample,
+                        hist_key=hist_key,
+                        plotter=plotter,
+                        is_data_group=False,
+                        sublumis=plotter.input_lumis,
+                        era_for_scale=plotter.era,
+                        get_kfactor_fn=get_kfactor,
+                        scales=SCALES,
+                    )
+                    if sig_hist is not None:
+                        signal_hists[sig_sample] = sig_hist
+                        logging.info(f"    Loaded signal: {sig_sample}")
+                if signal_hists:
+                    logging.info(f"    {len(signal_hists)} signal sample(s) will be overlaid")
+
+            fig = plot_stack(plotter, region, variable, show_data=show_data, signal_hists=signal_hists)
             outpath = f"{plotter.output_directory}/{region.name}_{region.primary_dataset}/{variable.name}_{region.name}.pdf"
 
             try:

@@ -33,7 +33,7 @@ def _format_bin_width(w: float) -> str:
 def set_y_label(ax, tot, variable) -> None:
     """
     Set y-axis label as 'Events / <binwidth> [unit]' for uniform binning.
-    For non-uniform binning, fall back to 'Events / bin'.
+    For non-uniform binning, use 'Events / X [unit]'.
     """
     edges = np.asarray(tot.axes[0].edges)
     widths = np.diff(edges)
@@ -48,9 +48,9 @@ def set_y_label(ax, tot, variable) -> None:
             ax.set_ylabel(f"Events / {bw}")
     else:
         if unit:
-            ax.set_ylabel(f"Events / bin ({unit})")
+            ax.set_ylabel(f"Events / X {unit}")
         else:
-            ax.set_ylabel("Events / bin")
+            ax.set_ylabel("Events / X")
 
 # --------------------------------- legends ---------------------------------- #
 
@@ -76,7 +76,7 @@ def reorder_legend(ax, priority=("MC stat. unc.", "Data"), fontsize=18) -> None:
 # --------------------------------- drawing ---------------------------------- #
 
 def plot_stack(plotter, region, variable,
-               fontsize_title=20, fontsize_label=20, fontsize_legend=18, show_data=True):
+               fontsize_title=20, fontsize_label=20, fontsize_legend=18, show_data=True, signal_hists=None):
     """
     Draw stacked MC + data with ratio panel.
     Expects Plotter to provide:
@@ -86,7 +86,10 @@ def plot_stack(plotter, region, variable,
 
     Args:
       show_data: If False, data points are not shown and ratio panel displays "Blinded"
+      signal_hists: Dict of signal sample name -> histogram to overlay (not stacked)
     """
+    if signal_hists is None:
+        signal_hists = {}
     bkg_stack  = plotter.stack_list
     bkg_labels = plotter.stack_labels
     bkg_colors = plotter.stack_colors
@@ -106,6 +109,21 @@ def plot_stack(plotter, region, variable,
     if show_data and data is not None:
         hep.histplot(data, label="Data", xerr=True, color="k",
                      histtype="errorbar", ax=ax)
+
+    # --- Signal overlays ---
+    for idx, (sig_name, sig_hist) in enumerate(signal_hists.items()):
+        # Extract masses from signal name and format as LaTeX
+        # e.g., "signal_WR4000_N2100" -> "$(m_{W_R}, m_N) = (4000, 2100)$ GeV"
+        import re
+        match = re.search(r'WR(\d+)_N(\d+)', sig_name)
+        if match:
+            m_wr, m_n = match.groups()
+            label = rf"$(m_{{W_R}}, m_N) = ({m_wr}, {m_n})$ GeV"
+        else:
+            label = sig_name
+
+        hep.histplot(sig_hist, label=label, color="black",
+                     histtype="step", linewidth=2, linestyle="--", ax=ax)
 
     # --- stat ⊕ syst uncertainties ---
     tot_vals = tot.values()
