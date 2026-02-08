@@ -2,8 +2,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, replace
 import logging
-import numpy as np
-import hist
 
 @dataclass(frozen=True)
 class Variable:
@@ -18,22 +16,6 @@ class Variable:
 
     def label(self) -> str:
         return f"{self.tlatex_alias} [{self.unit}]" if self.unit else self.tlatex_alias
-
-#    def axis(self, override_bins: list[float] | None = None) -> hist.axis.Axis:
-#        """
-#        Return a boost-histogram axis. If override_bins is given, use variable-width bins.
-#        Otherwise fall back to the variable's regular (uniform) binning.
-#        """
-#        if override_bins is not None:
-#            edges = np.asarray(override_bins, dtype=float)
-#            if edges.ndim != 1 or len(edges) < 2 or not np.all(np.diff(edges) > 0):
-#                raise ValueError(f"{self.name}: invalid override_bins")
-#            return hist.axis.Variable(edges, name=self.name, label=self.label())
-#
-#        if None not in (self.nbins, self.xmin, self.xmax):
-#            return hist.axis.Regular(self.nbins, self.xmin, self.xmax, name=self.name, label=self.label())
-#
-#        raise ValueError(f"Variable {self.name} has no binning (nbins/xmin/xmax) and no override provided")
 
     def print(self) -> None:
         logging.info(
@@ -76,5 +58,6 @@ def build_variables() -> list[Variable]:
         Variable("phi_leading_AK8Jets", r"$\phi$ of the leading AK8 jet", "", nbins=64, xmin=-3.2, xmax=3.2),
         Variable("pt_twoobject", r"$p^{T}_{lj}$", "GeV", nbins=50, xmin=0, xmax=1500),
         Variable("mass_twoobject", r"$m_{lj}$", "GeV", nbins=40, xmin=0,   xmax=4000),
+        Variable("dPhi_leading_tightlepton_AK8Jet", r"$\Delta\phi(\ell, \mathrm{AK8\ jet})$", "", nbins=64, xmin=0, xmax=3.2),
     ]
     return defs

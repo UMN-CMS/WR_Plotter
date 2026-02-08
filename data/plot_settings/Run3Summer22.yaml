@@ -2,7 +2,7 @@
 
 # 1) Variables used everywhere (base)
 common_variables: &common_vars
-  mass_fourobject:             { rebin: 2,  xlim: [500, 8000],  ylim: [1e-2, 5e3] }
+  mass_fourobject:             { rebin: 2,  rebin_variable: [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000],  xlim: [500, 8000],  ylim: [1e-2, 5e3] }
   pt_leading_jet:              { rebin: 2,  xlim: [0, 1000],    ylim: [1e-1, 1e6] }
   mass_dijet:                  { rebin: 2,  xlim: [0, 4000],    ylim: [1e-2, 1e5] }
   pt_leading_lepton:           { rebin: 2,  xlim: [0, 1000],    ylim: [1e-1, 1e6] }
@@ -28,7 +28,7 @@ common_variables: &common_vars
 # 2) CONTROL REGION blocks
 wr_mumu_resolved_dy_cr:
   <<: *common_vars
-  mass_fourobject: { rebin: 4, xlim: [500, 6000], ylim: [5e-3, 2e3] } 
+  mass_fourobject: { rebin: 4, rebin_variable: [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000], xlim: [500, 6000], ylim: [5e-3, 2e3] }
 
 wr_ee_resolved_dy_cr:
   <<: *common_vars
@@ -50,12 +50,12 @@ wr_boosted_flavor_mue_cr:
 # 3) SIGNAL REGION blocks
 wr_mumu_resolved_sr:
   <<: *common_vars
-  mass_fourobject: { rebin: 4, xlim: [1000, 8000], ylim: [1e-3, 1e3] }
+  mass_fourobject: { rebin: 4, rebin_variable: [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000], xlim: [1000, 8000], ylim: [1e-3, 1e3] }
   mass_dijet:      { rebin: 2, xlim: [500, 4000],  ylim: [1e-3, 1e4] }
 
 wr_ee_resolved_sr:
   <<: *common_vars
-  mass_fourobject: { rebin: 4, xlim: [1000, 8000], ylim: [1e-3, 1e3] }
+  mass_fourobject: { rebin: 4, rebin_variable: [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000], xlim: [1000, 8000], ylim: [1e-3, 1e3] }
 
 wr_resolved_sr:   # if you have a flavor-agnostic SR key
   <<: *common_vars

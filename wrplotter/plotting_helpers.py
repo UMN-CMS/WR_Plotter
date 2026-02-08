@@ -1,12 +1,37 @@
-# src/plotting_helpers.py
 from __future__ import annotations
+
+import logging
+import re
 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import mplhep as hep
 
+# ----------------------------- constants -------------------------------------- #
+
+FONT_SIZE_TITLE  = 20
+FONT_SIZE_LABEL  = 20
+FONT_SIZE_LEGEND = 18
+
 # ----------------------------- formatters/labels ----------------------------- #
+
+def _safe_sum_hists(hists):
+    """
+    Sum a list of hist-like objects without letting Python's `sum()` default start=0
+    turn empty inputs into an int.
+
+    Returns:
+      - None for empty input
+      - the sole element for length-1 input
+      - the pairwise sum for length>=2
+    """
+    if not hists:
+        return None
+    total = hists[0]
+    for h in hists[1:]:
+        total = total + h
+    return total
 
 def custom_log_formatter(y: float, pos) -> str:
     """
@@ -54,17 +79,19 @@ def set_y_label(ax, tot, variable) -> None:
 
 # --------------------------------- legends ---------------------------------- #
 
-def reorder_legend(ax, priority=("MC stat. unc.", "Data"), fontsize=18) -> None:
+def reorder_legend(ax, priority=("MC stat.", "Data"), fontsize=18) -> None:
     """
-    Put 'MC stat. unc.' first, 'Data' second, keep the rest in reverse stack order.
+    Put MC uncertainty band first, 'Data' second, keep the rest in reverse stack order.
+    The first priority element is matched as a prefix (handles both
+    'MC stat. unc.' and 'MC stat. + syst. unc.').
     Missing labels are skipped gracefully.
     """
     handles, labels = ax.get_legend_handles_labels()
     idx = {label: i for i, label in enumerate(labels)}
-    first  = idx.get(priority[0])
+    # Prefix match for the MC uncertainty label
+    first = next((idx[l] for l in labels if l.startswith(priority[0])), None)
     second = idx.get(priority[1])
     rest = [i for i in range(len(labels)) if i not in {first, second}]
-#    rest.reverse()  # stacks read from bottom to top
     order = ([first] if first is not None else []) + \
             ([second] if second is not None else []) + rest
     if not order:
@@ -75,14 +102,14 @@ def reorder_legend(ax, priority=("MC stat. unc.", "Data"), fontsize=18) -> None:
 
 # --------------------------------- drawing ---------------------------------- #
 
-def plot_stack(plotter, region, variable,
-               fontsize_title=20, fontsize_label=20, fontsize_legend=18, show_data=True, signal_hists=None):
+def plot_stack(region, variable, *,
+               stack_list, stack_colors, stack_labels, data_hist,
+               xlim, ylim, lumi, com=13.6,
+               ratio_ylim=(0.5, 2.0), syst_hists=None,
+               fontsize_title=FONT_SIZE_TITLE, fontsize_label=FONT_SIZE_LABEL, fontsize_legend=FONT_SIZE_LEGEND,
+               show_data=True, signal_hists=None):
     """
     Draw stacked MC + data with ratio panel.
-    Expects Plotter to provide:
-      - stack_list, stack_labels, stack_colors, data_hist
-      - xlim, ylim, lumi
-      - a y-label helper: set_y_label(ax, tot, variable)  (we call the version above)
 
     Args:
       show_data: If False, data points are not shown and ratio panel displays "Blinded"
@@ -90,12 +117,22 @@ def plot_stack(plotter, region, variable,
     """
     if signal_hists is None:
         signal_hists = {}
-    bkg_stack  = plotter.stack_list
-    bkg_labels = plotter.stack_labels
-    bkg_colors = plotter.stack_colors
-    tot  = sum(plotter.stack_list)
-    data = sum(plotter.data_hist) if plotter.data_hist else None
-    edges = tot.axes[0].edges
+    bkg_stack  = list(stack_list or [])
+    bkg_labels = stack_labels
+    bkg_colors = stack_colors
+    tot = _safe_sum_hists(bkg_stack)
+    data = _safe_sum_hists(list(data_hist or []))
+
+    if tot is not None:
+        edges = tot.axes[0].edges
+    elif data is not None:
+        logging.warning(
+            "No MC histograms found for region '%s' variable '%s' (plotting data-only).",
+            region.name, variable.name,
+        )
+        edges = data.axes[0].edges
+    else:
+        raise ValueError(f"No histograms to plot for region='{region.name}' variable='{variable.name}'.")
 
     hep.style.use("CMS")
     fig, (ax, rax) = plt.subplots(
@@ -103,8 +140,9 @@ def plot_stack(plotter, region, variable,
     )
 
     # main panel
-    hep.histplot(bkg_stack, stack=True, label=bkg_labels,
-                 color=bkg_colors, histtype="fill", alpha=0.7, ax=ax)
+    if bkg_stack:
+        hep.histplot(bkg_stack, stack=True, label=bkg_labels,
+                     color=bkg_colors, histtype="fill", alpha=0.7, ax=ax)
 
     if show_data and data is not None:
         hep.histplot(data, label="Data", xerr=True, color="k",
@@ -112,9 +150,6 @@ def plot_stack(plotter, region, variable,
 
     # --- Signal overlays ---
     for idx, (sig_name, sig_hist) in enumerate(signal_hists.items()):
-        # Extract masses from signal name and format as LaTeX
-        # e.g., "signal_WR4000_N2100" -> "$(m_{W_R}, m_N) = (4000, 2100)$ GeV"
-        import re
         match = re.search(r'WR(\d+)_N(\d+)', sig_name)
         if match:
             m_wr, m_n = match.groups()
@@ -125,58 +160,66 @@ def plot_stack(plotter, region, variable,
         hep.histplot(sig_hist, label=label, color="black",
                      histtype="step", linewidth=2, linestyle="--", ax=ax)
 
-    # --- stat ⊕ syst uncertainties ---
-    tot_vals = tot.values()
-    tot_vars = tot.variances()
-    syst_err2 = np.zeros_like(tot_vals)
-
-    if hasattr(plotter, "syst_hists"):
-        systs_for_region = plotter.syst_hists.get(region.name, {}).get(variable.name, {})
-        for syst, dirs in systs_for_region.items():
-            if "up" in dirs and "down" in dirs:
-                up_total   = sum(h.values(flow=False) for h in dirs["up"].values())
-                down_total = sum(h.values(flow=False) for h in dirs["down"].values())
-
-                delta_up   = np.abs(up_total   - tot_vals)
-                delta_down = np.abs(down_total - tot_vals)
-                delta = np.maximum(delta_up, delta_down)
-
-                syst_err2 += delta**2
-
-    mc_total_errs = np.sqrt(tot_vars + syst_err2)
-
-    # MC total uncertainty band (stat ⊕ syst)
+    # --- stat + syst uncertainties ---
     errps = {"hatch": "////", "facecolor": "none", "lw": 0, "edgecolor": "k", "alpha": 0.5}
-    hep.histplot(tot, histtype="band", yerr=mc_total_errs, ax=ax, **errps, label="MC stat. + syst. unc.")
 
-    # ratio
-    rel_err = np.divide(mc_total_errs, tot_vals,
-                        out=np.zeros_like(tot_vals, dtype=float),
-                        where=(tot_vals > 0))
+    if tot is not None:
+        tot_vals = tot.values()
+        tot_vars = tot.variances()
+        syst_err2 = np.zeros_like(tot_vals)
+        has_syst = False
 
-    if show_data and data is not None:
-        data_vals = data.values()
-        ratio = np.divide(data_vals, tot_vals,
-                          out=np.zeros_like(data_vals, dtype=float),
-                          where=(tot_vals > 0))
-        ratio_err = np.divide(np.sqrt(data_vals), tot_vals,
+        if syst_hists:
+            systs_for_region = syst_hists.get(region.name, {}).get(variable.name, {})
+            for syst, dirs in systs_for_region.items():
+                if "up" in dirs and "down" in dirs:
+                    up_total = sum((h.values(flow=False) for h in dirs["up"].values()), start=0)
+                    down_total = sum((h.values(flow=False) for h in dirs["down"].values()), start=0)
+
+                    delta_up = np.abs(up_total - tot_vals)
+                    delta_down = np.abs(down_total - tot_vals)
+                    delta = np.maximum(delta_up, delta_down)
+
+                    if np.any(delta > 0):
+                        has_syst = True
+                    syst_err2 += delta**2
+
+        mc_total_errs = np.sqrt(tot_vars + syst_err2)
+
+        unc_label = "MC stat. + syst. unc." if has_syst else "MC stat. unc."
+        hep.histplot(tot, histtype="band", yerr=mc_total_errs, ax=ax, **errps, label=unc_label)
+
+        # ratio
+        rel_err = np.divide(mc_total_errs, tot_vals,
+                            out=np.zeros_like(tot_vals, dtype=float),
+                            where=(tot_vals > 0))
+
+        if show_data and data is not None:
+            data_vals = data.values()
+            ratio = np.divide(data_vals, tot_vals,
                               out=np.zeros_like(data_vals, dtype=float),
                               where=(tot_vals > 0))
+            ratio_err = np.divide(np.sqrt(data_vals), tot_vals,
+                                  out=np.zeros_like(data_vals, dtype=float),
+                                  where=(tot_vals > 0))
 
-        hep.histplot(ratio, edges, yerr=ratio_err, xerr=False, ax=rax,
-                     histtype="errorbar", color="k", capsize=4, label="Data")
+            hep.histplot(ratio, edges, yerr=ratio_err, xerr=False, ax=rax,
+                         histtype="errorbar", color="k", capsize=4, label="Data")
 
-    band_low, band_high = 1 - rel_err, 1 + rel_err
-    bad = tot_vals <= 0
-    band_low[bad] = np.nan
-    band_high[bad] = np.nan
-    rax.stairs(band_low, edges, baseline=band_high, **errps)
- #   rax.axhline(1.6, color="r", linestyle="--", linewidth=1.2)
+        band_low, band_high = 1 - rel_err, 1 + rel_err
+        bad = tot_vals <= 0
+        band_low[bad] = np.nan
+        band_high[bad] = np.nan
+        rax.stairs(band_low, edges, baseline=band_high, **errps)
+    else:
+        # No MC: keep the ratio panel but indicate missing denominator.
+        rax.text(0.5, 0.5, "No MC", transform=rax.transAxes,
+                 ha="center", va="center", fontsize=18, fontweight="bold", color="red")
 
     # cosmetics
     ax.set_yscale("log")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
-    ax.set_ylim(*plotter.ylim)
+    ax.set_ylim(*ylim)
     alias = region.tlatex_alias.replace("\\n", "\n")
     ax.text(
         0.05, 0.96, alias,
@@ -186,8 +229,8 @@ def plot_stack(plotter, region, variable,
     )
 
     hep.cms.label(loc=0, ax=ax, data=region.unblind_data,
-                  label="Work in Progress", lumi=f"{plotter.lumi:.1f}",
-                  com=13.6, fontsize=fontsize_label)
+                  label="Work in Progress", lumi=f"{lumi:.1f}",
+                  com=com, fontsize=fontsize_label)
 
     xlabel = f"{variable.tlatex_alias} [{variable.unit}]" if getattr(variable, "unit", "") else variable.tlatex_alias
     rax.set_xlabel(xlabel)
@@ -197,16 +240,12 @@ def plot_stack(plotter, region, variable,
         rax.set_ylabel("Data/Sim.")
     else:
         rax.set_ylabel("")
-        # Add "Blinded" text in the center of the ratio panel
-        ratio_ylim = getattr(plotter, 'ratio_ylim', (0.5, 2.0))
         ymid = (ratio_ylim[0] + ratio_ylim[1]) / 2
-        xmid = (plotter.xlim[0] + plotter.xlim[1]) / 2
+        xmid = (xlim[0] + xlim[1]) / 2
         rax.text(xmid, ymid, "Blinded", ha="center", va="center",
                  fontsize=24, fontweight="bold", color="red")
 
-    ratio_ylim = getattr(plotter, 'ratio_ylim', (0.5, 2.0))
     rax.set_ylim(*ratio_ylim)
-    # Auto-generate reasonable tick positions
     y_range = ratio_ylim[1] - ratio_ylim[0]
     if y_range <= 2:
         step = 0.5
@@ -217,9 +256,9 @@ def plot_stack(plotter, region, variable,
     yticks = np.arange(ratio_ylim[0], ratio_ylim[1] + step/2, step)
     rax.set_yticks(yticks)
     rax.axhline(1.0, ls="--", color="k")
-    ax.set_xlim(*plotter.xlim)
+    ax.set_xlim(*xlim)
     # y label (per-bin width)
-    set_y_label(ax, tot, variable)
+    set_y_label(ax, tot if tot is not None else data, variable)
 
     reorder_legend(ax, fontsize=fontsize_legend)
     return fig

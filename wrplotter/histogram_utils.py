@@ -1,4 +1,7 @@
+from pathlib import Path
+
 import numpy as np
+import uproot
 from hist import Hist
 from hist.axis import Variable
 from hist.storage import Weight
@@ -81,12 +84,17 @@ def rebin_histogram(h: Hist, spec):
 
     return new_h
 
-def scale_histogram(hist, scale_factor):
-    """
-    Scale the histogram data by a given factor.
-    """
-    try:
-        # Assuming hist supports element-wise multiplication.
-        return hist * scale_factor
-    except Exception as e:
-        raise RuntimeError(f"Error during scaling: {e}")
+
+def load_histogram(path: Path, hist_key: str):
+    """Load a single histogram from a ROOT file via uproot."""
+    with uproot.open(path) as f:
+        return f[hist_key].to_hist()
+
+
+def extract_hist_data(h):
+    """Extract edges, bin centers, values, and errors from a hist.Hist."""
+    edges = h.axes[0].edges
+    vals  = h.values()
+    errs  = np.sqrt(h.variances()) if h.variances() is not None else np.sqrt(vals)
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    return edges, centers, vals, errs

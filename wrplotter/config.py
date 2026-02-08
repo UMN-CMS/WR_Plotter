@@ -165,3 +165,12 @@ def index_plot_settings(plot_settings: dict) -> tuple[dict, dict]:
 def get_var_cfg(region_cfgs, common_vars, region_name, var_name):
     reg = region_cfgs.get(region_name, {})
     return reg.get(var_name, common_vars.get(var_name))
+
+def configured_variables(region_cfgs, common_vars, region_name, all_variables):
+    """Return (Variable, cfg_dict) pairs that have plot settings for this region."""
+    result = []
+    for v in all_variables:
+        cfg = get_var_cfg(region_cfgs, common_vars, region_name, v.name)
+        if cfg is not None:
+            result.append((v, cfg))
+    return result

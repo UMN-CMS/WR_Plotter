@@ -1,25 +1,35 @@
-# WR Plotter Documentation
+# WR Plotter
 
-This repository provides tools for processing and plotting WR background, data, and signal events. 
+Plotting tools for the WR analysis. Takes ROOT histogram files produced by the WrCoffea analyzer and generates stacked MC + data plots, DY comparison overlays, signal closure studies, and transfer factor plots.
 
 ## Table of Contents
-- [Quick Start](#quick-start) – Get started making stack plots
-  - [Prerequisites](#prerequisites) – Required ROOT files
-  - [Stackplots](#stackplots) – Basic plotting commands
-  - [Output Locations](#output-locations) – Where plots are saved
-  - [Plotting Specific Regions](#plotting-specific-regions) – Filter by region
-  - [Plotting Specific Variables](#plotting-specific-variables) – Filter by variable
-  - [Unblinding](#unblinding) – Show data in signal regions
-- [Command Reference](#command-reference) – Complete flag reference and examples
-- [Repository Structure](#-repository-structure) – Overview of how the codebase is organized
-- [Getting Started](#getting-started) – Installation and environment setup
+- [Quick Start](#quick-start)
+  - [Prerequisites](#prerequisites)
+  - [Making Stackplots](#making-stackplots)
+  - [Output Locations](#output-locations)
+  - [Filtering by Region](#filtering-by-region)
+  - [Filtering by Variable](#filtering-by-variable)
+  - [Signal Overlays](#signal-overlays)
+  - [Unblinding](#unblinding)
+- [Command Reference](#command-reference)
+- [Other Scripts](#other-scripts)
+  - [compare_dy.py](#compare_dypy)
+  - [make_cutflow_table.py](#make_cutflow_tablepy)
+  - [signal_closure.py](#signal_closurepy)
+  - [transfer_factor_tt_tW.py](#transfer_factor_tt_twpy)
+- [Repository Structure](#repository-structure)
+- [Configuration](#configuration)
+  - [EOS / CERNBox Setup](#eos--cernbox-setup)
+  - [Plot Settings YAML](#plot-settings-yaml)
+- [Getting Started](#getting-started)
+
 ---
 
 ## Quick Start
 
 ### Prerequisites
-Check that you have ran over at least RunIII2024Summer24 in the main analyzer. The following files should exist:
-```  
+Run at least `RunIII2024Summer24` in the WrCoffea analyzer. The following files should exist:
+```
 rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_DYJets.root
 rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_tt_tW.root
 rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_Nonprompt.root
@@ -29,34 +39,33 @@ rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_Muon.root
 rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_signal_WR4000_N2100.root
 rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_signal_WR4000_N100.root
 ```
+
 ---
 
-### Stackplots
+### Making Stackplots
 
-There is one command that will make stackplots of all variables in all analysis regions,
-```
+Plot all variables in all analysis regions:
+```bash
 python3 bin/make_stackplots.py --era RunIII2024Summer24 --local-plots
 ```
-This will make plots of the resolved and boosted variables in the control and signal regions. 
+This produces resolved and boosted plots for all control and signal regions. Signal regions are blinded by default with a signal overlay shown instead of data.
 
-The signal region is blinded by default, and a signal sample is shown instead of data.
+List available eras:
+```bash
+python3 bin/make_stackplots.py --list-eras
+```
+Currently `RunIISummer20UL18` and `RunIII2024Summer24` are confirmed to work.
 
-To see avaliable eras, run
-```
-python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-eras
-```
-Right now `RunII2Summer20UL18` and `RunIII2024Summer24` are confirmed to work.
-
-If you used the `--dir` argument in `bin/run_analysis.py` (so that the files are saved under `dir/`), you can use the same argument here to point to those ROOT files
-```
-python3 bin/make_stackplots.py --era RunIISummer20UL18 --dir my_directory  --local-plots
+If you used `--dir` in the analyzer, pass the same subdirectory here:
+```bash
+python3 bin/make_stackplots.py --era RunIISummer20UL18 --dir my_directory --local-plots
 ```
 
 ---
 
 ### Output Locations
 
-The `--local-plots` flag saves plots locally in the `plots/` directory,
+With `--local-plots`, plots are saved locally:
 ```
 plots/<Run>/<Year>/<Era>/<Region>_<Dataset>/<Variable>_<Region>.pdf
 ```
@@ -65,191 +74,276 @@ Example:
 plots/Run3/2024/RunIII2024Summer24/resolved_dy_cr_EGamma/pt_leading_jet_resolved_dy_cr.pdf
 ```
 
-CERNBox plots (without `--local-plots`) are uploaded to your EOS area. The exact path depends on your CERNBox configuration.
-
-All plots are saved in **PDF format** and organized by:
-- Region name and primary dataset (e.g., `resolved_dy_cr_EGamma`)
-- Individual plot files named by variable and region (e.g., `pt_leading_jet_resolved_dy_cr.pdf`)
+Without `--local-plots`, plots are uploaded to EOS/CERNBox. See [EOS / CERNBox Setup](#eos--cernbox-setup) for configuration.
 
 ---
 
-### Plotting specific regions
-To run over a particular region, include the `-r` flag,
+### Filtering by Region
+
+Plot a specific region with `-r`:
+```bash
+python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr --local-plots
 ```
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr  --local-plots
-```
-To see avaliable regions,
-```
+List available regions:
+```bash
 python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-regions
 ```
----
-
-### Plotting specific variables
-To plot a particular variable, include the `-v` flag,
-```
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet  --local-plots
-```
-it also accepts list arguments, i.e.
-```
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet,pt_leading_lepton  --local-plots
-```
-To see all avaliable variables,
-```
-python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-variables
-```
 
 ---
+
+### Filtering by Variable
+
+Plot a specific variable with `-v`:
+```bash
+python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet --local-plots
+```
+Comma-separated lists work too:
+```bash
+python3 bin/make_stackplots.py --era RunIII2024Summer24 -v pt_leading_jet,pt_leading_lepton --local-plots
+```
+List available variables:
+```bash
+python3 bin/make_stackplots.py --list-variables
+```
+
+---
+
+### Signal Overlays
+
+In signal regions, a default signal sample is overlaid automatically (depends on era and region topology). Override with `-s`:
+```bash
+# Single signal sample
+python3 bin/make_stackplots.py --era RunIII2024Summer24 -s signal_WR6000_N3100 --local-plots
+
+# Multiple signal samples (all overlaid on every SR)
+python3 bin/make_stackplots.py --era RunIII2024Summer24 -s signal_WR4000_N2100,signal_WR4000_N100 --local-plots
+```
+Samples that don't have histograms for a given region are silently skipped.
+
+---
+
 ### Unblinding
-To default, the signal region is blinded. To unblind, include the `--unblind` flag (safe for `RunII`),
+
+Signal regions are blinded by default. Unblind with `--unblind` (safe for RunII):
+```bash
+python3 bin/make_stackplots.py --era RunIISummer20UL18 --unblind --local-plots
 ```
-python3 bin/make_stackplots.py --era RunIISummer20UL18 --unblind  --local-plots
-```
+Run3 unblinding is blocked.
 
 ---
 
 ## Command Reference
 
-### make_stackplots.py Flags
+### make_stackplots.py
 
 | Flag | Short | Arguments | Description |
 |------|-------|-----------|-------------|
-| `--era` | | `<era_name>` | **Required.** Specify the era (e.g., RunIII2024Summer24, RunIISummer20UL18) |
-| `--region` | `-r` | `<region_name>` | Filter to specific region(s). Can repeat or use comma-separated list |
-| `--variable` | `-v` | `<var_name>` | Filter to specific variable(s). Can repeat or use comma-separated list |
-| `--local-plots` | | | Save plots locally to `plots/` instead of uploading to CERNBox |
-| `--unblind` | | | Show data in signal regions (default: blinded) |
-| `--dir` | | `<directory>` | Use subdirectory under input/output paths |
-| `--name` | | `<suffix>` | Append suffix to output filenames |
-| `--plot-config` | | `<yaml_file>` | Custom YAML file with rebin/xlim/ylim settings |
-| `--list-eras` | | | List all available eras and exit |
-| `--list-regions` | | | List all available regions for specified era and exit |
-| `--list-variables` | | | List all available variables and exit |
+| `--era` | | `<era_name>` | **Required.** Era to process (e.g., `RunIII2024Summer24`) |
+| `--region` | `-r` | `<name>` | Region(s) to plot. Repeat or comma-separate |
+| `--variable` | `-v` | `<name>` | Variable(s) to plot. Repeat or comma-separate |
+| `--signal` | `-s` | `<sample>` | Signal sample(s) to overlay on SR plots. Repeat or comma-separate |
+| `--local-plots` | | | Save to `plots/` instead of EOS |
+| `--unblind` | | | Show data in signal regions |
+| `--dir` | | `<subdir>` | Subdirectory under input/output paths |
+| `--name` | | `<suffix>` | Append suffix to filenames |
+| `--plot-config` | `-c` | `<yaml>` | Custom plot settings YAML |
+| `--variable-rebin` | | | Use variable-width bins from YAML |
+| `--list-eras` | | | List eras and exit |
+| `--list-regions` | | | List regions for era and exit |
+| `--list-variables` | | | List variables and exit |
 
 ### Examples
-
 ```bash
-# Basic usage - all regions and variables for an era
+# All regions and variables
 python3 bin/make_stackplots.py --era RunIII2024Summer24 --local-plots
 
 # Single region, single variable
 python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet --local-plots
 
-# Multiple regions and variables (comma-separated)
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr,boosted_sr -v pt_leading_jet,mass_ll --local-plots
+# Multiple regions and variables
+python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr,boosted_sr -v pt_leading_jet,mass_dilepton --local-plots
 
-# Multiple regions and variables (repeated flags)
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -r boosted_sr -v pt_leading_jet -v mass_ll --local-plots
+# Custom signal overlay
+python3 bin/make_stackplots.py --era RunIII2024Summer24 -s signal_WR4000_N2100,signal_WR4000_N100 --local-plots
 
-# Unblind signal regions with custom directory
+# Unblind RunII with custom directory
 python3 bin/make_stackplots.py --era RunIISummer20UL18 --unblind --dir my_analysis --local-plots
-
-# List available options
-python3 bin/make_stackplots.py --list-eras
-python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-regions
-python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-variables
 ```
 
 ---
 
-## 📂 Repository Structure
+## Other Scripts
 
-The repository follows a clean architecture separating user-facing scripts, core library code, configuration, and data storage.
+### compare_dy.py
 
-### Directory Overview
+Compare DYJets histograms in three modes:
+
+```bash
+# LO vs NLO within one era
+python3 bin/compare_dy.py --mode lo-nlo --era RunIII2024Summer24
+
+# 2024 NLO mll-binned vs 2022 LO HT-binned
+python3 bin/compare_dy.py --mode mll-vs-ht --era 2022
+
+# Compare DYJets between two eras
+python3 bin/compare_dy.py --mode cross-era --era RunIII2024Summer24 --ref-era RunIISummer20UL18
+```
+
+### make_cutflow_table.py
+
+Generate a LaTeX cutflow table from analyzer output:
+```bash
+python3 make_cutflow_table.py --era RunIII2024Summer24
+```
+
+### signal_closure.py
+
+Run2 vs Run3 signal closure study (in `scripts/`):
+```bash
+python3 scripts/signal_closure.py
+```
+
+### transfer_factor_tt_tW.py
+
+Compute SR / flavor-CR transfer factors for tt+tW (in `scripts/`):
+```bash
+python3 scripts/transfer_factor_tt_tW.py
+```
+
+---
+
+## Repository Structure
 
 ```
-bin/         # User-facing CLI scripts (production workflows)
-python/      # Core analysis library (public API)
-src/         # Low-level plotting and histogram utilities
-data/        # Configuration files (YAML/JSON)
-rootfiles/   # Input ROOT histograms from analyzer
-plots/       # Generated output plots (PDF format)
-test/        # Development and validation scripts
+WR_Plotter/
+├── bin/                              # Production CLI scripts
+│   ├── make_stackplots.py            #   Stacked MC + data plots
+│   └── compare_dy.py                 #   DY comparison overlays (LO/NLO, cross-era)
+├── scripts/                          # One-off analysis scripts
+│   ├── signal_closure.py             #   Run2 vs Run3 signal closure
+│   └── transfer_factor_tt_tW.py      #   SR/CR transfer factors
+├── wrplotter/                        # Core library
+│   ├── config.py                     #   Load lumi, kfactors, plot settings
+│   ├── io.py                         #   File I/O, EOS upload, repo_root()
+│   ├── regions.py                    #   Analysis region definitions
+│   ├── variables.py                  #   Physics variable definitions
+│   ├── sample_groups.py              #   Sample grouping and styling
+│   ├── histo.py                      #   Histogram loading and rebinning (high-level)
+│   ├── histogram_utils.py            #   Histogram rebinning and manipulation (low-level)
+│   ├── plotting_helpers.py           #   Matplotlib/mplhep CMS plot formatting
+│   └── cli_utils.py                  #   CLI helpers (parse_multi, setup_logging)
+├── data/                             # Configuration files
+│   ├── lumi.json                     #   Luminosity, run, year, CoM per era
+│   ├── kfactors.yaml                 #   MC scale factors
+│   ├── plot_settings/                #   Per-era rebin/xlim/ylim YAML configs
+│   │   ├── RunIII2024Summer24.yaml
+│   │   ├── RunIISummer20UL18.yaml
+│   │   └── ...
+│   └── sample_groups/                #   Per-era sample grouping and colors
+│       ├── base.yaml
+│       ├── RunIII2024Summer24.yaml
+│       └── ...
+├── tests/                            # Unit tests (pytest)
+│   ├── test_config.py
+│   ├── test_regions.py
+│   ├── test_histogram_utils.py
+│   ├── test_plotting_helpers.py
+│   └── test_cli_utils.py
+├── test/                             # Development/validation studies
+│   ├── mll_study/                    #   Dilepton mass optimization
+│   └── ...                           #   Cross-era comparisons, SF validation
+├── rootfiles/                        # Input ROOT histograms (from analyzer)
+│   └── <Run>/<Year>/<Era>/           #   e.g., Run3/2024/RunIII2024Summer24/
+├── plots/                            # Output plots (created by --local-plots)
+├── make_cutflow_table.py             # Cutflow LaTeX table generator
+├── pytest.ini
+├── requirements.txt
+└── README.md
 ```
 
-### Key Directories
+---
 
-**`bin/`** - Production Scripts
-- [`make_stackplots.py`](bin/make_stackplots.py) - Main script for generating stacked histogram plots
-- [`compare_dy.py`](bin/compare_dy.py) - Compare LO vs NLO DYJets samples
-- [`compare_22_24_dy.py`](bin/compare_22_24_dy.py) - Compare 2022 vs 2024 data
-- Thin wrappers around the core library functionality
+## Configuration
 
-**`python/`** - Core Library
-- [`config.py`](python/config.py) - Load and manage YAML/JSON configurations (lumi, kfactors, plot settings)
-- [`plotter.py`](python/plotter.py) - Main `Plotter` class orchestrating the plotting workflow
-- [`regions.py`](python/regions.py) - Define analysis regions (resolved/boosted, control/signal regions)
-- [`variables.py`](python/variables.py) - Define physics variables to plot (mass, pT, eta, phi, etc.)
-- [`io.py`](python/io.py) - File I/O utilities and EOS/CERNBox integration
-- [`histo.py`](python/histo.py) - Histogram loading and rebinning functions
-- [`sample_groups.py`](python/sample_groups.py) - Sample organization and styling
+### EOS / CERNBox Setup
 
-**`src/`** - Utilities
-- [`histogram_utils.py`](src/histogram_utils.py) - Histogram rebinning and manipulation
-- [`plotting_helpers.py`](src/plotting_helpers.py) - Matplotlib styling and CMS plot formatting
+Without `--local-plots`, plots upload to `/eos/user/<first-char>/<username>/...`. The EOS username defaults to `$USER`. If your CERN username differs from your local login (e.g., LPC username `bjackson` but CERN username `wijackso`), set one of these in `~/.bashrc`:
 
-**`data/`** - Configuration Files
-- `plot_settings/` - Per-era plot configurations (rebin, x/y limits)
-  - [`RunIII2024Summer24.yaml`](data/plot_settings/RunIII2024Summer24.yaml)
-  - [`RunIISummer20UL18.yaml`](data/plot_settings/RunIISummer20UL18.yaml)
-- `sample_groups/` - Sample grouping and colors
-- [`lumi.json`](data/lumi.json) - Luminosity values per era
-- [`kfactors.yaml`](data/kfactors.yaml) - MC scale factors
+```bash
+# Option 1: CERN username (builds path as first-char/username)
+export EOSUSER=wijackso        # -> /eos/user/w/wijackso/...
 
-**`rootfiles/`** - Input Data
-- Organized by `Run/Year/Era/` (e.g., `Run3/2024/RunIII2024Summer24/`)
-- Contains ROOT histograms from the upstream WrCoffea analyzer
-- Background samples: DYJets, tt_tW, Nonprompt, Other
-- Data samples: EGamma, Muon
-- Signal samples: WR4000_N2100, WR4000_N100
+# Option 2: Full path segment
+export EOSUSER_PATH=w/wijackso # -> /eos/user/w/wijackso/...
 
-**`plots/`** - Output Directory
-- Generated PDF plots organized by era and region
-- Created when using `--local-plots` flag
-- Structure: `plots/Run/Year/Era/Region_Dataset/Variable_Region.pdf`
+# Option 3: Override the entire EOS root
+export EOS_BASE=/eos/user/w/wijackso
+```
 
-**`test/`** - Development Scripts
-- Analysis optimization studies (e.g., `mll_study/`)
-- Cross-era comparison scripts
-- Background fraction studies
-- Scale factor validation
+Additional environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `EOS_ENDPOINT` | xrdfs/xrdcp hostname (default: `eosuser.cern.ch`) |
+| `FORCE_EOS` | Set to `1` to use EOS even if `/eos` is not mounted |
+| `FORCE_LOCAL` | Set to `1` to always write locally instead of EOS |
+
+### Plot Settings YAML
+
+Each era has a YAML file in `data/plot_settings/` controlling rebinning and axis ranges per region and variable. Example:
+
+```yaml
+wr_resolved_flavor_cr:
+  pt_leading_jet:
+    rebin: 4
+    xlim: [0, 600]
+    ylim: [1, 1e6]
+```
+
+Override with `--plot-config <path>`.
 
 ---
 
 ## Getting Started
-If you have cloned WrCoffea and the WR_Plotter submodule is empty, run this from the WrCoffea repo
+
+If you cloned WrCoffea and the WR_Plotter submodule is empty:
 ```bash
 git submodule update --init --recursive
 ```
-Alternatively, next time clone the repo with the `--recursive` flag
+Or clone with `--recursive`:
 ```bash
 git clone --recursive git@github.com:UMN-CMS/WrCoffea.git
 ```
 
-Then go to the submodule and make a new branch
-```
+Create a branch in the submodule:
+```bash
 cd WR_Plotter
 git checkout -b branch_name
 git push -u origin branch_name
 ```
 
-Install the required packages:
+Install dependencies:
 ```bash
 python3 -m pip install -r requirements.txt
 ```
 
-### Grid UI
-To authenticate for accessing grid resources, use:
+### Grid Proxy
 ```bash
 voms-proxy-init --rfc --voms cms -valid 192:00
 ```
 
-### ROOT
-To enable ROOT functionality, source the appropriate LCG release:
+### ROOT (LCG)
+At LPC:
 ```bash
 source /cvmfs/sft.cern.ch/lcg/views/LCG_106/x86_64-el9-gcc13-opt/setup.sh
 ```
-If using UMN’s setup, use:
+At UMN:
 ```bash
 source /cvmfs/sft.cern.ch/lcg/views/LCG_104/x86_64-centos8-gcc11-opt/setup.sh
+```
+
+### Running Tests
+```bash
+cd WR_Plotter
+python -m pytest -v
 ```

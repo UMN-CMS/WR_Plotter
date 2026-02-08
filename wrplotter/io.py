@@ -30,6 +30,15 @@ def read_json(path: str | Path) -> Any:
 
 
 # ── EOS utilities ──────────────────────────────────────────────────────────────
+#
+# Environment variables for EOS configuration:
+#   EOS_ENDPOINT   – xrdfs/xrdcp hostname (default: eosuser.cern.ch)
+#   EOSUSER_PATH   – full user segment, e.g. "w/wijackso"
+#   EOSUSER        – CERN username if it differs from $USER, e.g. "wijackso"
+#                    (builds segment as first-char/username)
+#   EOS_BASE       – override the entire /eos/user/<seg> root
+#   FORCE_EOS      – set to 1 to use EOS even if /eos is not mounted
+#   FORCE_LOCAL    – set to 1 to always write locally instead of EOS
 
 def eos_endpoint() -> str:
     """Hostname for xrdfs/xrdcp (override via $EOS_ENDPOINT)."""
@@ -41,9 +50,8 @@ def resolve_eos_user() -> str:
         return p.strip("/")
     if (u := os.environ.get("EOSUSER")):
         return f"{u[0]}/{u}"
-    mapping = {"bjackson": "w/wijackso"}
     user = os.environ.get("USER", "user")
-    return mapping.get(user, f"{user[0]}/{user}")
+    return f"{user[0]}/{user}"
 
 def eos_base(run: str, year: str, era: str, subdir: Optional[str] = None) -> Path:
     """Build an EOS path prefix (can override root via $EOS_BASE)."""

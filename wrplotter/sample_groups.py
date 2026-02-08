@@ -2,10 +2,11 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Literal, Dict, List, Any, Mapping, MutableMapping
+from typing import Literal, Dict, List, Any
 import logging
 
 from .io import data_path, read_yaml
+from .config import _deep_merge
 
 @dataclass(frozen=True)
 class SampleGroup:
@@ -29,15 +30,6 @@ class SampleGroup:
 # ---------------------------- internal helpers ---------------------------- #
 
 _ALLOWED_KEYS = {"run", "year", "mc_campaign", "color", "tlatex_alias", "label", "samples", "kind"}
-
-def _deep_merge(base: MutableMapping[str, Any], override: Mapping[str, Any]) -> dict:
-    out: dict = dict(base)
-    for k, v in override.items():
-        if isinstance(v, Mapping) and isinstance(out.get(k), Mapping):
-            out[k] = _deep_merge(dict(out[k]), v)  # type: ignore[arg-type]
-        else:
-            out[k] = v
-    return out
 
 def _mk_group(key: str, g: Dict[str, Any], era_defaults: Dict[str, Any]) -> SampleGroup:
     # warn on unknown keys (helps catch typos in YAML)

@@ -22,3 +22,9 @@ RunIII2024Summer24:
 # Global fallback (used if era block missing)
 ALL:
   _default: 1.0
+
+# DY comparison k-factors (used by compare_*_dy.py scripts)
+# Applied to specific DY processing pipelines when comparing samples
+dy_comparison:
+  dy_ht: 1.4          # LO HT-binned DY correction factor
+  dy_ptll_nlo: 0.941  # NLO pT(ll)-binned DY correction factor
