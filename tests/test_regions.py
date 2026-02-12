@@ -81,3 +81,32 @@ class TestExpandRegionRequests:
     def test_multiple_requests(self):
         result = expand_region_requests("2022", ["wr_mumu_resolved_dy_cr", "wr_ee_resolved_dy_cr"])
         assert len(result) == 2
+
+
+class TestRegionProperties:
+
+    def test_sr_is_signal_region(self):
+        r = Region("wr_mumu_resolved_sr", "muon")
+        assert r.is_signal_region is True
+
+    def test_dy_cr_is_not_signal_region(self):
+        r = Region("wr_ee_resolved_dy_cr", "egamma")
+        assert r.is_signal_region is False
+
+    def test_boosted_region(self):
+        r = Region("wr_mumu_boosted_sr", "muon")
+        assert r.is_boosted is True
+
+    def test_resolved_region_not_boosted(self):
+        r = Region("wr_ee_resolved_sr", "egamma")
+        assert r.is_boosted is False
+
+    def test_boosted_sr_is_both(self):
+        r = Region("wr_mumu_boosted_sr", "muon")
+        assert r.is_signal_region is True
+        assert r.is_boosted is True
+
+    def test_boosted_dy_cr_is_boosted_not_sr(self):
+        r = Region("wr_ee_boosted_dy_cr", "egamma")
+        assert r.is_boosted is True
+        assert r.is_signal_region is False

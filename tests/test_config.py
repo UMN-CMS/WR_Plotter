@@ -9,6 +9,7 @@ from wrplotter.config import (
     get_kfactor,
     index_plot_settings,
     get_var_cfg,
+    validate_var_cfg,
 )
 
 
@@ -139,6 +140,25 @@ class TestIndexPlotSettings:
 
     def test_returns_none_for_unknown(self):
         assert get_var_cfg({"reg": {}}, {}, "reg", "unknown") is None
+
+
+class TestValidateVarCfg:
+
+    def test_valid_keys_no_warning(self, caplog):
+        validate_var_cfg("pt_leading_jet", {"rebin": 2, "xlim": [0, 100], "ylim": [1, 1e6]})
+        assert "Unknown plot-setting key" not in caplog.text
+
+    def test_typo_warns(self, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING):
+            validate_var_cfg("mass_fourobject", {"rebin_varaible": [0, 100, 200]}, "my_region")
+        assert "rebin_varaible" in caplog.text
+        assert "my_region" in caplog.text
+
+    def test_all_valid_keys_accepted(self, caplog):
+        cfg = {"rebin": 2, "rebin_variable": [0, 50, 100], "xlim": [0, 100], "ylim": [1, 1e6], "ratio_ylim": [0.5, 1.5]}
+        validate_var_cfg("test_var", cfg)
+        assert "Unknown plot-setting key" not in caplog.text
 
 
 class TestLoadKfactors:

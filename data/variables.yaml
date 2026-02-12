@@ -1,0 +1,213 @@
+# Variable definitions for histogram axes.
+# Each entry becomes a Variable(name, tlatex_alias, unit, nbins, xmin, xmax).
+variables:
+  # Resolved region variables
+  - name: mass_fourobject
+    label: "$m_{lljj}$"
+    unit: GeV
+    nbins: 40
+    xmin: 0
+    xmax: 4000
+
+  - name: pt_leading_jet
+    label: "$p_{T}$ of the leading jet"
+    unit: GeV
+    nbins: 30
+    xmin: 0
+    xmax: 600
+
+  - name: mass_dijet
+    label: "$m_{jj}$"
+    unit: GeV
+    nbins: 36
+    xmin: 0
+    xmax: 3600
+
+  - name: pt_leading_lepton
+    label: "$p_{T}$ of the leading lepton"
+    unit: GeV
+    nbins: 30
+    xmin: 0
+    xmax: 300
+
+  - name: eta_leading_lepton
+    label: "$\\eta$ of the leading lepton"
+    nbins: 50
+    xmin: -2.5
+    xmax: 2.5
+
+  - name: phi_leading_lepton
+    label: "$\\phi$ of the leading lepton"
+    nbins: 64
+    xmin: -3.2
+    xmax: 3.2
+
+  - name: pt_subleading_lepton
+    label: "$p_{T}$ of the subleading lepton"
+    unit: GeV
+    nbins: 30
+    xmin: 0
+    xmax: 300
+
+  - name: eta_subleading_lepton
+    label: "$\\eta$ of the subleading lepton"
+    nbins: 50
+    xmin: -2.5
+    xmax: 2.5
+
+  - name: phi_subleading_lepton
+    label: "$\\phi$ of the subleading lepton"
+    nbins: 64
+    xmin: -3.2
+    xmax: 3.2
+
+  - name: eta_leading_jet
+    label: "$\\eta$ of the leading jet"
+    nbins: 60
+    xmin: -3.0
+    xmax: 3.0
+
+  - name: phi_leading_jet
+    label: "$\\phi$ of the leading jet"
+    nbins: 64
+    xmin: -3.2
+    xmax: 3.2
+
+  - name: pt_subleading_jet
+    label: "$p_{T}$ of the subleading jet"
+    unit: GeV
+    nbins: 30
+    xmin: 0
+    xmax: 400
+
+  - name: eta_subleading_jet
+    label: "$\\eta$ of the subleading jet"
+    nbins: 60
+    xmin: -3.0
+    xmax: 3.0
+
+  - name: phi_subleading_jet
+    label: "$\\phi$ of the subleading jet"
+    nbins: 64
+    xmin: -3.2
+    xmax: 3.2
+
+  - name: mass_dilepton
+    label: "$m_{ll}$"
+    unit: GeV
+    nbins: 60
+    xmin: 0
+    xmax: 300
+
+  - name: pt_dilepton
+    label: "$p_{T}^{ll}$"
+    unit: GeV
+    nbins: 40
+    xmin: 0
+    xmax: 400
+
+  - name: pt_dijet
+    label: "$p_{T}^{jj}$"
+    unit: GeV
+    nbins: 40
+    xmin: 0
+    xmax: 800
+
+  - name: mass_threeobject_leadlep
+    label: "$m_{l_{\\mathrm{pri}}jj}$"
+    unit: GeV
+    nbins: 40
+    xmin: 0
+    xmax: 4000
+
+  - name: pt_threeobject_leadlep
+    label: "$p^{T}_{l_{\\mathrm{pri}}jj}$"
+    unit: GeV
+    nbins: 40
+    xmin: 0
+    xmax: 800
+
+  - name: mass_threeobject_subleadlep
+    label: "$m_{l_{\\mathrm{sec}}jj}$"
+    unit: GeV
+    nbins: 40
+    xmin: 0
+    xmax: 4000
+
+  - name: pt_threeobject_subleadlep
+    label: "$p^{T}_{l_{\\mathrm{sec}}jj}$"
+    unit: GeV
+    nbins: 40
+    xmin: 0
+    xmax: 800
+
+  - name: pt_fourobject
+    label: "$p^{T}_{lljj}$"
+    unit: GeV
+    nbins: 50
+    xmin: 0
+    xmax: 1500
+
+  - name: LSF_leading_AK8Jets
+    label: "LSF3_leadingAK8Jets"
+    nbins: 100
+    xmin: 0
+    xmax: 1.1
+
+  - name: pt_leading_loose_lepton
+    label: "$p_{T}$ of the leading loose lepton"
+    unit: GeV
+    nbins: 30
+    xmin: 0
+    xmax: 300
+
+  - name: eta_leading_loose_lepton
+    label: "$\\eta$ of the leading loose lepton"
+    nbins: 50
+    xmin: -2.5
+    xmax: 2.5
+
+  - name: phi_leading_loose_lepton
+    label: "$\\phi$ of the leading loose lepton"
+    nbins: 64
+    xmin: -3.2
+    xmax: 3.2
+
+  - name: pt_leading_AK8Jets
+    label: "$p_{T}$ of the leading AK8 jet"
+    unit: GeV
+    nbins: 30
+    xmin: 0
+    xmax: 600
+
+  - name: eta_leading_AK8Jets
+    label: "$\\eta$ of the leading AK8 jet"
+    nbins: 60
+    xmin: -3.0
+    xmax: 3.0
+
+  - name: phi_leading_AK8Jets
+    label: "$\\phi$ of the leading AK8 jet"
+    nbins: 64
+    xmin: -3.2
+    xmax: 3.2
+
+  - name: pt_twoobject
+    label: "$p^{T}_{lj}$"
+    unit: GeV
+    nbins: 50
+    xmin: 0
+    xmax: 1500
+
+  - name: mass_twoobject
+    label: "$m_{lj}$"
+    unit: GeV
+    nbins: 40
+    xmin: 0
+    xmax: 4000
+
+  - name: dPhi_leading_tightlepton_AK8Jet
+    label: "$\\Delta\\phi(\\ell, \\mathrm{AK8\\ jet})$"
+    nbins: 64
+    xmin: 0
+    xmax: 3.2

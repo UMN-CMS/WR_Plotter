@@ -162,9 +162,33 @@ def index_plot_settings(plot_settings: dict) -> tuple[dict, dict]:
     regions = {k: v for k, v in plot_settings.items() if k != "common_variables"}
     return regions, common
 
+
+# Valid keys for per-variable plot configuration entries
+_VALID_VAR_CFG_KEYS = {"rebin", "rebin_variable", "xlim", "ylim", "ratio_ylim"}
+
+
+def validate_var_cfg(var_name: str, cfg: dict, region_name: str = "") -> None:
+    """Warn about unrecognized keys in a variable's plot config.
+
+    This catches typos like 'rebin_varaible' that would otherwise be
+    silently ignored.
+    """
+    unknown = set(cfg.keys()) - _VALID_VAR_CFG_KEYS
+    if unknown:
+        import logging
+        loc = f" in region '{region_name}'" if region_name else ""
+        logging.warning(
+            f"Unknown plot-setting key(s) for variable '{var_name}'{loc}: "
+            f"{sorted(unknown)}. Valid keys: {sorted(_VALID_VAR_CFG_KEYS)}"
+        )
+
+
 def get_var_cfg(region_cfgs, common_vars, region_name, var_name):
     reg = region_cfgs.get(region_name, {})
-    return reg.get(var_name, common_vars.get(var_name))
+    cfg = reg.get(var_name, common_vars.get(var_name))
+    if cfg is not None:
+        validate_var_cfg(var_name, cfg, region_name)
+    return cfg
 
 def configured_variables(region_cfgs, common_vars, region_name, all_variables):
     """Return (Variable, cfg_dict) pairs that have plot settings for this region."""
@@ -174,3 +198,30 @@ def configured_variables(region_cfgs, common_vars, region_name, all_variables):
         if cfg is not None:
             result.append((v, cfg))
     return result
+
+
+# -----------------------------------------------------------------------------
+# Region shorthands
+# -----------------------------------------------------------------------------
+
+@lru_cache(maxsize=None)
+def load_region_shorthands() -> Dict[str, list[str]]:
+    """Load region shorthand aliases from data/region_shorthands.yaml."""
+    path = data_path("region_shorthands.yaml")
+    if not path.exists():
+        return {}
+    return read_yaml(path) or {}
+
+
+# -----------------------------------------------------------------------------
+# Systematics
+# -----------------------------------------------------------------------------
+
+@lru_cache(maxsize=None)
+def load_systematics() -> list[str]:
+    """Load the list of systematic names from data/systematics.yaml."""
+    path = data_path("systematics.yaml")
+    if not path.exists():
+        return []
+    data = read_yaml(path) or {}
+    return list(data.get("systematics", []))

@@ -4,12 +4,22 @@ from typing import List, Dict
 import logging
 from collections import defaultdict
 
+from .config import load_region_shorthands
+
 @dataclass(frozen=True)
 class Region:
     name: str
     primary_dataset: str   # "egamma" or "muon"
     unblind_data: bool = False
     tlatex_alias: str = ""
+
+    @property
+    def is_signal_region(self) -> bool:
+        return "sr" in self.name.lower()
+
+    @property
+    def is_boosted(self) -> bool:
+        return "boosted" in self.name.lower()
 
     def print(self) -> None:
         logging.info(
@@ -65,15 +75,7 @@ def expand_region_requests(era: str, requested: List[str]) -> List[Region]:
       - Shorthand: "resolved_sr" → both ee and mumu SRs
       - Shorthand: "resolved_flavor_cr" → both ee and mumu flavor CRs
     """
-    # Shorthand mappings
-    shorthand_map = {
-        "resolved_dy_cr": ["wr_ee_resolved_dy_cr", "wr_mumu_resolved_dy_cr"],
-        "resolved_sr": ["wr_ee_resolved_sr", "wr_mumu_resolved_sr"],
-        "resolved_flavor_cr": ["wr_resolved_flavor_cr"],
-        "boosted_dy_cr": ["wr_ee_boosted_dy_cr", "wr_mumu_boosted_dy_cr"],
-        "boosted_sr": ["wr_ee_boosted_sr", "wr_mumu_boosted_sr"],
-        "boosted_flavor_cr": ["wr_emu_boosted_flavor_cr", "wr_mue_boosted_flavor_cr"],
-    }
+    shorthand_map = load_region_shorthands()
     
     # Expand shorthands first
     expanded_requested = []

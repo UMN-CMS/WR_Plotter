@@ -1,10 +1,25 @@
 from __future__ import annotations
+import logging
+from functools import lru_cache
 from pathlib import Path
 from typing import Sequence, Callable
 
 import uproot
 
 from .histogram_utils import rebin_histogram
+
+logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=64)
+def _open_root(path: str):
+    """Cache open ROOT file handles for reuse across histogram reads."""
+    return uproot.open(path)
+
+
+def clear_cache():
+    """Release all cached ROOT file handles."""
+    _open_root.cache_clear()
 
 
 def load_and_rebin(
@@ -22,9 +37,10 @@ def load_and_rebin(
     for indir, sublumi in zip(input_dirs, sublumis):
         fp = indir / f"WRAnalyzer_{sample}.root"
         try:
-            with uproot.open(fp) as f:
-                raw_hist = f[hist_key].to_hist()
-        except (FileNotFoundError, KeyError):
+            f = _open_root(str(fp))
+            raw_hist = f[hist_key].to_hist()
+        except (FileNotFoundError, KeyError, OSError) as exc:
+            logger.debug("Skipping %s [%s]: %s", fp, hist_key, exc)
             continue
 
         rebinned = rebin_histogram(raw_hist, n_rebin)

@@ -9,12 +9,23 @@ from hist.storage import Weight
 def rebin_histogram(h: Hist, spec):
     """
     Rebin a 1D hist.Hist either by:
-      • an integer spec      → merge‐every‐N bins, or
-      • a list of bin edges → exactly those new edges [e0,e1,…,eM].
+      - an integer spec      -> merge every N bins, or
+      - a list of bin edges  -> exactly those new edges [e0, e1, ..., eM].
     Returns a new Hist with Weight() storage so variances are tracked.
 
-    When spec is a list (variable bin widths), the bin contents are normalized
-    by dividing by the bin width to get density (events/GeV).
+    Overflow bins are folded into the last visible bin for both modes.
+
+    Variable-width rebinning (spec is a list):
+        After summing the original bin contents into the new wider bins,
+        the result is converted to a differential density so that the
+        y-axis has consistent units (events / GeV) regardless of bin width:
+
+            value_i   = sum_of_counts_i / width_i
+            variance_i = sum_of_variances_i / width_i**2
+
+        where width_i = edge_{i+1} - edge_i. This is necessary because
+        matplotlib/mplhep draws each bin at its face value; without
+        normalisation, wider bins would appear artificially tall.
     """
     # 1) old edges and bin count
     old_edges = np.array(h.axes[0].edges, dtype=float)

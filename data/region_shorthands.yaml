@@ -1,0 +1,24 @@
+# Shorthand aliases for --region CLI flag.
+# Each key expands to the listed region names.
+resolved_dy_cr:
+  - wr_ee_resolved_dy_cr
+  - wr_mumu_resolved_dy_cr
+
+resolved_sr:
+  - wr_ee_resolved_sr
+  - wr_mumu_resolved_sr
+
+resolved_flavor_cr:
+  - wr_resolved_flavor_cr
+
+boosted_dy_cr:
+  - wr_ee_boosted_dy_cr
+  - wr_mumu_boosted_dy_cr
+
+boosted_sr:
+  - wr_ee_boosted_sr
+  - wr_mumu_boosted_sr
+
+boosted_flavor_cr:
+  - wr_emu_boosted_flavor_cr
+  - wr_mue_boosted_flavor_cr

@@ -22,11 +22,83 @@ from wrplotter.histo import load_and_rebin
 from wrplotter.regions import regions_for_era, expand_region_requests
 from wrplotter.variables import build_variables
 from wrplotter.sample_groups import load_sample_groups
-from wrplotter.config import list_eras,load_lumi,load_plot_settings,load_kfactors,get_kfactor,index_plot_settings, configured_variables
+from wrplotter.config import list_eras,load_lumi,load_plot_settings,load_kfactors,get_kfactor,index_plot_settings, configured_variables, load_systematics
 from wrplotter.cli_utils import parse_multi, setup_logging
 
 _ERA_CHOICES = list_eras()
 SCALES = load_kfactors()
+SYSTEMATICS = load_systematics()
+
+
+def load_systematics(sample, hist_obj, region_name, variable_name,
+                     rebin, input_dirs, input_lumis, era, syst_hists):
+    """Load systematic up/down variations for a single MC sample.
+
+    Populates the nested syst_hists dict in-place. Uses the nominal
+    histogram as fallback so samples without a given systematic
+    contribute delta=0 rather than biasing the envelope.
+    """
+    for syst in SYSTEMATICS:
+        for direction in ["up", "down"]:
+            syst_hist_key = (
+                f"syst_{syst}{direction}_{region_name}/"
+                f"{variable_name}_syst_{syst}{direction}_{region_name}"
+            )
+            syst_obj = load_and_rebin(
+                input_dirs=input_dirs,
+                sample=sample,
+                hist_key=syst_hist_key,
+                n_rebin=rebin,
+                sublumis=input_lumis,
+                era_for_scale=era,
+                get_kfactor_fn=get_kfactor,
+                scales=SCALES,
+            )
+            if syst_obj is None:
+                syst_obj = hist_obj
+            syst_hists.setdefault(region_name, {}) \
+                      .setdefault(variable_name, {}) \
+                      .setdefault(syst, {}) \
+                      .setdefault(direction, {})[sample] = syst_obj
+
+
+def load_signal_overlays(region, hist_key, rebin, input_dirs, input_lumis,
+                         era, era_info, signal_arg):
+    """Load signal sample histograms for overlay on signal-region plots.
+
+    Returns a dict {sample_name: hist} for all successfully loaded signals.
+    Uses Region.is_boosted to pick the default signal when none is specified.
+    """
+    signal_hists = {}
+    if not region.is_signal_region:
+        return signal_hists
+
+    if signal_arg:
+        signal_samples = signal_arg
+    elif region.is_boosted:
+        signal_samples = [era_info.get("default_signal_boosted", "signal_WR4000_N100")]
+    else:
+        signal_samples = [era_info.get("default_signal_resolved", "signal_WR4000_N2100")]
+
+    for sig_sample in signal_samples:
+        sig_hist = load_and_rebin(
+            input_dirs=input_dirs,
+            sample=sig_sample,
+            hist_key=hist_key,
+            n_rebin=rebin,
+            sublumis=input_lumis,
+            era_for_scale=era,
+            get_kfactor_fn=get_kfactor,
+            scales=SCALES,
+        )
+        if sig_hist is not None:
+            signal_hists[sig_sample] = sig_hist
+            logging.info(f"    Loaded signal: {sig_sample}")
+
+    if signal_hists:
+        logging.info(f"    {len(signal_hists)} signal sample(s) will be overlaid")
+
+    return signal_hists
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="CR plot commands")
@@ -210,6 +282,7 @@ def main():
     out_dir     = ctx["output_dir"]
 
     syst_hists = {}
+    n_failures = 0
 
     for region in regions:
         logging.info(f"Processing region '{region.name}'")
@@ -230,6 +303,7 @@ def main():
             stack_list   = []
             stack_colors = []
             stack_labels = []
+            stack_keys   = []
             data_hist    = []
 
             hist_key = f"{region.name}/{variable.name}_{region.name}"
@@ -255,36 +329,11 @@ def main():
                         continue
                     combined = hist_obj if (combined is None) else (combined + hist_obj)
 
-                    # --- load systematic variations (MC only) ---
-                    if is_data_group:
-                        continue
-                    for syst in ["lumi", "pileup",
-                                 "muonrecosf", "muonidsf", "muonisosf", "muontrigsf",
-                                 "electronrecosf", "electronidsf", "electrontrigsf"]:
-                        for direction in ["up", "down"]:
-                            syst_hist_key = (
-                                f"syst_{syst}{direction}_{region.name}/"
-                                f"{variable.name}_syst_{syst}{direction}_{region.name}"
-                            )
-                            syst_obj = load_and_rebin(
-                                input_dirs=input_dirs,
-                                sample=sample,
-                                hist_key=syst_hist_key,
-                                n_rebin=rebin,
-                                sublumis=input_lumis,
-                                era_for_scale=era,
-                                get_kfactor_fn=get_kfactor,
-                                scales=SCALES,
-                            )
-                            # Use nominal as fallback so that samples without
-                            # syst histograms contribute delta=0 rather than
-                            # being absent (which would bias the envelope).
-                            if syst_obj is None:
-                                syst_obj = hist_obj
-                            syst_hists.setdefault(region.name, {}) \
-                                      .setdefault(variable.name, {}) \
-                                      .setdefault(syst, {}) \
-                                      .setdefault(direction, {})[sample] = syst_obj
+                    if not is_data_group:
+                        load_systematics(
+                            sample, hist_obj, region.name, variable.name,
+                            rebin, input_dirs, input_lumis, era, syst_hists,
+                        )
 
                 if combined is None:
                     continue
@@ -302,44 +351,30 @@ def main():
                     stack_list.append(combined)
                     stack_colors.append(color)
                     stack_labels.append(label)
+                    stack_keys.append(sample_group.key)
+
+            # Reorder stack based on region type
+            if "dy" in stack_keys:
+                dy_idx = stack_keys.index("dy")
+                if "flavor_cr" in region.name:
+                    # For flavor CR: put DY at the bottom of the stack
+                    for lst in (stack_list, stack_colors, stack_labels, stack_keys):
+                        lst.insert(0, lst.pop(dy_idx))
+                else:
+                    # For DY CR and SR: put DY at the top of the stack
+                    for lst in (stack_list, stack_colors, stack_labels, stack_keys):
+                        lst.append(lst.pop(dy_idx))
 
             if not stack_list and not data_hist:
                 logging.warning(f"  Skipped '{region.name}/{variable.name}' (no histograms found).")
                 continue
 
-            # Determine if this is a signal region and if we should blind it
-            is_signal_region = 'sr' in region.name.lower()
-            show_data = args.unblind or not is_signal_region
+            show_data = args.unblind or not region.is_signal_region
 
-            # --- Load signal overlays for signal regions ---
-            signal_hists = {}
-            if is_signal_region:
-                if args.signal:
-                    signal_samples = args.signal
-                else:
-                    era_info = ctx["era_info"]
-                    is_boosted_region = 'boosted' in region.name.lower()
-                    if is_boosted_region:
-                        signal_samples = [era_info.get("default_signal_boosted", "signal_WR4000_N100")]
-                    else:
-                        signal_samples = [era_info.get("default_signal_resolved", "signal_WR4000_N2100")]
-
-                for sig_sample in signal_samples:
-                    sig_hist = load_and_rebin(
-                        input_dirs=input_dirs,
-                        sample=sig_sample,
-                        hist_key=hist_key,
-                        n_rebin=rebin,
-                        sublumis=input_lumis,
-                        era_for_scale=era,
-                        get_kfactor_fn=get_kfactor,
-                        scales=SCALES,
-                    )
-                    if sig_hist is not None:
-                        signal_hists[sig_sample] = sig_hist
-                        logging.info(f"    Loaded signal: {sig_sample}")
-                if signal_hists:
-                    logging.info(f"    {len(signal_hists)} signal sample(s) will be overlaid")
+            signal_hists = load_signal_overlays(
+                region, hist_key, rebin, input_dirs, input_lumis,
+                era, ctx["era_info"], args.signal,
+            )
 
             fig = plot_stack(
                 region, variable,
@@ -356,8 +391,13 @@ def main():
                 logging.info(f"    Saved: {outpath}")
             except Exception as e:
                 logging.error(f"    Failed to save {outpath}: {e}")
+                n_failures += 1
             finally:
                 plt.close(fig)
+
+    if n_failures:
+        logging.error(f"{n_failures} plot(s) failed to save.")
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()

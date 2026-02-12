@@ -12,8 +12,13 @@ def clear_lru_caches():
     yield
     from wrplotter.config import (
         _lumi_table, load_plot_settings, load_sample_groups_raw, load_kfactors,
+        load_region_shorthands, load_systematics,
     )
-    for fn in (_lumi_table, load_plot_settings, load_sample_groups_raw, load_kfactors):
+    from wrplotter.variables import build_variables
+    for fn in (
+        _lumi_table, load_plot_settings, load_sample_groups_raw, load_kfactors,
+        load_region_shorthands, load_systematics, build_variables,
+    ):
         fn.cache_clear()
 
 

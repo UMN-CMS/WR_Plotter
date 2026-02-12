@@ -1,0 +1,13 @@
+# Systematic uncertainty names used for up/down envelope plots.
+# Each entry corresponds to a pair of histogram keys:
+#   syst_{name}up_{region}/...  and  syst_{name}down_{region}/...
+systematics:
+  - lumi
+  - pileup
+  - muonrecosf
+  - muonidsf
+  - muonisosf
+  - muontrigsf
+  - electronrecosf
+  - electronidsf
+  - electrontrigsf

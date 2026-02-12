@@ -2,11 +2,18 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import TYPE_CHECKING
 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.figure import Figure
 import mplhep as hep
+
+if TYPE_CHECKING:
+    from hist import Hist
+    from .regions import Region
+    from .variables import Variable
 
 # ----------------------------- constants -------------------------------------- #
 
@@ -102,12 +109,26 @@ def reorder_legend(ax, priority=("MC stat.", "Data"), fontsize=18) -> None:
 
 # --------------------------------- drawing ---------------------------------- #
 
-def plot_stack(region, variable, *,
-               stack_list, stack_colors, stack_labels, data_hist,
-               xlim, ylim, lumi, com=13.6,
-               ratio_ylim=(0.5, 2.0), syst_hists=None,
-               fontsize_title=FONT_SIZE_TITLE, fontsize_label=FONT_SIZE_LABEL, fontsize_legend=FONT_SIZE_LEGEND,
-               show_data=True, signal_hists=None):
+def plot_stack(
+    region: Region,
+    variable: Variable,
+    *,
+    stack_list: list[Hist],
+    stack_colors: list[str],
+    stack_labels: list[str],
+    data_hist: list[Hist],
+    xlim: tuple[float, float],
+    ylim: tuple[float, float],
+    lumi: float,
+    com: float = 13.6,
+    ratio_ylim: tuple[float, float] = (0.5, 2.0),
+    syst_hists: dict | None = None,
+    fontsize_title: int = FONT_SIZE_TITLE,
+    fontsize_label: int = FONT_SIZE_LABEL,
+    fontsize_legend: int = FONT_SIZE_LEGEND,
+    show_data: bool = True,
+    signal_hists: dict[str, Hist] | None = None,
+) -> Figure:
     """
     Draw stacked MC + data with ratio panel.
 
@@ -229,7 +250,7 @@ def plot_stack(region, variable, *,
     )
 
     hep.cms.label(loc=0, ax=ax, data=region.unblind_data,
-                  label="Work in Progress", lumi=f"{lumi:.1f}",
+                  text="Work in Progress", lumi=f"{lumi:.1f}",
                   com=com, fontsize=fontsize_label)
 
     xlabel = f"{variable.tlatex_alias} [{variable.unit}]" if getattr(variable, "unit", "") else variable.tlatex_alias

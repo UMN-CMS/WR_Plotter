@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 import hist
 
-from wrplotter.histo import load_and_rebin
+from wrplotter.histo import load_and_rebin, clear_cache, _open_root
 
 
 def _make_test_hist(values=None, bins=10, lo=0, hi=100):
@@ -16,6 +16,14 @@ def _make_test_hist(values=None, bins=10, lo=0, hi=100):
     else:
         h.fill(np.random.uniform(lo, hi, 100))
     return h
+
+
+@pytest.fixture(autouse=True)
+def _clear_root_cache():
+    """Clear the ROOT file cache before and after each test."""
+    clear_cache()
+    yield
+    clear_cache()
 
 
 class TestLoadAndRebin:
@@ -134,3 +142,57 @@ class TestLoadAndRebin:
             scales={},
         )
         assert result is None
+
+
+class TestRootFileCache:
+
+    def test_cache_reuses_file_handle(self, tmp_path):
+        """Verify that reading the same file twice hits the cache."""
+        uproot = pytest.importorskip("uproot")
+
+        test_hist = _make_test_hist(values=np.ones(10), bins=10, lo=0, hi=100)
+        root_path = tmp_path / "WRAnalyzer_CacheSample.root"
+        with uproot.recreate(root_path) as f:
+            f["region/variable_region"] = test_hist
+
+        kw = dict(
+            input_dirs=[tmp_path],
+            sample="CacheSample",
+            hist_key="region/variable_region",
+            n_rebin=1,
+            sublumis=[1.0],
+            era_for_scale="TestEra",
+            get_kfactor_fn=lambda s, e, samp, default=1.0: default,
+            scales={},
+        )
+
+        clear_cache()
+        load_and_rebin(**kw)
+        load_and_rebin(**kw)
+
+        info = _open_root.cache_info()
+        assert info.hits >= 1, f"Expected cache hits but got: {info}"
+
+    def test_clear_cache_resets(self, tmp_path):
+        """Verify clear_cache() empties the LRU cache."""
+        uproot = pytest.importorskip("uproot")
+
+        test_hist = _make_test_hist(values=np.ones(10), bins=10, lo=0, hi=100)
+        root_path = tmp_path / "WRAnalyzer_ClearSample.root"
+        with uproot.recreate(root_path) as f:
+            f["region/variable_region"] = test_hist
+
+        load_and_rebin(
+            input_dirs=[tmp_path],
+            sample="ClearSample",
+            hist_key="region/variable_region",
+            n_rebin=1,
+            sublumis=[1.0],
+            era_for_scale="TestEra",
+            get_kfactor_fn=lambda s, e, samp, default=1.0: default,
+            scales={},
+        )
+
+        clear_cache()
+        info = _open_root.cache_info()
+        assert info.currsize == 0

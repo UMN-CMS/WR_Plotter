@@ -1,5 +1,9 @@
 """Tests for wrplotter.plotting_helpers."""
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import pytest
 from hist import Hist
 from hist.axis import Regular
 from hist.storage import Weight
@@ -8,7 +12,10 @@ from wrplotter.plotting_helpers import (
     custom_log_formatter,
     _format_bin_width,
     _safe_sum_hists,
+    plot_stack,
 )
+from wrplotter.regions import Region
+from wrplotter.variables import Variable
 
 
 class TestCustomLogFormatter:
@@ -69,3 +76,73 @@ class TestSafeSumHists:
         result = _safe_sum_hists([h1, h2])
         np.testing.assert_allclose(result.values(), 3.0)
         np.testing.assert_allclose(result.variances(), 3.0)
+
+
+def _make_weighted_hist(values, nbins=10, lo=0, hi=1000):
+    """Helper: create a 1D Weight() histogram with given bin values."""
+    h = Hist(Regular(nbins, lo, hi, name="x"), storage=Weight())
+    h.view(flow=False)["value"][:] = values
+    h.view(flow=False)["variance"][:] = values
+    return h
+
+
+class TestPlotStack:
+
+    def test_smoke_mc_and_data(self):
+        """plot_stack returns a Figure when given MC stack + data."""
+        region = Region("wr_mumu_resolved_dy_cr", "muon", True, "test region")
+        variable = Variable("mass_fourobject", r"$m_{lljj}$", "GeV", 10, 0, 1000)
+
+        mc1 = _make_weighted_hist(np.arange(1, 11, dtype=float) * 10)
+        mc2 = _make_weighted_hist(np.arange(1, 11, dtype=float) * 5)
+        data = _make_weighted_hist(np.arange(1, 11, dtype=float) * 15)
+
+        fig = plot_stack(
+            region, variable,
+            stack_list=[mc1, mc2],
+            stack_colors=["#5790fc", "#f89c20"],
+            stack_labels=["Z+jets", r"$t\bar{t}$+tW"],
+            data_hist=[data],
+            xlim=(0, 1000), ylim=(1, 1e6), lumi=59.7,
+        )
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_smoke_mc_only_blinded(self):
+        """plot_stack works with show_data=False (blinded SR)."""
+        region = Region("wr_mumu_resolved_sr", "muon", False, "SR test")
+        variable = Variable("mass_fourobject", r"$m_{lljj}$", "GeV", 10, 0, 1000)
+
+        mc = _make_weighted_hist(np.arange(1, 11, dtype=float) * 10)
+
+        fig = plot_stack(
+            region, variable,
+            stack_list=[mc],
+            stack_colors=["#5790fc"],
+            stack_labels=["Z+jets"],
+            data_hist=[],
+            xlim=(0, 1000), ylim=(1, 1e6), lumi=59.7,
+            show_data=False,
+        )
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_smoke_with_signal_overlay(self):
+        """plot_stack works with signal histograms overlaid."""
+        region = Region("wr_mumu_resolved_dy_cr", "muon", True, "CR test")
+        variable = Variable("mass_fourobject", r"$m_{lljj}$", "GeV", 10, 0, 1000)
+
+        mc = _make_weighted_hist(np.arange(1, 11, dtype=float) * 10)
+        sig = _make_weighted_hist(np.ones(10) * 5)
+
+        fig = plot_stack(
+            region, variable,
+            stack_list=[mc],
+            stack_colors=["#5790fc"],
+            stack_labels=["Z+jets"],
+            data_hist=[],
+            xlim=(0, 1000), ylim=(1, 1e6), lumi=59.7,
+            signal_hists={"signal_WR4000_N2100": sig},
+        )
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
