@@ -15,6 +15,10 @@ Run3Summer22EE:
   DYJets: 1.0
   _default: 1.0
 
+Run3Summer23BPix:
+  DYJets: 1.0
+  _default: 1.0
+
 RunIII2024Summer24:
   DYJets: 1.0
   _default: 1.0
