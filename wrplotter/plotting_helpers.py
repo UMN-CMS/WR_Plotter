@@ -250,7 +250,7 @@ def plot_stack(
     )
 
     hep.cms.label(loc=0, ax=ax, data=region.unblind_data,
-                  text="Work in Progress", lumi=f"{lumi:.1f}",
+                  label="Work in Progress", lumi=f"{lumi:.1f}",
                   com=com, fontsize=fontsize_label)
 
     xlabel = f"{variable.tlatex_alias} [{variable.unit}]" if getattr(variable, "unit", "") else variable.tlatex_alias

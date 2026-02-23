@@ -32,6 +32,44 @@ def read_json(path: str | Path) -> Any:
         return json.load(f)
 
 
+# ── Input directories for era ──────────────────────────────────────────────────
+
+def input_dirs_for_era(era: str, working_dir: str | Path,
+                       subdir: str = "") -> tuple[list[Path], list[float]]:
+    """Resolve rootfile input directories and per-directory luminosities for an era.
+
+    For combined eras (with sub_eras in lumi config), returns one directory
+    per sub-era. Otherwise returns a single directory for the era itself.
+
+    Returns (input_dirs, input_lumis).
+    """
+    from .config import load_lumi
+
+    working_dir = Path(working_dir)
+    info = load_lumi(era)
+    run = info["run"]
+    year = info["year"]
+    lumi = info["lumi"]
+
+    if "sub_eras" in info:
+        input_dirs = []
+        for se in info["sub_eras"]:
+            se_info = load_lumi(se)
+            d = working_dir / "rootfiles" / se_info["run"] / se_info["year"] / se
+            if subdir:
+                d = d / subdir
+            input_dirs.append(d)
+        input_lumis = list(info["sub_lumis"])
+    else:
+        base = working_dir / "rootfiles" / run / year / era
+        if subdir:
+            base = base / subdir
+        input_dirs = [base]
+        input_lumis = [lumi]
+
+    return input_dirs, input_lumis
+
+
 # ── EOS utilities ──────────────────────────────────────────────────────────────
 #
 # Environment variables for EOS configuration:

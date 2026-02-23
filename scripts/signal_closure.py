@@ -36,6 +36,7 @@ import mplhep as hep
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from wrplotter.io import repo_root, save_figure
+from wrplotter.config import load_lumi
 from wrplotter.histogram_utils import extract_hist_data, rebin_histogram
 from wrplotter.cli_utils import setup_logging
 
@@ -55,7 +56,7 @@ COMMON_POINTS = [
     "WR6000_N5900",
 ]
 
-ROOTFILE_DIR = repo_root() / "rootfiles"
+_ROOTFILE_DIR = repo_root() / "rootfiles"
 
 RUN2_ERA = "RunIISummer20UL18"
 RUN3_ERA = "RunIII2024Summer24"
@@ -117,10 +118,9 @@ CUTFLOW_STEPS = [
 # ---------------------------------------------------------------------------
 def root_file_path(era, mass):
     """Build the path to the closure ROOT file for a given era and mass point."""
-    if era == RUN2_ERA:
-        return ROOTFILE_DIR / "RunII" / "2018" / era / "closure" / f"ClosureStudy_signal_{mass}.root"
-    else:
-        return ROOTFILE_DIR / "Run3" / "2024" / era / "closure" / f"ClosureStudy_signal_{mass}.root"
+    info = load_lumi(era)
+    return (_ROOTFILE_DIR / info["run"] / str(info["year"])
+            / era / "closure" / f"ClosureStudy_signal_{mass}.root")
 
 
 def load_hist_1d(fpath, region, hist_name):
