@@ -128,6 +128,7 @@ def plot_stack(
     fontsize_legend: int = FONT_SIZE_LEGEND,
     show_data: bool = True,
     signal_hists: dict[str, Hist] | None = None,
+    extra_label: str | None = None,
 ) -> Figure:
     """
     Draw stacked MC + data with ratio panel.
@@ -242,6 +243,8 @@ def plot_stack(
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
     ax.set_ylim(*ylim)
     alias = region.tlatex_alias.replace("\\n", "\n")
+    if extra_label:
+        alias = f"{alias}\n{extra_label}"
     ax.text(
         0.05, 0.96, alias,
         transform=ax.transAxes,
@@ -250,7 +253,7 @@ def plot_stack(
     )
 
     hep.cms.label(loc=0, ax=ax, data=region.unblind_data,
-                  label="Work in Progress", lumi=f"{lumi:.1f}",
+                  label="Work in Progress", lumi=f"{lumi:.2f}",
                   com=com, fontsize=fontsize_label)
 
     xlabel = f"{variable.tlatex_alias} [{variable.unit}]" if getattr(variable, "unit", "") else variable.tlatex_alias

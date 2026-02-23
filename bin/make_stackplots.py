@@ -108,6 +108,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--local-plots",action="store_true",help="Save plots to a local folder instead of EOS.",)
     parser.add_argument("--unblind",action="store_true",help="Show data in signal regions (default: blinded).",)
     parser.add_argument("--signal","-s",dest="signal",action="append",default=None,help="Signal sample(s) to overlay on SR plots. Repeat or comma-separate: -s signal_WR4000_N2100 -s signal_WR6000_N3100. Defaults depend on era and region topology.",)
+    parser.add_argument("--extra-label",dest="extra_label",type=str,default=None,help="Optional label printed below the lumi line on each plot.",)
 
     # List options for discovery
     parser.add_argument("--list-eras",action="store_true",help="List all available eras and exit.",)
@@ -384,6 +385,7 @@ def main():
                 xlim=xlim, ylim=ylim, lumi=lumi, com=com,
                 ratio_ylim=ratio_ylim, syst_hists=syst_hists,
                 show_data=show_data, signal_hists=signal_hists,
+                extra_label=args.extra_label,
             )
             outpath = f"{out_dir}/{region.name}_{region.primary_dataset}/{variable.name}_{region.name}.pdf"
 
