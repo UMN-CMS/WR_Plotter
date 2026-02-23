@@ -1,6 +1,5 @@
-# data/sample_groups/2022.yaml
-# Combined era “2022” (Run3Summer22 + Run3Summer22EE)
-mc_campaign: "Run3Summer22"   # keep empty for combined; set per sub-era if you ever split
+# data/sample_groups/Run3Summer23.yaml
+mc_campaign: "Run3Summer23"
 
 
 groups:

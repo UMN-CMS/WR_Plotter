@@ -1,7 +1,6 @@
-# data/sample_groups/2022.yaml
-# Combined era “2022” (Run3Summer22 + Run3Summer22EE)
-mc_campaign: "Run3Summer22"   # keep empty for combined; set per sub-era if you ever split
-
+# data/sample_groups/2023.yaml
+# Combined era "2023" (Run3Summer23 + Run3Summer23BPix)
+mc_campaign: ""   # keep empty for combined; set per sub-era if you ever split
 
 groups:
   dy:
@@ -24,3 +23,4 @@ groups:
 
 # Optionally override legend order (or omit to inherit from base)
 order: [other, nonprompt, ttbar, dy, egamma, muon]
+

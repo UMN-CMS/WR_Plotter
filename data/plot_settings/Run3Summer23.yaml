@@ -1,4 +1,4 @@
-# data/plot_settings/Run3Summer23BPix.yaml
+# data/plot_settings/Run3Summer23.yaml
 
 # 1) Variables used everywhere (base)
 common_variables: &common_vars

@@ -2,18 +2,19 @@
 # Combined era “2022” (Run3Summer22 + Run3Summer22EE)
 mc_campaign: "Run3Summer2EE"   # keep empty for combined; set per sub-era if you ever split
 
+
 groups:
   dy:
     samples: [DYJets]
 
   ttbar:
-    samples: [TTbar]
+    samples: [tt_tW]
 
   nonprompt:
-    samples: [WJets, SingleTop, TTbarSemileptonic]
+    samples: [Nonprompt]
 
   other:
-    samples: [TTV, Diboson, Triboson]
+    samples: [Other]
 
   egamma:
     samples: [EGamma]

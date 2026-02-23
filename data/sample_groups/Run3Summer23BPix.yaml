@@ -1,18 +1,19 @@
 # data/sample_groups/Run3Summer23BPix.yaml
 mc_campaign: "Run3Summer23BPix"
 
+
 groups:
   dy:
     samples: [DYJets]
 
   ttbar:
-    samples: [TTbar]
+    samples: [tt_tW]
 
   nonprompt:
-    samples: [WJets, SingleTop, TTbarSemileptonic]
+    samples: [Nonprompt]
 
   other:
-    samples: [TTV, Diboson, Triboson]
+    samples: [Other]
 
   egamma:
     samples: [EGamma]
