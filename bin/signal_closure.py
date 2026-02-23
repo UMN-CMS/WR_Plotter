@@ -35,7 +35,7 @@ import mplhep as hep
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from wrplotter.io import repo_root, save_figure
+from wrplotter.paths import repo_root, save_figure
 from wrplotter.config import load_lumi
 from wrplotter.histogram_utils import extract_hist_data, rebin_histogram
 from wrplotter.cli_utils import setup_logging

@@ -1,8 +1,6 @@
 # data/lumi.yaml
 # Luminosity, run, and signal configuration for each MC era.
 #
-# This file supersedes data/lumi.json (config.py prefers lumi.yaml when present).
-#
 # YAML anchors (*run3_signals) eliminate the repetition of signal mass-point
 # defaults across all Run3 eras; only RunII overrides them.
 

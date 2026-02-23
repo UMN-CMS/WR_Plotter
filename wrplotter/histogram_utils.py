@@ -107,8 +107,8 @@ def extract_hist_data(h):
 def load_histogram(path: Path, hist_key: str) -> Hist:
     """Load a single histogram from a ROOT file, using the shared LRU cache.
 
-    Uses the same cached file handle as histo.load_and_rebin() so repeated
+    Uses the same cached file handle as histogram_cache.load_and_rebin() so repeated
     calls to the same file avoid redundant I/O.
     """
-    from .histo import _open_root  # lazy import avoids circular dependency at module level
+    from .histogram_cache import _open_root  # lazy import avoids circular dependency
     return _open_root(str(path))[hist_key].to_hist()

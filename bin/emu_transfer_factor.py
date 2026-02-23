@@ -41,7 +41,7 @@ import mplhep as hep
 # ── Local imports ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from wrplotter.io import repo_root, save_figure
+from wrplotter.paths import repo_root, save_figure
 from wrplotter.config import list_eras, load_lumi, load_plot_settings, index_plot_settings, get_var_cfg
 from wrplotter.histogram_utils import rebin_histogram, load_histogram
 from wrplotter.cli_utils import setup_logging, add_era_args

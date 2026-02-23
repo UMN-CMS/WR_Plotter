@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from wrplotter.histogram_utils import rebin_histogram, load_histogram, extract_hist_data
 from wrplotter.plotting_helpers import FONT_SIZE_TITLE, FONT_SIZE_LABEL, FONT_SIZE_LEGEND
-from wrplotter.io import repo_root, output_dir, save_figure
+from wrplotter.paths import repo_root, output_dir, save_figure
 from wrplotter.regions import regions_for_era
 from wrplotter.variables import Variable
 from wrplotter.config import load_plot_settings, load_kfactors, load_lumi, list_eras

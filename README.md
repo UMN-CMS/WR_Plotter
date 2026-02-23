@@ -16,7 +16,7 @@ Plotting tools for the WR analysis. Takes ROOT histogram files produced by the W
   - [compare_dy.py](#compare_dypy)
   - [make_cutflow_table.py](#make_cutflow_tablepy)
   - [signal_closure.py](#signal_closurepy)
-  - [transfer_factor_tt_tW.py](#transfer_factor_tt_twpy)
+  - [emu_transfer_factor.py](#emu_transfer_factorpy)
 - [Repository Structure](#repository-structure)
 - [Configuration](#configuration)
   - [EOS / CERNBox Setup](#eos--cernbox-setup)
@@ -189,25 +189,25 @@ python3 bin/compare_dy.py --mode mll-vs-ht --era 2022
 python3 bin/compare_dy.py --mode cross-era --era RunIII2024Summer24 --ref-era RunIISummer20UL18
 ```
 
-### make_cutflow_table.py
+### make_cutflow_tables.py
 
 Generate a LaTeX cutflow table from analyzer output:
 ```bash
-python3 make_cutflow_table.py --era RunIII2024Summer24
+python3 bin/make_cutflow_tables.py --era RunIII2024Summer24
 ```
 
 ### signal_closure.py
 
-Run2 vs Run3 signal closure study (in `scripts/`):
+Run2 vs Run3 signal closure study:
 ```bash
-python3 scripts/signal_closure.py
+python3 bin/signal_closure.py
 ```
 
-### transfer_factor_tt_tW.py
+### emu_transfer_factor.py
 
-Compute SR / flavor-CR transfer factors for tt+tW (in `scripts/`):
+Compute SR / flavor-CR transfer factors for tt+tW (resolved and boosted):
 ```bash
-python3 scripts/transfer_factor_tt_tW.py
+python3 bin/emu_transfer_factor.py --era RunIII2024Summer24
 ```
 
 ---
@@ -216,48 +216,41 @@ python3 scripts/transfer_factor_tt_tW.py
 
 ```
 WR_Plotter/
-├── bin/                              # Production CLI scripts
+├── bin/                              # CLI scripts
 │   ├── make_stackplots.py            #   Stacked MC + data plots
-│   └── compare_dy.py                 #   DY comparison overlays (LO/NLO, cross-era)
-├── scripts/                          # One-off analysis scripts
-│   ├── signal_closure.py             #   Run2 vs Run3 signal closure
-│   └── transfer_factor_tt_tW.py      #   SR/CR transfer factors
+│   ├── make_cutflow_tables.py        #   Cutflow LaTeX table generator
+│   ├── emu_transfer_factor.py        #   tt+tW SR/CR transfer factors (resolved + boosted)
+│   ├── compare_dy.py                 #   DY comparison overlays (LO/NLO, cross-era)
+│   └── signal_closure.py             #   Run2 vs Run3 signal closure
+├── scripts/                          # Utility scripts
+│   └── validate_skims.py             #   Skim validation
 ├── wrplotter/                        # Core library
 │   ├── config.py                     #   Load lumi, kfactors, plot settings
-│   ├── io.py                         #   File I/O, EOS upload, repo_root()
+│   ├── paths.py                      #   File I/O, EOS upload, repo_root()
 │   ├── regions.py                    #   Analysis region definitions
 │   ├── variables.py                  #   Physics variable definitions
 │   ├── sample_groups.py              #   Sample grouping and styling
-│   ├── histo.py                      #   Histogram loading and rebinning (high-level)
-│   ├── histogram_utils.py            #   Histogram rebinning and manipulation (low-level)
+│   ├── histogram_cache.py            #   ROOT file caching and load-and-rebin
+│   ├── histogram_utils.py            #   Histogram rebinning and manipulation
 │   ├── plotting_helpers.py           #   Matplotlib/mplhep CMS plot formatting
 │   └── cli_utils.py                  #   CLI helpers (parse_multi, setup_logging)
 ├── data/                             # Configuration files
-│   ├── lumi.json                     #   Luminosity, run, year, CoM per era
+│   ├── lumi.yaml                     #   Luminosity, run, year, CoM per era
 │   ├── kfactors.yaml                 #   MC scale factors
-│   ├── plot_settings/                #   Per-era rebin/xlim/ylim YAML configs
-│   │   ├── RunIII2024Summer24.yaml
-│   │   ├── RunIISummer20UL18.yaml
-│   │   └── ...
-│   └── sample_groups/                #   Per-era sample grouping and colors
-│       ├── base.yaml
+│   ├── sample_groups.yaml            #   Sample grouping and colors
+│   ├── variables.yaml                #   Histogram axis definitions
+│   ├── region_shorthands.yaml        #   Shorthand aliases for regions
+│   ├── systematics.yaml              #   Systematic uncertainty names
+│   └── plot_settings/                #   Per-era rebin/xlim/ylim YAML configs
 │       ├── RunIII2024Summer24.yaml
+│       ├── RunIISummer20UL18.yaml
 │       └── ...
 ├── tests/                            # Unit tests (pytest)
-│   ├── test_config.py
-│   ├── test_regions.py
-│   ├── test_histogram_utils.py
-│   ├── test_plotting_helpers.py
-│   └── test_cli_utils.py
-├── test/                             # Development/validation studies
-│   ├── mll_study/                    #   Dilepton mass optimization
-│   └── ...                           #   Cross-era comparisons, SF validation
 ├── rootfiles/                        # Input ROOT histograms (from analyzer)
 │   └── <Run>/<Year>/<Era>/           #   e.g., Run3/2024/RunIII2024Summer24/
 ├── plots/                            # Output plots (created by --local-plots)
-├── make_cutflow_table.py             # Cutflow LaTeX table generator
+├── pyproject.toml
 ├── pytest.ini
-├── requirements.txt
 └── README.md
 ```
 
@@ -324,7 +317,7 @@ git push -u origin branch_name
 
 Install dependencies:
 ```bash
-python3 -m pip install -r requirements.txt
+python3 -m pip install .
 ```
 
 ### Grid Proxy

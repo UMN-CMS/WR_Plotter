@@ -1,11 +1,10 @@
-# python/config.py
 from __future__ import annotations
 import logging
 from functools import lru_cache
 from typing import Any, Dict, Mapping, MutableMapping
 from pathlib import Path
 
-from .io import data_path, read_yaml, read_json
+from .paths import data_path, read_yaml
 
 logger = logging.getLogger(__name__)
 
@@ -33,15 +32,9 @@ def _deep_merge(base: MutableMapping[str, Any], override: Mapping[str, Any]) -> 
 
 @lru_cache(maxsize=None)
 def _lumi_table() -> Dict[str, Any]:
-    """
-    Load lumi table once. Supports either JSON (current) or YAML (future).
-    """
-    # Prefer YAML if present; fall back to JSON for backward-compat.
+    """Load lumi table once from data/lumi.yaml."""
     yaml_path = data_path("lumi.yaml")
-    json_path = data_path("lumi.json")
-    if yaml_path.exists():
-        return read_yaml(yaml_path) or {}
-    return read_json(json_path) or {}
+    return read_yaml(yaml_path) or {}
 
 def list_eras() -> list[str]:
     """Sorted list of known eras (keys of lumi table, excluding internal anchor keys)."""
@@ -92,34 +85,21 @@ def load_plot_settings(era_or_path: str) -> Dict[str, Any]:
     Accepts either:
       - an explicit YAML path (endswith .yaml/.yml), OR
       - an era key (e.g., 'Run3Summer22', '2022')
-
-    Merge order when an era is given:
-      base.yaml  <-  <era>.yaml
     """
-    # If the caller passed a YAML path, just load it
     if era_or_path.endswith((".yaml", ".yml")):
         return read_yaml(era_or_path) or {}
 
-    # Otherwise treat it as an era key and resolve files under data/plot_settings
-    base_path = data_path("plot_settings", "base.yaml")
-    era_path  = data_path("plot_settings", f"{era_or_path}.yaml")
-
-    base_cfg: Dict[str, Any] = read_yaml(base_path) if base_path.exists() else {}
+    era_path = data_path("plot_settings", f"{era_or_path}.yaml")
     if not era_path.exists():
-        logger.debug(
-            "No era-specific plot settings found at %s; using base defaults only.", era_path
-        )
-        return base_cfg
+        logger.debug("No plot settings found at %s; returning empty config.", era_path)
+        return {}
 
-    era_cfg: Dict[str, Any] = read_yaml(era_path) or {}
-    return _deep_merge(base_cfg, era_cfg)
+    return read_yaml(era_path) or {}
 
 
 # -----------------------------------------------------------------------------
-# Sample groups (kept here if you like, or in python/sample_groups.py)
+# Sample groups (raw YAML; structured loading in sample_groups.py)
 # -----------------------------------------------------------------------------
-# If you prefer to keep sample group loading in a separate module, delete this
-# section and keep your existing python/sample_groups.py loader.
 
 @lru_cache(maxsize=None)
 def load_sample_groups_raw() -> Dict[str, Any]:

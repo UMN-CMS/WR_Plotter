@@ -36,7 +36,7 @@ import uproot
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from wrplotter.config import load_lumi, list_eras, default_signals
-from wrplotter.io import input_dirs_for_era
+from wrplotter.paths import input_dirs_for_era
 from wrplotter.sample_groups import load_sample_groups
 from wrplotter.cli_utils import setup_logging, add_era_args
 
