@@ -21,6 +21,11 @@ FONT_SIZE_TITLE  = 20
 FONT_SIZE_LABEL  = 20
 FONT_SIZE_LEGEND = 18
 
+# Colours and linestyles cycled over multiple signal overlays so they remain
+# visually distinguishable when more than one signal is shown on the same plot.
+_SIG_COLORS = ["black", "#e41a1c", "#377eb8", "#4daf4a", "#984ea3"]
+_SIG_STYLES = ["--", "-.", ":", (0, (3, 1, 1, 1)), (0, (5, 1))]
+
 # ----------------------------- formatters/labels ----------------------------- #
 
 def _safe_sum_hists(hists):
@@ -179,8 +184,10 @@ def plot_stack(
         else:
             label = sig_name
 
-        hep.histplot(sig_hist, label=label, color="black",
-                     histtype="step", linewidth=2, linestyle="--", ax=ax)
+        hep.histplot(sig_hist, label=label,
+                     color=_SIG_COLORS[idx % len(_SIG_COLORS)],
+                     linestyle=_SIG_STYLES[idx % len(_SIG_STYLES)],
+                     histtype="step", linewidth=2, ax=ax)
 
     # --- stat + syst uncertainties ---
     errps = {"hatch": "////", "facecolor": "none", "lw": 0, "edgecolor": "k", "alpha": 0.5}
@@ -195,8 +202,12 @@ def plot_stack(
             systs_for_region = syst_hists.get(region.name, {}).get(variable.name, {})
             for syst, dirs in systs_for_region.items():
                 if "up" in dirs and "down" in dirs:
-                    up_total = sum((h.values(flow=False) for h in dirs["up"].values()), start=0)
-                    down_total = sum((h.values(flow=False) for h in dirs["down"].values()), start=0)
+                    up_arrs = [h.values(flow=False) for h in dirs["up"].values()]
+                    down_arrs = [h.values(flow=False) for h in dirs["down"].values()]
+                    if not up_arrs or not down_arrs:
+                        continue
+                    up_total = np.sum(up_arrs, axis=0)
+                    down_total = np.sum(down_arrs, axis=0)
 
                     delta_up = np.abs(up_total - tot_vals)
                     delta_down = np.abs(down_total - tot_vals)

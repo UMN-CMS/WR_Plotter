@@ -17,12 +17,14 @@ import mplhep as hep
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from wrplotter.plotting_helpers import plot_stack
-from wrplotter.io import repo_root, output_dir, save_figure
+from wrplotter.io import repo_root, output_dir, save_figure, input_dirs_for_era
 from wrplotter.histo import load_and_rebin
 from wrplotter.regions import regions_for_era, expand_region_requests
 from wrplotter.variables import build_variables
 from wrplotter.sample_groups import load_sample_groups
-from wrplotter.config import list_eras,load_lumi,load_plot_settings,load_kfactors,get_kfactor,index_plot_settings, configured_variables, load_systematics, default_signals
+from wrplotter.config import (list_eras, load_lumi, load_plot_settings, load_kfactors,
+                               get_kfactor, index_plot_settings, configured_variables,
+                               load_systematics, default_signals, load_region_shorthands)
 from wrplotter.cli_utils import parse_multi, setup_logging, add_era_args
 
 
@@ -88,10 +90,13 @@ def load_signal_overlays(region, hist_key, rebin, input_dirs, input_lumis,
         )
         if sig_hist is not None:
             signal_hists[sig_sample] = sig_hist
-            logging.info(f"    Loaded signal: {sig_sample}")
+            logging.debug("  Signal loaded: %s", sig_sample)
 
     if signal_hists:
-        logging.info(f"    {len(signal_hists)} signal sample(s) will be overlaid")
+        logging.info(
+            "  Overlaying %d signal sample(s): %s",
+            len(signal_hists), ", ".join(signal_hists),
+        )
 
     return signal_hists
 
@@ -109,6 +114,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--unblind",action="store_true",help="Show data in signal regions (default: blinded).",)
     parser.add_argument("--signal","-s",dest="signal",action="append",default=None,help="Signal sample(s) to overlay on SR plots. Repeat or comma-separate: -s signal_WR4000_N2100 -s signal_WR6000_N3100. Defaults depend on era and region topology.",)
     parser.add_argument("--extra-label",dest="extra_label",type=str,default=None,help="Optional label printed below the lumi line on each plot.",)
+    parser.add_argument("--dry-run",action="store_true",help="Print which (region, variable) combinations would be plotted without loading histograms or saving files.",)
 
     # List options for discovery
     parser.add_argument("--list-eras",action="store_true",help="List all available eras and exit.",)
@@ -143,18 +149,11 @@ def parse_args() -> argparse.Namespace:
             datasets = ", ".join(sorted(set(r.primary_dataset for r in variants)))
             print(f"  - {name:35s} (datasets: {datasets})")
 
-        # Show shorthands
+        # Show shorthands (read from data/region_shorthands.yaml — single source of truth)
         print("\nShorthand aliases:")
-        shorthands = {
-            "resolved_dy_cr": "wr_ee_resolved_dy_cr, wr_mumu_resolved_dy_cr",
-            "resolved_sr": "wr_ee_resolved_sr, wr_mumu_resolved_sr",
-            "resolved_flavor_cr": "wr_resolved_flavor_cr",
-            "boosted_dy_cr": "wr_ee_boosted_dy_cr, wr_mumu_boosted_dy_cr",
-            "boosted_sr": "wr_ee_boosted_sr, wr_mumu_boosted_sr",
-            "boosted_flavor_cr": "wr_emu_boosted_flavor_cr, wr_mue_boosted_flavor_cr",
-        }
-        for shorthand, expands_to in shorthands.items():
-            print(f"  - {shorthand:35s} -> {expands_to}")
+        for shorthand, expands_to in load_region_shorthands().items():
+            expanded_str = ", ".join(expands_to)
+            print(f"  - {shorthand:35s} -> {expanded_str}")
 
         print("\nDataset-specific syntax:")
         print("  - <region_name>:muon    (e.g., wr_resolved_flavor_cr:muon)")
@@ -187,21 +186,7 @@ def setup_context(args) -> dict:
     lumi = info["lumi"]
     com  = info.get("com", 13.6)
 
-    if "sub_eras" in info:
-        input_dirs = []
-        for se in info["sub_eras"]:
-            se_info = load_lumi(se)
-            d = working_dir / "rootfiles" / se_info["run"] / se_info["year"] / se
-            if args.dir:
-                d = d / args.dir
-            input_dirs.append(d)
-        input_lumis = info["sub_lumis"]
-    else:
-        base = working_dir / "rootfiles" / run / year / era
-        if args.dir:
-            base = base / args.dir
-        input_dirs = [base]
-        input_lumis = [lumi]
+    input_dirs, input_lumis = input_dirs_for_era(era, working_dir, args.dir or "")
 
     if args.local_plots:
         local_base = repo_root() / "plots" / run / year / era
@@ -212,12 +197,20 @@ def setup_context(args) -> dict:
     else:
         out_dir = output_dir(run, year, era, args.dir or None)
 
-    groups, order = load_sample_groups(era)
+    groups, order = load_sample_groups()
     ordered_groups = [groups[k] for k in order if k in groups]
     data_group_keys = {k for k, g in groups.items() if g.kind == "data"}
 
     for sg in ordered_groups:
-        sg.print()
+        logging.debug(
+            "  SampleGroup(%s): kind=%s, %d sample(s), color=%s",
+            sg.key, sg.kind, len(sg.samples), sg.color,
+        )
+    logging.info(
+        "Sample groups (%d): %s",
+        len(ordered_groups),
+        ", ".join(f"{sg.key}[{sg.kind}]" for sg in ordered_groups),
+    )
 
     regions = regions_for_era(era)
     variables = build_variables()
@@ -236,7 +229,7 @@ def setup_context(args) -> dict:
 
 def main():
     args = parse_args()
-    setup_logging()
+    setup_logging(args.verbose)
 
     ctx = setup_context(args)
 
@@ -247,8 +240,9 @@ def main():
         try:
             regions = expand_region_requests(args.era, args.regions)
             logging.info(
-                "Restricted to regions (expanded): %s",
-                [f"{r.name}:{r.primary_dataset}" for r in regions],
+                "Restricting to %d region(s): %s",
+                len(regions),
+                ", ".join(f"{r.name}:{r.primary_dataset}" for r in regions),
             )
         except ValueError as e:
             logging.error(str(e))
@@ -262,32 +256,78 @@ def main():
             sys.exit(2)
         name_to_var = {v.name: v for v in variables}
         variables = [name_to_var[n] for n in args.variables if n in name_to_var]
-        logging.info(f"Restricted to variables: {args.variables}")
+        logging.info(
+            "Restricting to %d variable(s): %s",
+            len(variables), ", ".join(v.name for v in variables),
+        )
 
     plot_settings = load_plot_settings(args.plot_config or args.era)
     region_cfgs, common_vars = index_plot_settings(plot_settings)
 
     missing_regions = [r.name for r in regions if r.name not in region_cfgs]
     if missing_regions:
-        logging.warning(f"Regions missing explicit blocks in YAML (will use common_variables fallback where possible): {missing_regions}")
+        logging.warning(
+            "%d region(s) have no explicit plot-config block — falling back to common_variables: %s",
+            len(missing_regions), ", ".join(missing_regions),
+        )
 
     input_dirs   = ctx["input_dirs"]
     input_lumis  = ctx["input_lumis"]
     era          = ctx["era"]
     run          = ctx["run"]
+    year         = ctx["year"]
     lumi         = ctx["lumi"]
     com          = ctx["com"]
     out_dir      = ctx["output_dir"]
     scales       = ctx["scales"]
     systematics  = ctx["systematics"]
 
-    syst_hists = {}
+    # ── Dry-run: just print what would be plotted and exit ─────────────────────
+    if args.dry_run:
+        total = sum(
+            1 for r in regions
+            for _ in configured_variables(region_cfgs, common_vars, r.name, variables)
+        )
+        print(f"Dry run — {era}  ({run} {year}, {lumi:.2f} fb\u207b\xb9 @ {com:.1f} TeV)")
+        print(f"{total} plot(s) would be generated:\n")
+        for r in regions:
+            var_cfgs = configured_variables(region_cfgs, common_vars, r.name, variables)
+            if not var_cfgs:
+                continue
+            print(f"  {r.name}  [{r.primary_dataset}]")
+            for v, _ in var_cfgs:
+                print(f"    {v.name}")
+        sys.exit(0)
+
+    # ── Startup summary ────────────────────────────────────────────────────────
+    total_plots = sum(
+        1 for r in regions
+        for _ in configured_variables(region_cfgs, common_vars, r.name, variables)
+    )
+    logging.info(
+        "Era: %s  (%s %s, %.2f fb\u207b\xb9 @ %.1f TeV)",
+        era, run, year, lumi, com,
+    )
+    logging.info("Output: %s", out_dir)
+    logging.info(
+        "Generating %d plot(s) across %d region(s) and %d variable(s)",
+        total_plots,
+        len({r.name for r in regions}),
+        len(variables),
+    )
+
+    plot_n = 0
     n_failures = 0
+    n_skipped = 0
 
     for region in regions:
-        logging.info(f"Processing region '{region.name}'")
+        # syst_hists is reset per-region so memory doesn't grow unboundedly
+        syst_hists: dict = {}
 
         for variable, vcfg in configured_variables(region_cfgs, common_vars, region.name, variables):
+            plot_n += 1
+            logging.info("[%d/%d]  %s / %s", plot_n, total_plots, region.name, variable.name)
+
             if args.variable_rebin and 'rebin_variable' in vcfg:
                 rebin = vcfg['rebin_variable']
             else:
@@ -303,7 +343,7 @@ def main():
             stack_list   = []
             stack_colors = []
             stack_labels = []
-            stack_keys   = []
+            stack_sgs    = []   # parallel list of SampleGroup objects for ordering
             data_hist    = []
 
             hist_key = f"{region.name}/{variable.name}_{region.name}"
@@ -352,23 +392,32 @@ def main():
                     stack_list.append(combined)
                     stack_colors.append(color)
                     stack_labels.append(label)
-                    stack_keys.append(sample_group.key)
+                    stack_sgs.append(sample_group)
 
-            # Reorder stack based on region type
-            if "dy" in stack_keys:
-                dy_idx = stack_keys.index("dy")
-                items = list(zip(stack_list, stack_colors, stack_labels, stack_keys))
-                dy_item = items.pop(dy_idx)
-                if "flavor_cr" in region.name:
-                    items.insert(0, dy_item)   # DY at the bottom
-                else:
-                    items.append(dy_item)       # DY at the top
-                stack_list, stack_colors, stack_labels, stack_keys = (
-                    [list(x) for x in zip(*items)]
-                )
+            # Reorder MC stack using the stack_position field on each SampleGroup.
+            # Groups with stack_position="top" are moved to the top of the visual stack
+            # (last in list) in normal regions, or to the bottom (first in list) in
+            # flavor CRs where they contribute a small fraction.
+            if stack_sgs:
+                items = list(zip(stack_list, stack_colors, stack_labels, stack_sgs))
+                top_idxs = [i for i, it in enumerate(items) if it[3].stack_position == "top"]
+                if top_idxs:
+                    for i in sorted(top_idxs, reverse=True):
+                        top_item = items.pop(i)
+                        if "flavor_cr" in region.name:
+                            items.insert(0, top_item)   # bottom of visual stack
+                        else:
+                            items.append(top_item)       # top of visual stack
+                    stack_list, stack_colors, stack_labels, stack_sgs = (
+                        [list(x) for x in zip(*items)]
+                    )
 
             if not stack_list and not data_hist:
-                logging.warning(f"  Skipped '{region.name}/{variable.name}' (no histograms found).")
+                logging.warning(
+                    "  [%d/%d]  %s / %s — no histograms found, skipping.",
+                    plot_n, total_plots, region.name, variable.name,
+                )
+                n_skipped += 1
                 continue
 
             show_data = args.unblind or not region.is_signal_region
@@ -391,16 +440,27 @@ def main():
 
             try:
                 save_figure(fig, outpath)
-                logging.info(f"    Saved: {outpath}")
+                logging.debug("  Saved: %s", outpath)
             except Exception as e:
-                logging.error(f"    Failed to save {outpath}: {e}")
+                logging.error("  Failed to save %s: %s", outpath, e)
                 n_failures += 1
             finally:
                 plt.close(fig)
 
+    n_saved = plot_n - n_failures - n_skipped
     if n_failures:
-        logging.error(f"{n_failures} plot(s) failed to save.")
+        logging.error(
+            "Finished with errors — %d saved, %d skipped, %d failed (of %d planned).",
+            n_saved, n_skipped, n_failures, total_plots,
+        )
         sys.exit(1)
+    elif n_skipped:
+        logging.info(
+            "Done — %d saved, %d skipped (no histograms). Output: %s",
+            n_saved, n_skipped, out_dir,
+        )
+    else:
+        logging.info("Done — %d/%d plot(s) saved. Output: %s", n_saved, total_plots, out_dir)
 
 if __name__ == '__main__':
     main()

@@ -1,43 +1,45 @@
-run: Run3
-year: 2022
-mc_campaign: ""   # default; override per era if needed
+# data/sample_groups.yaml
+# Sample group definitions shared across all eras.
+#
+# If a future era needs different sample names, add a per-era override mechanism
+# (e.g. restore the base+era merge pattern that previously lived here).
 
 groups:
   dy:
     color: "#5790fc"
     tlatex_alias: "Z+jets"
-    samples: []       # filled per era
+    samples: [DYJets]
     kind: mc
+    stack_position: top   # DY dominates CRs; placed on top (bottom for flavor CRs)
 
   ttbar:
     color: "#f89c20"
     tlatex_alias: "$t\\bar{t}$+tW"
-    samples: []
+    samples: [tt_tW]
     kind: mc
 
   nonprompt:
     color: "#e42536"
     tlatex_alias: "Nonprompt"
-    samples: []
+    samples: [Nonprompt]
     kind: mc
 
   other:
     color: "#964a8b"
     tlatex_alias: "Other backgrounds"
-    samples: []
+    samples: [Other]
     kind: mc
 
   egamma:
     color: "#000000"
     tlatex_alias: "Data"
-    samples: []
+    samples: [EGamma]
     kind: data
 
   muon:
     color: "#000000"
     tlatex_alias: "Data"
-    samples: []
+    samples: [Muon]
     kind: data
 
-# default legend order (can be overridden per era)
 order: [other, nonprompt, ttbar, dy, egamma, muon]

@@ -1,10 +1,13 @@
 # python/config.py
 from __future__ import annotations
+import logging
 from functools import lru_cache
 from typing import Any, Dict, Mapping, MutableMapping
 from pathlib import Path
 
 from .io import data_path, read_yaml, read_json
+
+logger = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
 # Internal helpers
@@ -41,8 +44,8 @@ def _lumi_table() -> Dict[str, Any]:
     return read_json(json_path) or {}
 
 def list_eras() -> list[str]:
-    """Sorted list of known eras (keys of lumi table)."""
-    return sorted(_lumi_table().keys())
+    """Sorted list of known eras (keys of lumi table, excluding internal anchor keys)."""
+    return sorted(k for k in _lumi_table().keys() if not k.startswith("_"))
 
 def load_lumi(era: str) -> Dict[str, Any]:
     """
@@ -60,7 +63,7 @@ def load_lumi(era: str) -> Dict[str, Any]:
         if k not in info:
             raise ValueError(f"lumi entry for '{era}' missing required key '{k}'")
 
-    # If era is a combination, verify lengths of sub_eras/sub_lumis
+    # If era is a combination, verify lengths and that each sub-era exists
     if ("sub_eras" in info) or ("sub_lumis" in info):
         subs = info.get("sub_eras", [])
         lums = info.get("sub_lumis", [])
@@ -68,6 +71,12 @@ def load_lumi(era: str) -> Dict[str, Any]:
             raise ValueError(
                 f"lumi entry for '{era}' has mismatched lengths: sub_eras={len(subs)} vs sub_lumis={len(lums)}"
             )
+        for se in subs:
+            if se not in table:
+                raise KeyError(
+                    f"sub_era '{se}' referenced by '{era}' not found in lumi table. "
+                    f"Known eras: {', '.join(sorted(table.keys()))}"
+                )
     return info
 
 
@@ -97,7 +106,9 @@ def load_plot_settings(era_or_path: str) -> Dict[str, Any]:
 
     base_cfg: Dict[str, Any] = read_yaml(base_path) if base_path.exists() else {}
     if not era_path.exists():
-        # It’s fine to have only base.yaml; warn at call sites if needed
+        logger.debug(
+            "No era-specific plot settings found at %s; using base defaults only.", era_path
+        )
         return base_cfg
 
     era_cfg: Dict[str, Any] = read_yaml(era_path) or {}
@@ -111,20 +122,10 @@ def load_plot_settings(era_or_path: str) -> Dict[str, Any]:
 # section and keep your existing python/sample_groups.py loader.
 
 @lru_cache(maxsize=None)
-def load_sample_groups_raw(era: str) -> Dict[str, Any]:
-    """
-    Raw load of sample group YAML for a given era, with optional base merge:
-      data/sample_groups/base.yaml  <-  data/sample_groups/<era>.yaml
-    """
-    base_path = data_path("sample_groups", "base.yaml")
-    era_path  = data_path("sample_groups", f"{era}.yaml")
-
-    base_cfg: Dict[str, Any] = read_yaml(base_path) if base_path.exists() else {}
-    if not era_path.exists():
-        return base_cfg
-
-    era_cfg: Dict[str, Any] = read_yaml(era_path) or {}
-    return _deep_merge(base_cfg, era_cfg)
+def load_sample_groups_raw() -> Dict[str, Any]:
+    """Raw load of data/sample_groups.yaml."""
+    path = data_path("sample_groups.yaml")
+    return read_yaml(path) if path.exists() else {}
 
 
 # -----------------------------------------------------------------------------
@@ -175,22 +176,23 @@ def validate_var_cfg(var_name: str, cfg: dict, region_name: str = "") -> None:
     """
     unknown = set(cfg.keys()) - _VALID_VAR_CFG_KEYS
     if unknown:
-        import logging
         loc = f" in region '{region_name}'" if region_name else ""
-        logging.warning(
+        logger.warning(
             f"Unknown plot-setting key(s) for variable '{var_name}'{loc}: "
             f"{sorted(unknown)}. Valid keys: {sorted(_VALID_VAR_CFG_KEYS)}"
         )
 
 
-def get_var_cfg(region_cfgs, common_vars, region_name, var_name):
+def get_var_cfg(region_cfgs: dict, common_vars: dict,
+                region_name: str, var_name: str) -> dict | None:
     reg = region_cfgs.get(region_name, {})
     cfg = reg.get(var_name, common_vars.get(var_name))
     if cfg is not None:
         validate_var_cfg(var_name, cfg, region_name)
     return cfg
 
-def configured_variables(region_cfgs, common_vars, region_name, all_variables):
+def configured_variables(region_cfgs: dict, common_vars: dict,
+                         region_name: str, all_variables) -> list[tuple]:
     """Return (Variable, cfg_dict) pairs that have plot settings for this region."""
     result = []
     for v in all_variables:
@@ -214,7 +216,14 @@ def default_signals(era_info: dict, *, boosted: bool = False,
     else:
         key = "default_signal_boosted" if boosted else "default_signal_resolved"
         fallback = ["signal_WR4000_N100"] if boosted else ["signal_WR4000_N2100"]
-    result = era_info.get(key, fallback)
+    result = era_info.get(key)
+    if result is None:
+        logger.warning(
+            "Era info missing key %r; using hardcoded fallback %r. "
+            "Add this key to lumi.yaml to suppress this warning.",
+            key, fallback,
+        )
+        result = fallback
     return [result] if isinstance(result, str) else list(result)
 
 

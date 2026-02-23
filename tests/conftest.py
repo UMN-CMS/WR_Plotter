@@ -8,18 +8,21 @@ from hist.storage import Weight
 
 @pytest.fixture(autouse=True)
 def clear_lru_caches():
-    """Clear @lru_cache on config functions after each test."""
+    """Clear @lru_cache on config/sample functions after each test."""
     yield
     from wrplotter.config import (
         _lumi_table, load_plot_settings, load_sample_groups_raw, load_kfactors,
         load_region_shorthands, load_systematics,
     )
     from wrplotter.variables import build_variables
+    from wrplotter.sample_groups import load_sample_groups
+    from wrplotter.histo import clear_cache as clear_root_cache
     for fn in (
         _lumi_table, load_plot_settings, load_sample_groups_raw, load_kfactors,
-        load_region_shorthands, load_systematics, build_variables,
+        load_region_shorthands, load_systematics, build_variables, load_sample_groups,
     ):
         fn.cache_clear()
+    clear_root_cache()
 
 
 @pytest.fixture

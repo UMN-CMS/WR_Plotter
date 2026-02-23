@@ -769,7 +769,7 @@ def process_topology(args, era, boosted):
 
 def main():
     args = parse_args()
-    setup_logging()
+    setup_logging(args.verbose)
 
     # Determine eras
     eras = [args.era] if args.era else _ERA_CHOICES
