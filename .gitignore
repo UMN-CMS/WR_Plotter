@@ -7,3 +7,6 @@ tables/
 # Ignore Python cache files
 __pycache__/
 *.pyc
+
+# Local Claude Code instructions
+CLAUDE_CODE_FITTING_INSTRUCTIONS.md
