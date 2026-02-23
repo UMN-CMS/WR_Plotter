@@ -657,7 +657,7 @@ def main() -> None:
         "chi2": chi2_ndf * ndf,
     }
 
-    slug = model_name.replace("-", "_")
+    slug = f"{args.channel}_{model_name.replace('-', '_')}"
     json_path = output_dir / f"fit_{slug}.json"
     save_results_json(results, json_path)
 
