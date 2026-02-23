@@ -76,6 +76,10 @@ def parse_args() -> argparse.Namespace:
         "--denominator", dest="denominator", type=str, default="wr_resolved_flavor_cr",
         help="Denominator region (default: wr_resolved_flavor_cr)"
     )
+    parser.add_argument(
+        "--verbose", dest="verbose", action="store_true", default=False,
+        help="Enable DEBUG-level logging.",
+    )
     return parser.parse_args()
 
 
@@ -303,7 +307,7 @@ def plot_ratio(ratio_ee, ratio_ee_errors, ratio_mumu, ratio_mumu_errors, edges, 
 
 def main():
     args = parse_args()
-    setup_logging()
+    setup_logging(args.verbose)
 
     # Load era info
     info = load_lumi(args.era)

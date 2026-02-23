@@ -1,0 +1,76 @@
+# data/lumi.yaml
+# Luminosity, run, and signal configuration for each MC era.
+#
+# This file supersedes data/lumi.json (config.py prefers lumi.yaml when present).
+#
+# YAML anchors (*run3_signals) eliminate the repetition of signal mass-point
+# defaults across all Run3 eras; only RunII overrides them.
+
+_run3_signals: &run3_signals
+  default_signal_resolved: signal_WR4000_N2100
+  default_signal_boosted: signal_WR4000_N100
+  cutflow_signals_resolved: [WR2000_N1100, WR4000_N2100, WR6000_N3100]
+  cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
+
+RunIISummer20UL18:
+  run: RunII
+  year: "2018"
+  lumi: 59.832422397
+  com: 13
+  default_signal_resolved: signal_WR4000_N2000
+  default_signal_boosted: signal_WR4000_N100
+  cutflow_signals_resolved: [WR2000_N1000, WR4000_N2000, WR6000_N3000]
+  cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
+
+Run3Summer22:
+  run: Run3
+  year: "2022"
+  lumi: 7.9804
+  com: 13.6
+  <<: *run3_signals
+
+Run3Summer22EE:
+  run: Run3
+  year: "2022"
+  lumi: 26.6717
+  com: 13.6
+  <<: *run3_signals
+
+"2022":
+  run: Run3
+  year: "2022"
+  lumi: 34.6521
+  com: 13.6
+  sub_eras:  [Run3Summer22, Run3Summer22EE]
+  sub_lumis: [7.9804, 26.6717]
+  <<: *run3_signals
+
+Run3Summer23:
+  run: Run3
+  year: "2023"
+  lumi: 18.063
+  com: 13.6
+  <<: *run3_signals
+
+Run3Summer23BPix:
+  run: Run3
+  year: "2023"
+  lumi: 9.693
+  com: 13.6
+  <<: *run3_signals
+
+"2023":
+  run: Run3
+  year: "2023"
+  lumi: 27.756
+  com: 13.6
+  sub_eras:  [Run3Summer23, Run3Summer23BPix]
+  sub_lumis: [18.063, 9.693]
+  <<: *run3_signals
+
+RunIII2024Summer24:
+  run: Run3
+  year: "2024"
+  lumi: 108.95
+  com: 13.6
+  <<: *run3_signals

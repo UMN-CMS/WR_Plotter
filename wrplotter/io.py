@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 try:
     import yaml  # ensure pyyaml in requirements.txt
-except Exception:
+except ImportError:
     yaml = None
 
 
@@ -105,24 +105,67 @@ def is_eos_path(path: str | Path) -> bool:
     """Heuristic: treat paths under /eos as EOS destinations."""
     return str(path).startswith("/eos/")
 
-def eos_mkdir_p(dir_path: str | Path) -> None:
+def _eos_timeout() -> int:
+    """Timeout in seconds for EOS subprocess calls (override via $EOS_TIMEOUT)."""
+    return int(os.environ.get("EOS_TIMEOUT", "120"))
+
+
+def eos_mkdir_p(dir_path: str | Path, *,
+                timeout: int | None = None,
+                _runner=subprocess.run) -> None:
     """
     Recursively create a directory on EOS using xrdfs.
     Equivalent to: xrdfs <host> mkdir -p <dir_path>
+
+    Args:
+        timeout: Seconds before the command is killed (default: $EOS_TIMEOUT or 120).
+        _runner: Callable used to invoke the subprocess (injectable for testing).
     """
     host = eos_endpoint()
     dir_path = str(dir_path)
-    # xrdfs doesn't mkdir the final leaf if parents absent unless -p used
-    subprocess.run(["xrdfs", host, "mkdir", "-p", dir_path], check=True)
+    _timeout = timeout if timeout is not None else _eos_timeout()
+    try:
+        # xrdfs doesn't mkdir the final leaf if parents absent unless -p used
+        _runner(["xrdfs", host, "mkdir", "-p", dir_path], check=True, timeout=_timeout)
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as exc:
+        if isinstance(exc, subprocess.TimeoutExpired):
+            raise RuntimeError(
+                f"xrdfs mkdir timed out after {_timeout}s for {dir_path!r}. "
+                "Check your grid proxy (voms-proxy-init) and network connectivity."
+            ) from exc
+        raise RuntimeError(
+            f"xrdfs mkdir failed for {dir_path!r}: {exc}. "
+            "Check your grid proxy (voms-proxy-init) and network connectivity."
+        ) from exc
 
-def eos_upload(local_file: str | Path, eos_dest: str | Path) -> None:
+
+def eos_upload(local_file: str | Path, eos_dest: str | Path, *,
+               timeout: int | None = None,
+               _runner=subprocess.run) -> None:
     """
     Copy a local file to EOS with xrdcp.
+
+    Args:
+        timeout: Seconds before the command is killed (default: $EOS_TIMEOUT or 120).
+        _runner: Callable used to invoke the subprocess (injectable for testing).
     """
     host = eos_endpoint()
     local_file = str(local_file)
     eos_dest = str(eos_dest)
-    subprocess.run(["xrdcp", "-f", local_file, f"root://{host}/{eos_dest}"], check=True)
+    _timeout = timeout if timeout is not None else _eos_timeout()
+    try:
+        _runner(["xrdcp", "-f", local_file, f"root://{host}/{eos_dest}"],
+                check=True, timeout=_timeout)
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as exc:
+        if isinstance(exc, subprocess.TimeoutExpired):
+            raise RuntimeError(
+                f"xrdcp timed out after {_timeout}s uploading {local_file!r} to {eos_dest!r}. "
+                "Check your grid proxy (voms-proxy-init) and network connectivity."
+            ) from exc
+        raise RuntimeError(
+            f"xrdcp failed uploading {local_file!r} to {eos_dest!r}: {exc}. "
+            "Check your grid proxy (voms-proxy-init) and network connectivity."
+        ) from exc
 
 
 # ── Output location (EOS vs local) ─────────────────────────────────────────────

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Sequence, Callable
 
 import uproot
+from hist import Hist
 
 from .histogram_utils import rebin_histogram
 
@@ -26,12 +27,12 @@ def load_and_rebin(
     input_dirs: Sequence[Path],
     sample: str,
     hist_key: str,
-    n_rebin,
+    n_rebin: int | list[float],
     sublumis: Sequence[float],
     era_for_scale: str,
     get_kfactor_fn: Callable[[dict, str, str, float], float],
     scales: dict,
-):
+) -> Hist | None:
     combined = None
 
     for indir, sublumi in zip(input_dirs, sublumis):

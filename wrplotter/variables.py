@@ -18,6 +18,11 @@ class Variable:
     xmax: float | None = None
 
     def label(self) -> str:
+        """Return formatted axis label: 'alias [unit]' or just 'alias' if no unit.
+
+        Note: make_stackplots.py accesses tlatex_alias directly; this method is
+        kept as a utility for downstream scripts that need a pre-formatted string.
+        """
         return f"{self.tlatex_alias} [{self.unit}]" if self.unit else self.tlatex_alias
 
     def print(self) -> None:

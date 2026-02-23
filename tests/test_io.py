@@ -1,7 +1,8 @@
 """Tests for wrplotter.io."""
 import os
+import subprocess
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from wrplotter.io import (
     repo_root,
@@ -10,6 +11,8 @@ from wrplotter.io import (
     eos_endpoint,
     eos_base,
     is_eos_path,
+    eos_mkdir_p,
+    eos_upload,
 )
 
 
@@ -107,3 +110,88 @@ class TestIsEosPath:
 
     def test_path_object(self):
         assert is_eos_path(Path("/eos/stuff")) is True
+
+
+class TestEosMkdirP:
+
+    def test_calls_xrdfs_with_correct_args(self):
+        """eos_mkdir_p passes the right command to the runner."""
+        mock_runner = MagicMock()
+        with patch.dict(os.environ, {"EOS_ENDPOINT": "eosuser.cern.ch"}, clear=False):
+            eos_mkdir_p("/eos/user/w/wijackso/plots", _runner=mock_runner)
+
+        mock_runner.assert_called_once()
+        cmd = mock_runner.call_args[0][0]
+        assert cmd[0] == "xrdfs"
+        assert cmd[1] == "eosuser.cern.ch"
+        assert "mkdir" in cmd
+        assert "/eos/user/w/wijackso/plots" in cmd
+
+    def test_uses_custom_endpoint(self):
+        mock_runner = MagicMock()
+        with patch.dict(os.environ, {"EOS_ENDPOINT": "myhost.cern.ch"}, clear=False):
+            eos_mkdir_p("/eos/some/path", _runner=mock_runner)
+
+        cmd = mock_runner.call_args[0][0]
+        assert cmd[1] == "myhost.cern.ch"
+
+    def test_passes_timeout(self):
+        mock_runner = MagicMock()
+        eos_mkdir_p("/eos/some/path", timeout=30, _runner=mock_runner)
+        assert mock_runner.call_args[1]["timeout"] == 30
+
+    def test_timeout_raises_runtime_error(self):
+        """A TimeoutExpired from xrdfs is converted to a RuntimeError with guidance."""
+        def _timedout(*args, **kwargs):
+            raise subprocess.TimeoutExpired(cmd=args[0], timeout=kwargs.get("timeout", 0))
+
+        import pytest
+        with pytest.raises(RuntimeError, match="timed out"):
+            eos_mkdir_p("/eos/some/path", timeout=1, _runner=_timedout)
+
+    def test_called_process_error_raises_runtime_error(self):
+        """A CalledProcessError from xrdfs is converted to a RuntimeError."""
+        def _failed(*args, **kwargs):
+            raise subprocess.CalledProcessError(returncode=1, cmd=args[0])
+
+        import pytest
+        with pytest.raises(RuntimeError, match="failed"):
+            eos_mkdir_p("/eos/some/path", _runner=_failed)
+
+
+class TestEosUpload:
+
+    def test_calls_xrdcp_with_correct_args(self):
+        """eos_upload passes the right command to the runner."""
+        mock_runner = MagicMock()
+        with patch.dict(os.environ, {"EOS_ENDPOINT": "eosuser.cern.ch"}, clear=False):
+            eos_upload("/tmp/plot.pdf", "/eos/user/w/wijackso/plot.pdf",
+                       _runner=mock_runner)
+
+        mock_runner.assert_called_once()
+        cmd = mock_runner.call_args[0][0]
+        assert cmd[0] == "xrdcp"
+        assert "/tmp/plot.pdf" in cmd
+        assert "root://eosuser.cern.ch//eos/user/w/wijackso/plot.pdf" in cmd
+
+    def test_passes_timeout(self):
+        mock_runner = MagicMock()
+        eos_upload("/tmp/f.pdf", "/eos/dest.pdf", timeout=60, _runner=mock_runner)
+        assert mock_runner.call_args[1]["timeout"] == 60
+
+    def test_timeout_raises_runtime_error(self):
+        def _timedout(*args, **kwargs):
+            raise subprocess.TimeoutExpired(cmd=args[0], timeout=kwargs.get("timeout", 0))
+
+        import pytest
+        with pytest.raises(RuntimeError, match="timed out"):
+            eos_upload("/tmp/f.pdf", "/eos/dest.pdf", timeout=1, _runner=_timedout)
+
+    def test_called_process_error_raises_runtime_error(self):
+        """A CalledProcessError from xrdcp is converted to a RuntimeError."""
+        def _failed(*args, **kwargs):
+            raise subprocess.CalledProcessError(returncode=1, cmd=args[0])
+
+        import pytest
+        with pytest.raises(RuntimeError, match="failed"):
+            eos_upload("/tmp/f.pdf", "/eos/dest.pdf", _runner=_failed)

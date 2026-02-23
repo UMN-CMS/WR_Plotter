@@ -1,11 +1,13 @@
 """Tests for wrplotter.histogram_utils."""
 import numpy as np
 import pytest
+from unittest.mock import MagicMock, patch
+from pathlib import Path
 from hist import Hist
 from hist.axis import Regular
 from hist.storage import Weight
 
-from wrplotter.histogram_utils import rebin_histogram, extract_hist_data
+from wrplotter.histogram_utils import rebin_histogram, extract_hist_data, load_histogram
 
 
 class TestRebinInteger:
@@ -130,3 +132,29 @@ class TestExtractHistData:
         h.fill([5, 15, 25, 35, 45])
         _, _, vals, errs = extract_hist_data(h)
         np.testing.assert_allclose(errs, np.sqrt(vals))
+
+
+class TestLoadHistogram:
+    """Tests for load_histogram() via mocked _open_root cache."""
+
+    def test_delegates_to_open_root(self, uniform_hist_10bins):
+        """load_histogram calls _open_root and converts the result via .to_hist()."""
+        mock_file = MagicMock()
+        mock_file.__getitem__.return_value.to_hist.return_value = uniform_hist_10bins
+
+        with patch("wrplotter.histo._open_root", return_value=mock_file) as mock_open:
+            result = load_histogram(Path("/fake/path.root"), "some/key")
+
+        mock_open.assert_called_once_with("/fake/path.root")
+        mock_file.__getitem__.assert_called_once_with("some/key")
+        assert result is uniform_hist_10bins
+
+    def test_accepts_string_path(self, uniform_hist_10bins):
+        """load_histogram also accepts a plain string path."""
+        mock_file = MagicMock()
+        mock_file.__getitem__.return_value.to_hist.return_value = uniform_hist_10bins
+
+        with patch("wrplotter.histo._open_root", return_value=mock_file):
+            result = load_histogram("/fake/path.root", "key")
+
+        assert result is uniform_hist_10bins

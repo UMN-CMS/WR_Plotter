@@ -1,12 +1,11 @@
 from pathlib import Path
 
 import numpy as np
-import uproot
 from hist import Hist
 from hist.axis import Variable
 from hist.storage import Weight
 
-def rebin_histogram(h: Hist, spec):
+def rebin_histogram(h: Hist, spec: int | list[float]) -> Hist:
     """
     Rebin a 1D hist.Hist either by:
       - an integer spec      -> merge every N bins, or
@@ -96,12 +95,6 @@ def rebin_histogram(h: Hist, spec):
     return new_h
 
 
-def load_histogram(path: Path, hist_key: str):
-    """Load a single histogram from a ROOT file via uproot."""
-    with uproot.open(path) as f:
-        return f[hist_key].to_hist()
-
-
 def extract_hist_data(h):
     """Extract edges, bin centers, values, and errors from a hist.Hist."""
     edges = h.axes[0].edges
@@ -109,3 +102,13 @@ def extract_hist_data(h):
     errs  = np.sqrt(h.variances()) if h.variances() is not None else np.sqrt(vals)
     centers = 0.5 * (edges[:-1] + edges[1:])
     return edges, centers, vals, errs
+
+
+def load_histogram(path: Path, hist_key: str) -> Hist:
+    """Load a single histogram from a ROOT file, using the shared LRU cache.
+
+    Uses the same cached file handle as histo.load_and_rebin() so repeated
+    calls to the same file avoid redundant I/O.
+    """
+    from .histo import _open_root  # lazy import avoids circular dependency at module level
+    return _open_root(str(path))[hist_key].to_hist()

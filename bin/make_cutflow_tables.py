@@ -149,6 +149,9 @@ _BOOSTED_KEY_ALIASES = {
 # Preferred background column order for LaTeX cutflow tables
 _LATEX_BKG_ORDER = ["dy", "ttbar", "nonprompt", "other"]
 
+# Human-readable channel names for table captions
+_CHANNEL_PRETTY_NAMES = {"ee": "dielectron", "mumu": "dimuon", "em": r"electron--muon"}
+
 # Batch-mode definitions
 _VARIANTS = [
     ("cumulative", {"onecut": False, "efficiency": None}),
@@ -160,7 +163,7 @@ _REGIONS = [
     ("resolved", False),
     ("boosted",  True),
 ]
-_CHANNELS = ["mumu", "ee"]
+_CHANNELS = ["mumu", "ee", "em"]
 
 _PREVIEW_TEMPLATE = r"""\documentclass[12pt]{article}
 \usepackage[landscape,margin=0.3in,paperwidth=24in,paperheight=16in]{geometry}
@@ -362,6 +365,20 @@ def _fmt_latex_eff(x):
     return f"${mant:.2f} \\times 10^{{{exp}}}$"
 
 
+def _running_eff(yields, i):
+    """Running efficiency: yields[i] / yields[0], as a percentage."""
+    return 100.0 * yields[i] / yields[0] if yields[0] > 0 else 0.0
+
+
+def _step_eff(yields, i):
+    """Step (relative) efficiency: yields[i] / yields[i-1], as a percentage.
+    Returns 100.0 for i == 0 (first cut is always 100% of itself).
+    """
+    if i == 0:
+        return 100.0
+    return 100.0 * yields[i] / yields[i - 1] if yields[i - 1] > 0 else 0.0
+
+
 def _signal_display_label(mass_point):
     """Convert WR2000_N1100 to (2000,1100) for LaTeX column headers."""
     m = re.match(r'WR(\d+)_N(\d+)', mass_point)
@@ -428,17 +445,14 @@ def build_terminal_table(cut_labels, sample_columns, mc_total, data_col, channel
     for i in range(n_cuts):
         row = [cut_labels[i]]
         for _, yields in sample_columns:
-            eff = 100.0 * yields[i] / yields[0] if yields[0] > 0 else 0
-            row.append(_fmt_eff(eff))
+            row.append(_fmt_eff(_running_eff(yields, i)))
         if has_mc:
-            eff = 100.0 * mc_total[i] / mc_total[0] if mc_total[0] > 0 else 0
-            row.append(_fmt_eff(eff))
+            row.append(_fmt_eff(_running_eff(mc_total, i)))
         if data_col is not None:
             if i in blind_indices:
                 row.append("BLINDED")
             else:
-                eff = 100.0 * data_col[i] / data_col[0] if data_col[0] > 0 else 0
-                row.append(_fmt_eff(eff))
+                row.append(_fmt_eff(_running_eff(data_col, i)))
             if has_mc:
                 row.append("")
         rows.append(row)
@@ -449,25 +463,14 @@ def build_terminal_table(cut_labels, sample_columns, mc_total, data_col, channel
         for i in range(n_cuts):
             row = [cut_labels[i]]
             for _, yields in sample_columns:
-                if i == 0:
-                    row.append("100.0")
-                else:
-                    eff = 100.0 * yields[i] / yields[i - 1] if yields[i - 1] > 0 else 0
-                    row.append(_fmt_eff(eff))
+                row.append(_fmt_eff(_step_eff(yields, i)))
             if has_mc:
-                if i == 0:
-                    row.append("100.0")
-                else:
-                    eff = 100.0 * mc_total[i] / mc_total[i - 1] if mc_total[i - 1] > 0 else 0
-                    row.append(_fmt_eff(eff))
+                row.append(_fmt_eff(_step_eff(mc_total, i)))
             if data_col is not None:
                 if i in blind_indices or (i > 0 and (i - 1) in blind_indices):
                     row.append("BLINDED")
-                elif i == 0:
-                    row.append("100.0")
                 else:
-                    eff = 100.0 * data_col[i] / data_col[i - 1] if data_col[i - 1] > 0 else 0
-                    row.append(_fmt_eff(eff))
+                    row.append(_fmt_eff(_step_eff(data_col, i)))
                 if has_mc:
                     row.append("")
             rows.append(row)
@@ -511,7 +514,7 @@ def build_latex_table(cut_labels, sample_columns, channel, lumi, year,
     percentages instead of raw yields.
     """
     n_cuts = len(cut_labels)
-    chan_pretty = {"ee": "dielectron", "mumu": "dimuon", "em": r"electron--muon"}.get(channel, channel)
+    chan_pretty = _CHANNEL_PRETTY_NAMES.get(channel, channel)
 
     # Determine table variant label for filenames / LaTeX labels
     if efficiency:
@@ -573,14 +576,9 @@ def build_latex_table(cut_labels, sample_columns, channel, lumi, year,
         cols = [cut_labels[i]]
         for _, yields in sample_columns:
             if efficiency == "running":
-                val = 100.0 * yields[i] / yields[0] if yields[0] > 0 else 0
-                cols.append(_fmt_latex_eff(val))
+                cols.append(_fmt_latex_eff(_running_eff(yields, i)))
             elif efficiency == "relative":
-                if i == 0:
-                    val = 100.0
-                else:
-                    val = 100.0 * yields[i] / yields[i - 1] if yields[i - 1] > 0 else 0
-                cols.append(_fmt_latex_eff(val))
+                cols.append(_fmt_latex_eff(_step_eff(yields, i)))
             else:
                 cols.append(_fmt_latex_yield(yields[i]))
         lines.append("      " + " & ".join(cols) + r" \\")
@@ -600,7 +598,7 @@ def build_latex_single_table(cut_labels, yields, channel, lumi, year,
     Columns: Selection | Weighted cumulative events | Running eff [%] | Relative eff [%]
     """
     n_cuts = len(cut_labels)
-    chan_pretty = {"ee": "dielectron", "mumu": "dimuon", "em": r"electron--muon"}.get(channel, channel)
+    chan_pretty = _CHANNEL_PRETTY_NAMES.get(channel, channel)
 
     lines = []
     lines.append(r"\begin{table}[htp]")
@@ -624,19 +622,11 @@ def build_latex_single_table(cut_labels, yields, channel, lumi, year,
     lines.append(r"      \hline")
 
     for i in range(n_cuts):
-        # Running efficiency: yield[i] / yield[0]
-        run_eff = 100.0 * yields[i] / yields[0] if yields[0] > 0 else 0
-        # Relative efficiency: yield[i] / yield[i-1]
-        if i == 0:
-            rel_eff = 100.0
-        else:
-            rel_eff = 100.0 * yields[i] / yields[i - 1] if yields[i - 1] > 0 else 0
-
         cols = [
             cut_labels[i],
             _fmt_latex_yield(yields[i]),
-            f"{run_eff:.2f}",
-            f"{rel_eff:.2f}",
+            f"{_running_eff(yields, i):.2f}",
+            f"{_step_eff(yields, i):.2f}",
         ]
         lines.append("      " + " & ".join(cols) + r" \\")
 
@@ -703,7 +693,7 @@ def generate_table(era, dir_name, channel, boosted=False, onecut=False,
                 len(file_map), len(valid_dirs))
 
     # Categorize samples using sample_groups config
-    groups, order = load_sample_groups(era)
+    groups, order = load_sample_groups()
     sample_to_group = {}
     for gkey, grp in groups.items():
         for s in grp.samples:
@@ -769,6 +759,14 @@ def generate_table(era, dir_name, channel, boosted=False, onecut=False,
     if is_latex_multi:
         mc_order = [k for k in _LATEX_BKG_ORDER if k in mc_yields]
         mc_order += [k for k in order if k in mc_yields and k not in mc_order]
+        # Warn if any loaded MC group is missing from _LATEX_BKG_ORDER
+        extra = [k for k in mc_yields if k not in _LATEX_BKG_ORDER]
+        if extra:
+            logger.warning(
+                "MC group(s) %s not in _LATEX_BKG_ORDER — appended at end. "
+                "Consider adding them to the list.",
+                extra,
+            )
     else:
         mc_order = [k for k in order if k in mc_yields]
     sample_columns = []

@@ -13,7 +13,7 @@ def setup_logging(verbose: bool = False):
 
 
 def add_era_args(parser, *, required: bool = True):
-    """Add common --era and --dir arguments to an argparse parser."""
+    """Add common --era, --dir, and --verbose arguments to an argparse parser."""
     parser.add_argument(
         "--era", dest="era", type=str, choices=list_eras(),
         required=required,
@@ -22,6 +22,10 @@ def add_era_args(parser, *, required: bool = True):
     parser.add_argument(
         "--dir", dest="dir", type=str, default="",
         help="Optional subdirectory under the input & default EOS output paths",
+    )
+    parser.add_argument(
+        "--verbose", dest="verbose", action="store_true", default=False,
+        help="Enable DEBUG-level logging (shows skipped files, cache misses, etc.).",
     )
 
 

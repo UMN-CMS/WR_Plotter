@@ -1,4 +1,5 @@
 {
+  "_NOTE": "SUPERSEDED by data/lumi.yaml. config.py prefers lumi.yaml when both exist. Edit lumi.yaml, not this file — changes here will be silently ignored.",
   "RunIISummer20UL18": {
     "run": "RunII",
     "year": "2018",
