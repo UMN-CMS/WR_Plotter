@@ -1,12 +1,27 @@
 from __future__ import annotations
 import logging
 
+from .config import list_eras
 
-def setup_logging():
+
+def setup_logging(verbose: bool = False):
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG if verbose else logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+
+def add_era_args(parser, *, required: bool = True):
+    """Add common --era and --dir arguments to an argparse parser."""
+    parser.add_argument(
+        "--era", dest="era", type=str, choices=list_eras(),
+        required=required,
+        help="Specify the era",
+    )
+    parser.add_argument(
+        "--dir", dest="dir", type=str, default="",
+        help="Optional subdirectory under the input & default EOS output paths",
     )
 
 

@@ -201,6 +201,24 @@ def configured_variables(region_cfgs, common_vars, region_name, all_variables):
 
 
 # -----------------------------------------------------------------------------
+# Default signal samples
+# -----------------------------------------------------------------------------
+
+def default_signals(era_info: dict, *, boosted: bool = False,
+                    for_cutflow: bool = False) -> list[str]:
+    """Return default signal sample names from era_info with fallbacks."""
+    if for_cutflow:
+        key = "cutflow_signals_boosted" if boosted else "cutflow_signals_resolved"
+        fallback = (["WR2000_N100", "WR4000_N100", "WR6000_N100"] if boosted
+                    else ["WR2000_N1100", "WR4000_N2100", "WR6000_N3100"])
+    else:
+        key = "default_signal_boosted" if boosted else "default_signal_resolved"
+        fallback = ["signal_WR4000_N100"] if boosted else ["signal_WR4000_N2100"]
+    result = era_info.get(key, fallback)
+    return [result] if isinstance(result, str) else list(result)
+
+
+# -----------------------------------------------------------------------------
 # Region shorthands
 # -----------------------------------------------------------------------------
 

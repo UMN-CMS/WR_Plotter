@@ -22,23 +22,20 @@ from wrplotter.histo import load_and_rebin
 from wrplotter.regions import regions_for_era, expand_region_requests
 from wrplotter.variables import build_variables
 from wrplotter.sample_groups import load_sample_groups
-from wrplotter.config import list_eras,load_lumi,load_plot_settings,load_kfactors,get_kfactor,index_plot_settings, configured_variables, load_systematics
-from wrplotter.cli_utils import parse_multi, setup_logging
-
-_ERA_CHOICES = list_eras()
-SCALES = load_kfactors()
-SYSTEMATICS = load_systematics()
+from wrplotter.config import list_eras,load_lumi,load_plot_settings,load_kfactors,get_kfactor,index_plot_settings, configured_variables, load_systematics, default_signals
+from wrplotter.cli_utils import parse_multi, setup_logging, add_era_args
 
 
-def load_systematics(sample, hist_obj, region_name, variable_name,
-                     rebin, input_dirs, input_lumis, era, syst_hists):
+def collect_syst_variations(sample, hist_obj, region_name, variable_name,
+                            rebin, input_dirs, input_lumis, era, syst_hists,
+                            scales, systematics):
     """Load systematic up/down variations for a single MC sample.
 
     Populates the nested syst_hists dict in-place. Uses the nominal
     histogram as fallback so samples without a given systematic
     contribute delta=0 rather than biasing the envelope.
     """
-    for syst in SYSTEMATICS:
+    for syst in systematics:
         for direction in ["up", "down"]:
             syst_hist_key = (
                 f"syst_{syst}{direction}_{region_name}/"
@@ -52,7 +49,7 @@ def load_systematics(sample, hist_obj, region_name, variable_name,
                 sublumis=input_lumis,
                 era_for_scale=era,
                 get_kfactor_fn=get_kfactor,
-                scales=SCALES,
+                scales=scales,
             )
             if syst_obj is None:
                 syst_obj = hist_obj
@@ -63,7 +60,7 @@ def load_systematics(sample, hist_obj, region_name, variable_name,
 
 
 def load_signal_overlays(region, hist_key, rebin, input_dirs, input_lumis,
-                         era, era_info, signal_arg):
+                         era, era_info, signal_arg, scales):
     """Load signal sample histograms for overlay on signal-region plots.
 
     Returns a dict {sample_name: hist} for all successfully loaded signals.
@@ -75,10 +72,8 @@ def load_signal_overlays(region, hist_key, rebin, input_dirs, input_lumis,
 
     if signal_arg:
         signal_samples = signal_arg
-    elif region.is_boosted:
-        signal_samples = [era_info.get("default_signal_boosted", "signal_WR4000_N100")]
     else:
-        signal_samples = [era_info.get("default_signal_resolved", "signal_WR4000_N2100")]
+        signal_samples = default_signals(era_info, boosted=region.is_boosted)
 
     for sig_sample in signal_samples:
         sig_hist = load_and_rebin(
@@ -89,7 +84,7 @@ def load_signal_overlays(region, hist_key, rebin, input_dirs, input_lumis,
             sublumis=input_lumis,
             era_for_scale=era,
             get_kfactor_fn=get_kfactor,
-            scales=SCALES,
+            scales=scales,
         )
         if sig_hist is not None:
             signal_hists[sig_sample] = sig_hist
@@ -103,8 +98,7 @@ def load_signal_overlays(region, hist_key, rebin, input_dirs, input_lumis,
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="CR plot commands")
 
-    parser.add_argument("--era",dest="era",type=str,choices=_ERA_CHOICES,required=False,help="Specify the era",)
-    parser.add_argument("--dir",dest="dir",type=str,default="",help="Optional subdirectory under the input & default EOS output paths",)
+    add_era_args(parser, required=False)
     parser.add_argument("--name",dest="name",type=str,default="",help="Append a suffix to the filenames",)
     parser.add_argument("--plot-config",dest="plot_config",type=str,default=None,help="YAML file with rebin/xlim/ylim for each (region,variable)",)
     parser.add_argument("--region","-r",dest="regions",action="append",default=None,help="Region name(s). Repeat or comma-separate: -r a -r b  or  -r a,b",)
@@ -125,7 +119,7 @@ def parse_args() -> argparse.Namespace:
     # Handle list commands early
     if args.list_eras:
         print("Available eras:")
-        for era in _ERA_CHOICES:
+        for era in list_eras():
             print(f"  - {era}")
         sys.exit(0)
 
@@ -226,6 +220,8 @@ def setup_context(args) -> dict:
 
     regions = regions_for_era(era)
     variables = build_variables()
+    scales = load_kfactors()
+    systematics = load_systematics()
 
     return dict(
         era=era, run=run, year=year, lumi=lumi, com=com,
@@ -234,6 +230,7 @@ def setup_context(args) -> dict:
         output_dir=out_dir,
         sample_groups=ordered_groups, data_group_keys=data_group_keys,
         regions=regions, variables=variables,
+        scales=scales, systematics=systematics,
     )
 
 def main():
@@ -273,13 +270,15 @@ def main():
     if missing_regions:
         logging.warning(f"Regions missing explicit blocks in YAML (will use common_variables fallback where possible): {missing_regions}")
 
-    input_dirs  = ctx["input_dirs"]
-    input_lumis = ctx["input_lumis"]
-    era         = ctx["era"]
-    run         = ctx["run"]
-    lumi        = ctx["lumi"]
-    com         = ctx["com"]
-    out_dir     = ctx["output_dir"]
+    input_dirs   = ctx["input_dirs"]
+    input_lumis  = ctx["input_lumis"]
+    era          = ctx["era"]
+    run          = ctx["run"]
+    lumi         = ctx["lumi"]
+    com          = ctx["com"]
+    out_dir      = ctx["output_dir"]
+    scales       = ctx["scales"]
+    systematics  = ctx["systematics"]
 
     syst_hists = {}
     n_failures = 0
@@ -323,16 +322,17 @@ def main():
                         sublumis=input_lumis,
                         era_for_scale=era,
                         get_kfactor_fn=get_kfactor,
-                        scales=SCALES,
+                        scales=scales,
                     )
                     if hist_obj is None:
                         continue
                     combined = hist_obj if (combined is None) else (combined + hist_obj)
 
                     if not is_data_group:
-                        load_systematics(
+                        collect_syst_variations(
                             sample, hist_obj, region.name, variable.name,
                             rebin, input_dirs, input_lumis, era, syst_hists,
+                            scales, systematics,
                         )
 
                 if combined is None:
@@ -356,14 +356,15 @@ def main():
             # Reorder stack based on region type
             if "dy" in stack_keys:
                 dy_idx = stack_keys.index("dy")
+                items = list(zip(stack_list, stack_colors, stack_labels, stack_keys))
+                dy_item = items.pop(dy_idx)
                 if "flavor_cr" in region.name:
-                    # For flavor CR: put DY at the bottom of the stack
-                    for lst in (stack_list, stack_colors, stack_labels, stack_keys):
-                        lst.insert(0, lst.pop(dy_idx))
+                    items.insert(0, dy_item)   # DY at the bottom
                 else:
-                    # For DY CR and SR: put DY at the top of the stack
-                    for lst in (stack_list, stack_colors, stack_labels, stack_keys):
-                        lst.append(lst.pop(dy_idx))
+                    items.append(dy_item)       # DY at the top
+                stack_list, stack_colors, stack_labels, stack_keys = (
+                    [list(x) for x in zip(*items)]
+                )
 
             if not stack_list and not data_hist:
                 logging.warning(f"  Skipped '{region.name}/{variable.name}' (no histograms found).")
@@ -373,7 +374,7 @@ def main():
 
             signal_hists = load_signal_overlays(
                 region, hist_key, rebin, input_dirs, input_lumis,
-                era, ctx["era_info"], args.signal,
+                era, ctx["era_info"], args.signal, scales,
             )
 
             fig = plot_stack(
