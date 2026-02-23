@@ -61,6 +61,18 @@
     "cutflow_signals_resolved": ["WR2000_N1100", "WR4000_N2100", "WR6000_N3100"],
     "cutflow_signals_boosted": ["WR2000_N100", "WR4000_N100", "WR6000_N100"]
   },
+  "2023": {
+    "run": "Run3",
+    "year": "2023",
+    "lumi": 27.756,
+    "com": 13.6,
+    "sub_eras": ["Run3Summer23", "Run3Summer23BPix"],
+    "sub_lumis": [18.063, 9.693],
+    "default_signal_resolved": "signal_WR4000_N2100",
+    "default_signal_boosted": "signal_WR4000_N100",
+    "cutflow_signals_resolved": ["WR2000_N1100", "WR4000_N2100", "WR6000_N3100"],
+    "cutflow_signals_boosted": ["WR2000_N100", "WR4000_N100", "WR6000_N100"]
+  },
   "RunIII2024Summer24": {
     "run": "Run3",
     "year": "2024",
