@@ -1,0 +1,65 @@
+\documentclass[12pt]{article}
+\usepackage[landscape,margin=0.3in,paperwidth=24in,paperheight=16in]{geometry}
+\usepackage{amsmath}
+\usepackage{float}
+
+%% CMS style stubs
+\usepackage{caption}
+\captionsetup{font=LARGE}
+\newcommand{\topcaption}[1]{\caption{#1}}
+\newcommand{\cmsTable}[1]{\Large #1}
+\setlength{\floatsep}{4pt}
+\setlength{\textfloatsep}{4pt}
+\setlength{\intextsep}{4pt}
+
+%% Allow many floats per page
+\renewcommand{\topfraction}{1.0}
+\renewcommand{\bottomfraction}{1.0}
+\renewcommand{\textfraction}{0.0}
+\renewcommand{\floatpagefraction}{0.99}
+\setcounter{totalnumber}{10}
+\setcounter{topnumber}{10}
+\setcounter{bottomnumber}{10}
+
+\begin{document}
+
+{\LARGE \bfseries Cumulative cutflows}\bigskip
+\input{cutflow_cumulative_resolved_mumu.tex}
+\vspace{3em}
+\input{cutflow_cumulative_resolved_ee.tex}
+\vspace{3em}
+\input{cutflow_cumulative_boosted_mumu.tex}
+\vspace{3em}
+\input{cutflow_cumulative_boosted_ee.tex}
+
+\newpage
+{\LARGE \bfseries One-cut cutflows}\bigskip
+\input{cutflow_onecut_resolved_mumu.tex}
+\vspace{3em}
+\input{cutflow_onecut_resolved_ee.tex}
+\vspace{3em}
+\input{cutflow_onecut_boosted_mumu.tex}
+\vspace{3em}
+\input{cutflow_onecut_boosted_ee.tex}
+
+\newpage
+{\LARGE \bfseries Running efficiency}\bigskip
+\input{cutflow_running_eff_resolved_mumu.tex}
+\vspace{3em}
+\input{cutflow_running_eff_resolved_ee.tex}
+\vspace{3em}
+\input{cutflow_running_eff_boosted_mumu.tex}
+\vspace{3em}
+\input{cutflow_running_eff_boosted_ee.tex}
+
+\newpage
+{\LARGE \bfseries Relative efficiency}\bigskip
+\input{cutflow_relative_eff_resolved_mumu.tex}
+\vspace{3em}
+\input{cutflow_relative_eff_resolved_ee.tex}
+\vspace{3em}
+\input{cutflow_relative_eff_boosted_mumu.tex}
+\vspace{3em}
+\input{cutflow_relative_eff_boosted_ee.tex}
+
+\end{document}
