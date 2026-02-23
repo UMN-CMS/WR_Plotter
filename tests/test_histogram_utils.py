@@ -142,7 +142,7 @@ class TestLoadHistogram:
         mock_file = MagicMock()
         mock_file.__getitem__.return_value.to_hist.return_value = uniform_hist_10bins
 
-        with patch("wrplotter.histo._open_root", return_value=mock_file) as mock_open:
+        with patch("wrplotter.histogram_cache._open_root", return_value=mock_file) as mock_open:
             result = load_histogram(Path("/fake/path.root"), "some/key")
 
         mock_open.assert_called_once_with("/fake/path.root")
@@ -154,7 +154,7 @@ class TestLoadHistogram:
         mock_file = MagicMock()
         mock_file.__getitem__.return_value.to_hist.return_value = uniform_hist_10bins
 
-        with patch("wrplotter.histo._open_root", return_value=mock_file):
+        with patch("wrplotter.histogram_cache._open_root", return_value=mock_file):
             result = load_histogram("/fake/path.root", "key")
 
         assert result is uniform_hist_10bins

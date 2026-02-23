@@ -17,8 +17,8 @@ import mplhep as hep
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from wrplotter.plotting_helpers import plot_stack
-from wrplotter.io import repo_root, output_dir, save_figure, input_dirs_for_era
-from wrplotter.histo import load_and_rebin
+from wrplotter.paths import repo_root, output_dir, save_figure, input_dirs_for_era
+from wrplotter.histogram_cache import load_and_rebin
 from wrplotter.regions import regions_for_era, expand_region_requests
 from wrplotter.variables import build_variables
 from wrplotter.sample_groups import load_sample_groups

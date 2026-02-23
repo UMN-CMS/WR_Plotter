@@ -1,11 +1,11 @@
-"""Tests for wrplotter.histo."""
+"""Tests for wrplotter.histogram_cache."""
 import numpy as np
 import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import hist
 
-from wrplotter.histo import load_and_rebin, clear_cache, _open_root
+from wrplotter.histogram_cache import load_and_rebin, clear_cache, _open_root
 
 
 def _make_test_hist(values=None, bins=10, lo=0, hi=100):

@@ -1,6 +1,4 @@
-# python/io.py
 from __future__ import annotations
-import json
 import os
 import subprocess
 import tempfile
@@ -8,7 +6,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 try:
-    import yaml  # ensure pyyaml in requirements.txt
+    import yaml
 except ImportError:
     yaml = None
 
@@ -26,10 +24,6 @@ def read_yaml(path: str | Path) -> Any:
         raise RuntimeError("pyyaml not installed")
     with open(path, "r") as f:
         return yaml.safe_load(f)
-
-def read_json(path: str | Path) -> Any:
-    with open(path, "r") as f:
-        return json.load(f)
 
 
 # ── Input directories for era ──────────────────────────────────────────────────

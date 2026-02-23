@@ -1,10 +1,10 @@
-"""Tests for wrplotter.io."""
+"""Tests for wrplotter.paths."""
 import os
 import subprocess
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from wrplotter.io import (
+from wrplotter.paths import (
     repo_root,
     data_path,
     resolve_eos_user,
@@ -31,14 +31,14 @@ class TestRepoRoot:
 class TestDataPath:
 
     def test_returns_path(self):
-        assert isinstance(data_path("lumi.json"), Path)
+        assert isinstance(data_path("lumi.yaml"), Path)
 
     def test_under_repo_root(self):
-        p = data_path("lumi.json")
+        p = data_path("lumi.yaml")
         assert str(p).startswith(str(repo_root()))
 
-    def test_lumi_json_exists(self):
-        assert data_path("lumi.json").is_file()
+    def test_lumi_yaml_exists(self):
+        assert data_path("lumi.yaml").is_file()
 
 
 class TestResolveEosUser:

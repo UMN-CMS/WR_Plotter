@@ -33,7 +33,7 @@ import numpy as np
 import uproot
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from wrplotter.io import repo_root
+from wrplotter.paths import repo_root
 from wrplotter.config import load_lumi, list_eras
 from wrplotter.cli_utils import setup_logging
 

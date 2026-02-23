@@ -1,11 +1,10 @@
-# python/sample_groups.py
 from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Literal, Dict, List, Any
 import logging
 
-from .io import data_path, read_yaml
+from .paths import data_path, read_yaml
 
 @dataclass(frozen=True)
 class SampleGroup:

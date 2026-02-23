@@ -1,10 +1,9 @@
-# python/variables.py
 from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 import logging
 
-from .io import data_path, read_yaml
+from .paths import data_path, read_yaml
 
 @dataclass(frozen=True)
 class Variable:
