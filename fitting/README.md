@@ -8,12 +8,13 @@ The fitting procedure uses RooFit (via PyROOT) to perform binned maximum-likelih
 
 ## Models
 
-| Model | Function | Parameters |
-|-------|----------|------------|
-| Single exponential | f(m) = exp(c * m) | c |
-| Double exponential | f(m) = N1 * exp(c1 * m) + N2 * exp(c2 * m) | c1, c2, N1, N2 |
+| Model | Function | Parameters | Script |
+|-------|----------|------------|--------|
+| Single exponential | f(m) = exp(c * m) | c | `fit_single_exp.py` |
+| Double exponential | f(m) = N1 * exp(c1 * m) + N2 * exp(c2 * m) | c1, c2, N1, N2 | `fit_background.py` |
+| Power-law exponential | f(m) = m^a * exp(c * m) | a, c | `fit_background.py` |
 
-The single exponential serves as a baseline; the double exponential is the target model for the final background estimate. All models use extended PDFs (RooExtendPdf) so the likelihood constrains both shape and normalization.
+The single exponential serves as a baseline; the double exponential is the target model for the final background estimate. The power-law exponential offers similar flexibility to the double-exp without the degeneracy issues. All models use extended PDFs (RooExtendPdf) so the likelihood constrains both shape and normalization.
 
 ## Background composition
 
@@ -38,39 +39,79 @@ This composition motivates the double exponential: the total spectrum is a mixtu
 
 5. **Sensitivity estimate**: Compute the expected uncertainty on the signal strength (sigma_mu / mu) as a function of W_R mass to identify the most sensitive mass range.
 
+## Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `fit_single_exp.py` | Single exponential fits (total + per-component) |
+| `fit_background.py` | Double exponential and power-law exponential fits |
+| `fit_utils.py` | Shared infrastructure (histogram loading, RooFit helpers, plotting) |
+
 ## Usage
 
+### Single exponential
+
 ```bash
-python fitting/fit_background.py \
-    --era RunIII2024Summer24 \
-    --channel ee \
-    --topology resolved \
-    --model single-exp \
-    --mass-range 800 6000 \
-    --rebin 20
+# Both channels, default settings:
+python fitting/fit_single_exp.py --era RunIII2024Summer24 --dir 20260223_lo_dy
+
+# Custom mass range and binning:
+python fitting/fit_single_exp.py --era RunIII2024Summer24 --dir 20260223_lo_dy \
+    --mass-range 1000 4000 --rebin 10
+
+# With per-component fits and composition plot:
+python fitting/fit_single_exp.py --era RunIII2024Summer24 --dir 20260223_lo_dy \
+    --component-fits
 ```
 
-### Arguments
+### Double / power-law exponential
+
+```bash
+# Double exponential:
+python fitting/fit_background.py --era RunIII2024Summer24 --dir 20260223_lo_dy \
+    --model double-exp
+
+# Power-law exponential:
+python fitting/fit_background.py --era RunIII2024Summer24 --dir 20260223_lo_dy \
+    --model pow-exp
+
+# Scan double-exp initializations:
+python fitting/fit_background.py --era RunIII2024Summer24 --dir 20260223_lo_dy \
+    --model double-exp --scan
+```
+
+### Shared arguments
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--era` | RunIII2024Summer24 | MC era (must match a key in `data/lumi.yaml`) |
-| `--channel` | ee | Lepton channel: `ee` or `mumu` |
+| `--era` | *(required)* | MC era (must match a key in `data/lumi.yaml`) |
+| `--dir` | *(required)* | Input subdirectory name |
+| `--channel` | *(both)* | Lepton channel: `ee` or `mumu`. If omitted, runs both. |
 | `--topology` | resolved | Event topology: `resolved` or `boosted` |
-| `--model` | single-exp | Fit model: `single-exp`, `double-exp`, or `pow-exp` |
 | `--mass-range` | 800 6000 | Observable range [GeV] for the fit |
 | `--rebin` | 20 | Rebin factor applied to the histogram |
-| `--component-fits` | off | Fit DYJets and tt+tW individually and plot composition vs mass |
-| `--scan` | off | (double-exp only) Scan initialization grid and report all minima |
 | `--verbose` | off | Enable debug logging |
+
+### Script-specific arguments
+
+| Script | Argument | Description |
+|--------|----------|-------------|
+| `fit_single_exp.py` | `--component-fits` | Fit DYJets and tt+tW individually and plot composition vs mass |
+| `fit_background.py` | `--model` | Fit model: `double-exp` (default) or `pow-exp` |
+| `fit_background.py` | `--scan` | (double-exp only) Scan initialization grid and report all minima |
 
 ## Output
 
-Each fit produces three files in `fitting/outputs/<era>/`:
+Each fit produces files in `fitting/outputs/<era>/<model>/<mass-range>_<binning>/`:
 
-- `fit_<model>.json` — fit results: parameter values, uncertainties, correlation matrix, chi2/ndf, and metadata
-- `fit_<model>.pdf` — publication-quality plot (CMS style via mplhep)
-- `fit_<model>.png` — rasterized version for quick inspection
+- `fit_<channel>.json` — fit results: parameter values, uncertainties, correlation matrix, chi2/ndf, and metadata
+- `fit_<channel>.pdf` — publication-quality plot (CMS style via mplhep)
+- `fit_<channel>.png` — rasterized version for quick inspection
+
+With `--component-fits` (single-exp only), additional files are produced:
+- `fit_DYJets_<channel>.json/.pdf/.png` — per-component fit
+- `fit_tt_tW_<channel>.json/.pdf/.png` — per-component fit
+- `composition_<channel>.json/.pdf/.png` — background composition vs mass
 
 ### Plot contents
 
