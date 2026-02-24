@@ -3,6 +3,7 @@ rootfiles/
 archive/
 plots/
 tables/
+fitting/outputs/
 
 # Ignore Python cache files
 __pycache__/

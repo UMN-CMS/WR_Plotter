@@ -11,9 +11,20 @@ The fitting procedure uses RooFit (via PyROOT) to perform binned maximum-likelih
 | Model | Function | Parameters |
 |-------|----------|------------|
 | Single exponential | f(m) = exp(c * m) | c |
-| Double exponential | f(m) = frac * exp(c1 * m) + (1-frac) * exp(c2 * m) | c1, c2, frac |
+| Double exponential | f(m) = N1 * exp(c1 * m) + N2 * exp(c2 * m) | c1, c2, N1, N2 |
 
-The single exponential serves as a baseline; the double exponential is the target model for the final background estimate.
+The single exponential serves as a baseline; the double exponential is the target model for the final background estimate. All models use extended PDFs (RooExtendPdf) so the likelihood constrains both shape and normalization.
+
+## Background composition
+
+The summed MC background is dominated by two processes whose m_lljj spectra have different slopes:
+
+- **tt+tW** dominates at low mass (~75% at 1000 GeV), but its fraction decreases with mass
+- **DYJets** grows from ~25% at 1000 GeV to ~50% around 2500-3000 GeV, consistent with its shallower exponential slope
+- Above ~3000 GeV, statistics become sparse (< 1 event/bin) and the fractional composition fluctuates
+- **Other** and **Nonprompt** are small (~5% combined) throughout the fit range
+
+This composition motivates the double exponential: the total spectrum is a mixture of a steep component (tt+tW-dominated) transitioning to a shallower one (DYJets-dominated) with increasing mass. Use `--component-fits` to fit each component individually and visualize the composition.
 
 ## Stages
 
@@ -46,9 +57,11 @@ python fitting/fit_background.py \
 | `--era` | RunIII2024Summer24 | MC era (must match a key in `data/lumi.yaml`) |
 | `--channel` | ee | Lepton channel: `ee` or `mumu` |
 | `--topology` | resolved | Event topology: `resolved` or `boosted` |
-| `--model` | single-exp | Fit model: `single-exp` or `double-exp` |
+| `--model` | single-exp | Fit model: `single-exp`, `double-exp`, or `pow-exp` |
 | `--mass-range` | 800 6000 | Observable range [GeV] for the fit |
 | `--rebin` | 20 | Rebin factor applied to the histogram |
+| `--component-fits` | off | Fit DYJets and tt+tW individually and plot composition vs mass |
+| `--scan` | off | (double-exp only) Scan initialization grid and report all minima |
 | `--verbose` | off | Enable debug logging |
 
 ## Output
@@ -66,6 +79,7 @@ Each fit produces three files in `fitting/outputs/<era>/`:
 
 ## Notes
 
-- Fits use `SumW2Error(True)` to correctly handle weighted MC events (applies Hessian correction for the effective number of entries).
+- Fits treat MC as pseudodata with Poisson bin errors, matching the statistical model that will be used on real data.
 - RooFit exponential models are sensitive to parameter initialization and allowed ranges. The double exponential in particular may require staged fitting (fix one component, fit the other, then release all parameters).
 - The background histograms are read from ROOT files in `rootfiles/` and summed across all MC sample groups for the requested era/channel/topology.
+- **The signal region is blinded.** All fits are performed on summed MC background histograms, not observed data. Real data in the SR must not be used.
