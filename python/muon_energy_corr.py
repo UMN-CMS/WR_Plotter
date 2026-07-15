@@ -88,7 +88,7 @@ def _plot_histograms(counts_orig, edges_orig, counts_corr, edges_corr, output_pa
     ax_ratio.step(edges_orig[:-1], ratio, where="post", color="black")
     ax_ratio.set_xlabel(xlabel)
     ax_ratio.set_ylabel("Corr / Orig")
-    ax_ratio.set_ylim(0.0, np.nanmax(np.concatenate([ratio[mask], [1.5]])) if mask.any() else 2.0)
+    ax_ratio.set_ylim(0.0, 2.0)
     ax_ratio.grid(True, alpha=0.3)
 
     fig.tight_layout()
@@ -219,7 +219,7 @@ def main():
                         edges_corr,
                         outpath,
                         normalize=args.normalize,
-                        whichone=_make_plot_title(root_file.stem[11:], param),
+                        whichone=_make_plot_title(root_file.stem[11:], label[1:-1].replace("_{", "_").replace("}", "")),
                         xlabel=rf"{label} correction factor",
                         ylabel="Events",
                     )
