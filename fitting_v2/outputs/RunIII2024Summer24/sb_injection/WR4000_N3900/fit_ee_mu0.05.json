@@ -1,0 +1,95 @@
+{
+  "metadata": {
+    "era": "RunIII2024Summer24",
+    "channel": "ee",
+    "topology": "resolved",
+    "region": "wr_ee_resolved_sr",
+    "variable": "mass_fourobject",
+    "model": "single-exp",
+    "mode": "S+B",
+    "signal_tag": "WR4000_N3900",
+    "signal_window_json": "/uscms_data/d3/bjackson/WrCoffea/WR_Plotter/fitting_v2/outputs/RunIII2024Summer24/signal_window/WR4000_N3900/window_ee.json",
+    "signal_mean": 4002.840233109499,
+    "signal_rms": 758.8286407168197,
+    "fit_window": [
+      1726.35431095904,
+      6000.0
+    ],
+    "fit_window_n_sigma": 3.0,
+    "rebin": 2,
+    "bin_width_gev": 20.0,
+    "n_events_total": 103.34974524104828,
+    "timestamp": "2026-03-09T09:40:55.258672"
+  },
+  "roofit": {
+    "fit_status": {
+      "status": 0,
+      "edm": 7.088593384204415e-06,
+      "cov_quality": 3,
+      "min_nll": 338.7893789348704
+    },
+    "parameters": {
+      "c": {
+        "value": -0.0027147223129230288,
+        "error": 4.774938365992472e-07,
+        "error_lo": -4.774938365992472e-07,
+        "error_hi": 4.774938365992472e-07,
+        "range": [
+          -0.01,
+          -0.0001
+        ]
+      },
+      "n_bkg": {
+        "value": 103.30247174222298,
+        "error": 9.951316225778939,
+        "error_lo": -9.951316225778939,
+        "error_hi": 9.951316225778939,
+        "range": [
+          0.0,
+          50000.0
+        ]
+      },
+      "n_sig": {
+        "value": -0.031057516601144745,
+        "error": 5.782096952957824e-05,
+        "error_lo": -5.782096952957824e-05,
+        "error_hi": 5.782096952957824e-05,
+        "range": [
+          -5.124919544556859,
+          5.124919544556859
+        ]
+      }
+    },
+    "correlation_matrix": [
+      [
+        1.0,
+        -0.00015602985366095393,
+        -7.151642485045335e-07
+      ],
+      [
+        -0.00015602985366095393,
+        1.0,
+        -0.00016386163439146247
+      ],
+      [
+        -7.151642485045335e-07,
+        -0.00016386163439146247,
+        1.0
+      ]
+    ],
+    "goodness_of_fit": {
+      "chi2_per_ndf": 1532.977052960298,
+      "ndf": 211,
+      "n_bins": 214,
+      "chi2": 323458.15817462286
+    }
+  },
+  "signal_injection": {
+    "inject_mu": 0.05,
+    "n_sig_expected": 1.024983908911372,
+    "n_sig_fitted": -0.031057516601144745,
+    "n_sig_error": 5.782096952957824e-05,
+    "mu_fitted": -0.03030049187223896,
+    "mu_error": 5.641158756432526e-05
+  }
+}

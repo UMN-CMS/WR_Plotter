@@ -1,0 +1,61 @@
+% Minimal standalone beamer slide with the sqrt(12) derivation.
+% Compile: pdflatex sqrt12_slide.tex
+% Or drop the \begin{frame}...\end{frame} block into an existing deck.
+
+\documentclass[aspectratio=169]{beamer}
+\usetheme{default}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{physics}
+
+\title{Binned-measurement resolution: $\sigma = \Delta x / \sqrt{12}$}
+\date{}
+
+\begin{document}
+
+\begin{frame}{Binned-measurement resolution: $\sigma = \Delta x / \sqrt{12}$}
+
+  \textbf{Setup.} A particle (or event) lands somewhere in a bin of width
+  $\Delta x$ centered at $x_0$. We report $x_0$ as the measured position.
+  Without extra information, the true position is uniformly distributed
+  inside the bin:
+  \[
+    x_{\mathrm{true}} \sim \mathcal{U}(x_0 - \Delta x/2,\ x_0 + \Delta x/2).
+  \]
+  The residual $r \equiv x_{\mathrm{true}} - x_0$ has
+  $r \sim \mathcal{U}(-\Delta x/2,\ +\Delta x/2)$, with $\langle r \rangle = 0$.
+
+  \textbf{Variance.}
+  \[
+    \operatorname{Var}[r]
+      = \mathbb{E}[r^{2}]
+      = \int_{-\Delta x/2}^{+\Delta x/2} r^{2}\,\frac{1}{\Delta x}\,dr
+      = \frac{1}{\Delta x}\left[\frac{r^{3}}{3}\right]_{-\Delta x/2}^{+\Delta x/2}
+      = \frac{(\Delta x)^{2}}{12}.
+  \]
+
+  \textbf{Standard deviation (the ``resolution'').}
+  \[
+    \boxed{\,\sigma = \sqrt{\operatorname{Var}[r]} = \dfrac{\Delta x}{\sqrt{12}}
+    \ \approx\ \dfrac{\Delta x}{3.46}.\,}
+  \]
+
+  \vspace{0.4em}
+  \textbf{Why it's $\Delta x / \sqrt{12}$, not $\Delta x$:} we know the particle
+  hit \emph{inside} the bin, not only somewhere within $\pm \Delta x$. The
+  RMS of a uniform distribution is the natural error bar for a binned measurement.
+
+  \textbf{Application to the on-shell FWHM.} Each half-max crossing
+  (left and right of the peak) has this intrinsic floor; the two crossings
+  are independent, so their variances add:
+  \[
+    \sigma_{\mathrm{FWHM}}^{\mathrm{bin}}
+      = \sqrt{2}\,\frac{\Delta m}{\sqrt{12}}
+      \ \overset{\Delta m\,=\,60\,\mathrm{GeV}}{=}\ 24.5\ \mathrm{GeV}.
+  \]
+  Added in quadrature with the Poisson bootstrap uncertainty to give the
+  total per-point FWHM error bar.
+
+\end{frame}
+
+\end{document}

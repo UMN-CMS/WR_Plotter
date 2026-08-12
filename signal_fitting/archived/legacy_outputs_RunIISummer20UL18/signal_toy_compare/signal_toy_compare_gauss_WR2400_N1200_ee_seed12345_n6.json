@@ -1,0 +1,163 @@
+{
+  "signal_tag": "WR2400_N1200",
+  "channel": "ee",
+  "era": "RunIISummer20UL18",
+  "M_WR": 2400.0,
+  "M_N": 1200.0,
+  "x": 0.5,
+  "n_events": 6,
+  "seed": 12345,
+  "model": "gauss",
+  "FWHM_prior": {
+    "FWHM_pred_GeV": 327.6507583807986,
+    "FWHM_err_GeV": 25.08050389266859,
+    "systematic_floor_GeV": 25.0,
+    "gauss_sigma_pred": 139.14046598685732,
+    "gauss_sigma_sigma": 10.65070935912598,
+    "bifur_Sigma_pred": 278.28093197371464,
+    "bifur_Sigma_sigma": 21.30141871825196
+  },
+  "mu_prior": {
+    "peak_orig": 2370.0,
+    "peak_boot_mean": 2370.0,
+    "sigma_peak_boot_GeV": 17.320508075688775
+  },
+  "events": [
+    2135.983087535872,
+    2201.867341856037,
+    2436.727560440146,
+    2389.4180286526994,
+    2242.482457146296,
+    2219.488811518333
+  ],
+  "fits": {
+    "no_priors": {
+      "model": "gauss",
+      "constrain": false,
+      "width_mode": "free",
+      "mu_mode": "free",
+      "params": {
+        "mu": 2270.9667143532,
+        "sigma": 106.46261218592106,
+        "n_sig": 6.000001699500003
+      },
+      "errors": {
+        "mu": 43.43607758530902,
+        "sigma": 30.709444055183596,
+        "n_sig": 2.4418089658439346
+      },
+      "width_prior": {
+        "central": 139.14046598685732,
+        "uncertainty": 10.65070935912598,
+        "label": "sigma"
+      },
+      "mu_prior": {
+        "central": 2370.0,
+        "uncertainty": 0.0,
+        "constrained": false
+      },
+      "n_injected": 6,
+      "n_used": 6,
+      "minuit_status": 0,
+      "covqual": 3,
+      "min_nll": 31.767996846540747,
+      "ndof_free": 2
+    },
+    "mu_only": {
+      "model": "gauss",
+      "constrain": false,
+      "width_mode": "free",
+      "mu_mode": "constrained",
+      "params": {
+        "mu": 2361.5736203673914,
+        "sigma": 139.75556909427215,
+        "n_sig": 6.000002104210349
+      },
+      "errors": {
+        "mu": 17.192780577960548,
+        "sigma": 41.78756659392675,
+        "n_sig": 2.4418084502227284
+      },
+      "width_prior": {
+        "central": 139.14046598685732,
+        "uncertainty": 10.65070935912598,
+        "label": "sigma"
+      },
+      "mu_prior": {
+        "central": 2370.0,
+        "uncertainty": 17.320508075688775,
+        "constrained": true
+      },
+      "n_injected": 6,
+      "n_used": 6,
+      "minuit_status": 0,
+      "covqual": 3,
+      "min_nll": 37.291653653413974,
+      "ndof_free": 3
+    },
+    "width_only": {
+      "model": "gauss",
+      "constrain": true,
+      "width_mode": "constrained",
+      "mu_mode": "free",
+      "params": {
+        "mu": 2269.4415200985904,
+        "sigma": 137.30712503225868,
+        "n_sig": 6.000001862910097
+      },
+      "errors": {
+        "mu": 56.01341356717057,
+        "sigma": 10.496724655396292,
+        "n_sig": 2.4418084193216716
+      },
+      "width_prior": {
+        "central": 139.14046598685732,
+        "uncertainty": 10.65070935912598,
+        "label": "sigma"
+      },
+      "mu_prior": {
+        "central": 2370.0,
+        "uncertainty": 0.0,
+        "constrained": false
+      },
+      "n_injected": 6,
+      "n_used": 6,
+      "minuit_status": 0,
+      "covqual": 3,
+      "min_nll": 35.398554556922115,
+      "ndof_free": 2
+    },
+    "both": {
+      "model": "gauss",
+      "constrain": true,
+      "width_mode": "constrained",
+      "mu_mode": "constrained",
+      "params": {
+        "mu": 2361.5827558637993,
+        "sigma": 139.19100598755264,
+        "n_sig": 6.000002103504818
+      },
+      "errors": {
+        "mu": 16.605756569265395,
+        "sigma": 10.314227112063762,
+        "n_sig": 2.441809447164774
+      },
+      "width_prior": {
+        "central": 139.14046598685732,
+        "uncertainty": 10.65070935912598,
+        "label": "sigma"
+      },
+      "mu_prior": {
+        "central": 2370.0,
+        "uncertainty": 17.320508075688775,
+        "constrained": true
+      },
+      "n_injected": 6,
+      "n_used": 6,
+      "minuit_status": 0,
+      "covqual": 3,
+      "min_nll": 40.576329018678834,
+      "ndof_free": 3
+    }
+  }
+}

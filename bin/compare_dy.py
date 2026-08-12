@@ -55,10 +55,7 @@ _DY_COMP_KFACTORS = load_kfactors().get("dy_comparison", {})
 
 VARIABLES = [
     Variable('mass_fourobject',      r'$m_{lljj}$',            'GeV'),
-    Variable('pt_leading_jet',       r'$p_{T}$ leading jet',   'GeV'),
-    Variable('pt_dilepton',          r'$p_{T}^{ll}$',          'GeV'),
-    Variable('phi_leading_lepton',   r'$\phi$ leading lepton', ''),
-    Variable('phi_leading_jet',      r'$\phi$ leading jet',    ''),
+    Variable('mass_twoobject',       r'$m_{lJ}$',              'GeV'),
 ]
 
 
@@ -71,8 +68,8 @@ def parse_args():
     p.add_argument(
         "--mode", "-m",
         required=True,
-        choices=["lo-nlo", "mll-vs-ht", "cross-era"],
-        help="lo-nlo: LO vs NLO within one era. mll-vs-ht: 2024 NLO mll-binned vs 2022 LO HT-binned. cross-era: compare DYJets between two eras.",
+        choices=["lo-nlo", "mll-vs-ht", "cross-era", "three-way"],
+        help="lo-nlo: LO vs NLO within one era. mll-vs-ht: 2024 NLO mll-binned vs 2022 LO HT-binned. cross-era: compare DYJets between two eras. three-way: compare LO inc, NLO inc, and LO HT DY.",
     )
     p.add_argument(
         "--era", "-e",
@@ -96,6 +93,12 @@ def parse_args():
         help="YAML plot settings file (rebin/xlim/ylim per region/variable).",
     )
     p.add_argument(
+        "--date", "-d",
+        type=str,
+        default=None,
+        help="Date prefix for three-way mode (e.g. 20260313).",
+    )
+    p.add_argument(
         "--variable-rebin",
         action="store_true",
         help="Use variable-width bin edges (from rebin_variable in YAML) where available.",
@@ -108,6 +111,9 @@ def parse_args():
 
     if args.mode == "cross-era" and args.ref_era is None:
         p.error("--ref-era is required for cross-era mode")
+
+    if args.mode == "three-way" and args.date is None:
+        p.error("--date is required for three-way mode")
 
     return args
 
@@ -245,6 +251,32 @@ def load_mll_2024(n_rebin, hist_key):
     return rebin_histogram(raw, n_rebin)
 
 
+def load_three_way_sample(n_rebin, era_key, date, subdir_suffix, hist_key):
+    """Load DYJets from dated subdirectories, combining sub-eras if present.
+
+    For example, with era_key='2022', date='20260313', subdir_suffix='lo_inc_dy',
+    loads from Run3Summer22/20260313_lo_inc_dy/ and Run3Summer22EE/20260313_lo_inc_dy/.
+    """
+    info = load_lumi(era_key)
+    run, year = info["run"], info["year"]
+    sub_eras = info.get("sub_eras", [era_key])
+
+    combined = None
+    for se in sub_eras:
+        fp = repo_root() / 'rootfiles' / run / year / se / f'{date}_{subdir_suffix}' / 'WRAnalyzer_DYJets.root'
+        try:
+            raw = load_histogram(fp, hist_key)
+        except FileNotFoundError:
+            logging.warning(f"File not found: {fp}")
+            continue
+        except Exception:
+            logging.warning(f"Failed reading {hist_key} from {fp}", exc_info=True)
+            continue
+        h = rebin_histogram(raw, n_rebin)
+        combined = h if combined is None else combined + h
+    return combined
+
+
 def load_era_dy(n_rebin, era_key, hist_key):
     """Load DYJets from an era, combining sub-eras if present."""
     info = load_lumi(era_key)
@@ -275,6 +307,15 @@ def plot_overlays(region, variable, h_num, h_den, *,
     edges, cen_n, val_n, err_n = extract_hist_data(h_num)
     _,     cen_d, val_d, err_d = extract_hist_data(h_den)
 
+    # Normalize to unit area
+    bin_widths = np.diff(edges)
+    area_n = np.sum(val_n * bin_widths)
+    area_d = np.sum(val_d * bin_widths)
+    if area_n > 0:
+        val_n, err_n = val_n / area_n, err_n / area_n
+    if area_d > 0:
+        val_d, err_d = val_d / area_d, err_d / area_d
+
     fig, (ax, axr) = plt.subplots(
         2, 1, sharex=True,
         gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.10},
@@ -291,7 +332,7 @@ def plot_overlays(region, variable, h_num, h_den, *,
                     fmt='none', capsize=2, color=color)
 
     xlabel = variable.tlatex_alias + (f" [{variable.unit}]" if variable.unit else "")
-    ax.set_ylabel("Events")
+    ax.set_ylabel("Normalized to unit area")
     ax.set_yscale("log")
     ax.legend(fontsize=FONT_SIZE_LEGEND, loc='upper right')
 
@@ -329,6 +370,84 @@ def plot_overlays(region, variable, h_num, h_den, *,
     axr.set_ylabel(ratio_label)
     axr.set_xlim(*xlim)
     axr.set_ylim(0.5, 1.6)
+
+    return fig
+
+
+def plot_three_overlays(region, variable, histograms, *,
+                        xlim, ylim, lumi, com, labels, colors=None):
+    """Overlay three histograms with ratio panel (ratios to first histogram)."""
+    if colors is None:
+        colors = ['C0', 'C1', 'C2']
+
+    hist_data = [extract_hist_data(h) for h in histograms]
+
+    # Normalize each histogram to unit area
+    normalized = []
+    for edges, cen, vals, errs in hist_data:
+        bin_widths = np.diff(edges)
+        area = np.sum(vals * bin_widths)
+        if area > 0:
+            normalized.append((edges, cen, vals / area, errs / area))
+        else:
+            normalized.append((edges, cen, vals, errs))
+    hist_data = normalized
+
+    # NLO is index 0 (numerator for ratios)
+    nlo_edges, nlo_cen, nlo_val, nlo_err = hist_data[0]
+
+    hep.style.use("CMS")
+    fig, (ax, axr) = plt.subplots(
+        2, 1, sharex=True, figsize=(10, 10),
+        gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.10},
+    )
+
+    for (edges, cen, vals, errs), color, label in zip(hist_data, colors, labels):
+        ax.step(edges, np.append(vals, vals[-1]), where='post',
+                color=color, label=label)
+        ax.errorbar(0.5 * (edges[:-1] + edges[1:]), vals, yerr=errs,
+                    fmt='none', capsize=2, color=color)
+
+    xlabel = variable.tlatex_alias + (f" [{variable.unit}]" if variable.unit else "")
+    ax.set_ylabel("Normalized to unit area")
+    ax.set_yscale("log")
+    ax.legend(fontsize=FONT_SIZE_LEGEND, loc='upper right')
+
+    alias = region.tlatex_alias.replace("\\n", "\n")
+    ax.text(0.05, 0.96, alias, transform=ax.transAxes,
+            fontsize=FONT_SIZE_TITLE, va='top')
+
+    hep.cms.label(
+        loc=0, ax=ax,
+        data=region.unblind_data,
+        label="Work in Progress",
+        lumi=f"{lumi:.1f}",
+        com=com,
+        fontsize=FONT_SIZE_LABEL,
+    )
+    ax.set_xlim(800,5000)
+    ax.set_ylim(1e-6, 1e-0)
+    ax.tick_params(labelbottom=False)
+
+    # ratio panel: NLO / each LO sample
+    for (edges, cen, den_val, den_err), color, label in zip(hist_data[1:], colors[1:], labels[1:]):
+        mask = den_val > 0
+        ratio = np.zeros_like(nlo_val)
+        ratio[mask] = nlo_val[mask] / den_val[mask]
+        err_ratio = np.zeros_like(nlo_err)
+        err_ratio[mask] = np.sqrt(
+            (nlo_err[mask] / den_val[mask]) ** 2 +
+            (nlo_val[mask] * den_err[mask] / den_val[mask] ** 2) ** 2
+        )
+        axr.errorbar(cen, ratio, yerr=err_ratio, xerr=True,
+                     fmt='o', capsize=2, color=color, label=f"NLO / {label}", markersize=3)
+
+    axr.axhline(1, color='black', linestyle='--', linewidth=1)
+    axr.set_xlabel(xlabel)
+    axr.set_ylabel("NLO / LO")
+    axr.set_xlim(800,5000)
+    axr.set_ylim(0.0, 2.5)
+    axr.legend(fontsize=FONT_SIZE_LEGEND - 2, loc='upper right')
 
     return fig
 
@@ -372,12 +491,19 @@ def main():
         num_label   = r"2024 NLO $m_{\ell\ell}$ Binned"
         den_label   = "2022 LO HT Binned"
         ratio_label = "NLO / LO"
+    elif args.mode == "three-way":
+        three_way_labels = ["NLO Inclusive", "LO Inclusive", "LO HT-Binned"]
+        three_way_subdirs = ["nlo_inc_dy", "lo_inc_dy", "lo_ht_dy"]
     else:  # cross-era
         num_label   = args.era
         den_label   = args.ref_era
         ratio_label = f"{args.era} / {args.ref_era}"
 
     plot_settings = load_plot_settings(args.plot_config)
+
+    # For three-way mode, only process SR regions
+    if args.mode == "three-way":
+        regions = [r for r in regions if r.is_signal_region]
 
     for region in regions:
         logging.info(f"Region: {region.name}")
@@ -400,6 +526,30 @@ def main():
             ylim = (float(cfg['ylim'][0]), float(cfg['ylim'][1]))
 
             hist_key = f"{region.name}/{name}_{region.name}"
+
+            if args.mode == "three-way":
+                histograms = []
+                for subdir in three_way_subdirs:
+                    h = load_three_way_sample(n_rebin, args.era, args.date, subdir, hist_key)
+                    histograms.append(h)
+                if any(h is None for h in histograms):
+                    missing = [l for l, h in zip(three_way_labels, histograms) if h is None]
+                    logging.error(f"{name}: missing samples {missing}; skipping.")
+                    continue
+
+                three_way_xlim = (xlim[0], 8000.0)
+                fig = plot_three_overlays(
+                    region, variable, histograms,
+                    xlim=three_way_xlim, ylim=ylim, lumi=lumi, com=com,
+                    labels=three_way_labels,
+                )
+                outpath = (output_dir(run, year, era, f"{args.date}_compare_dy_three_way")
+                           / f"{region.name}_{region.primary_dataset}"
+                           / f"{name}_{region.name}.pdf")
+                save_figure(fig, outpath)
+                print(outpath)
+                plt.close(fig)
+                continue
 
             if args.mode == "lo-nlo":
                 h_num = load_one(n_rebin, nlo_file, hist_key)

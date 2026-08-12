@@ -32,6 +32,9 @@ def load_and_rebin(
     era_for_scale: str,
     get_kfactor_fn: Callable[[dict, str, str, float], float],
     scales: dict,
+    *,
+    density: bool = True,
+    xmax: float | None = None,
 ) -> Hist | None:
     combined = None
 
@@ -44,7 +47,8 @@ def load_and_rebin(
             logger.debug("Skipping %s [%s]: %s", fp, hist_key, exc)
             continue
 
-        rebinned = rebin_histogram(raw_hist, n_rebin)
+        rebinned = rebin_histogram(raw_hist, n_rebin, density=density, xmax=xmax)
+        has_ov = rebinned.view(flow=True)['value'][-1] > 0
 
         # per-era per-sample k-factor
         era_for_scale_eff = indir.name if indir.name in scales else era_for_scale
@@ -52,5 +56,8 @@ def load_and_rebin(
         rebinned = rebinned * k
 
         combined = rebinned if combined is None else (combined + rebinned)
+        # Preserve overflow sentinel across arithmetic (which creates new Hist objects)
+        if has_ov:
+            combined.view(flow=True)['value'][-1] = 1.0
 
     return combined

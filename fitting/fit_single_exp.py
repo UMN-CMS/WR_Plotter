@@ -209,6 +209,7 @@ def plot_background_composition(
     topology: str,
     era: str,
     bin_width_gev: float,
+    region_type: str = "SR",
 ) -> None:
     """Plot the fractional composition of each background vs mass.
 
@@ -270,8 +271,9 @@ def plot_background_composition(
     ax.set_xlim(mass_lo, mass_hi)
     ax.legend(loc="upper right", fontsize=16)
 
-    ch_label = {"ee": "ee", "mumu": r"$\mu\mu$"}[channel]
-    region_label = f"{ch_label}\n{topology.capitalize()} SR\n{era}"
+    ch_labels = {"ee": "ee", "mumu": r"$\mu\mu$", "emu": r"$e\mu$"}
+    ch_label = ch_labels.get(channel, channel)
+    region_label = f"{ch_label}\n{topology.capitalize()} {region_type}\n{era}"
     ax.text(
         0.05, 0.96, region_label,
         transform=ax.transAxes, fontsize=20, verticalalignment="top",

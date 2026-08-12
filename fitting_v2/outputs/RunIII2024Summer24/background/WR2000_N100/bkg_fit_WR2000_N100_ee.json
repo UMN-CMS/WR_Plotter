@@ -1,0 +1,70 @@
+{
+  "metadata": {
+    "era": "RunIII2024Summer24",
+    "channel": "ee",
+    "topology": "boosted",
+    "region": "wr_ee_boosted_sr",
+    "variable": "mass_fourobject",
+    "model": "single-exp",
+    "mode": "bkg-only",
+    "signal_tag": "WR2000_N100",
+    "signal_window_json": "/uscms_data/d3/bjackson/WrCoffea/WR_Plotter/fitting_v2/outputs/RunIII2024Summer24/signal_window/WR2000_N100/window_ee.json",
+    "signal_mean": 1968.0482461190936,
+    "signal_rms": 242.69343035446798,
+    "fit_window": [
+      1239.9679550556898,
+      2696.1285371824974
+    ],
+    "fit_window_n_sigma": 3.0,
+    "rebin": 2,
+    "bin_width_gev": 20.0,
+    "n_events_total": 80.04466982459977,
+    "timestamp": "2026-03-10T12:43:07.219039"
+  },
+  "roofit": {
+    "fit_status": {
+      "status": 0,
+      "edm": 8.370828367404792e-09,
+      "cov_quality": 3,
+      "min_nll": 236.65029778248208
+    },
+    "parameters": {
+      "c": {
+        "value": -0.0047670219726308576,
+        "error": 0.0005435651220622286,
+        "error_lo": -0.0005435651220622286,
+        "error_hi": 0.0005435651220622286,
+        "range": [
+          -0.01,
+          -0.0001
+        ]
+      },
+      "n_bkg": {
+        "value": 80.04467888516841,
+        "error": 8.94674121755746,
+        "error_lo": -8.94674121755746,
+        "error_hi": 8.94674121755746,
+        "range": [
+          0.0,
+          50000.0
+        ]
+      }
+    },
+    "correlation_matrix": [
+      [
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0
+      ]
+    ],
+    "goodness_of_fit": {
+      "chi2_per_ndf": 25.729800324867416,
+      "ndf": 72,
+      "n_bins": 74,
+      "chi2": 1852.545623390454
+    }
+  }
+}

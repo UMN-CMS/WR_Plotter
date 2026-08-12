@@ -12,6 +12,7 @@ The fitting procedure uses RooFit (via PyROOT) to perform binned maximum-likelih
 |-------|----------|------------|--------|
 | Single exponential | f(m) = exp(c * m) | c | `fit_single_exp.py` |
 | Double exponential | f(m) = N1 * exp(c1 * m) + N2 * exp(c2 * m) | c1, c2, N1, N2 | `fit_background.py` |
+| Double exp (simultaneous) | SR: N1 * exp(c1 * m) + N2 * exp(c2 * m), FCR: 2 * N1 * exp(c1 * m) | c1, c2, N1, N2 | `fit_double_exp.py` |
 | Power-law exponential | f(m) = m^a * exp(c * m) | a, c | `fit_background.py` |
 
 The single exponential serves as a baseline; the double exponential is the target model for the final background estimate. The power-law exponential offers similar flexibility to the double-exp without the degeneracy issues. All models use extended PDFs (RooExtendPdf) so the likelihood constrains both shape and normalization.
@@ -29,9 +30,9 @@ This composition motivates the double exponential: the total spectrum is a mixtu
 
 ## Stages
 
-1. **Single-region fit** (current): Fit the m_lljj distribution in a single signal region (e.g., ee resolved SR) with each analytic model. Iterate on parameter initialization and ranges until the fit converges with reasonable uncertainties.
+1. **Single-region fit**: Fit the m_lljj distribution in a single signal region (e.g., ee resolved SR) with each analytic model. Iterate on parameter initialization and ranges until the fit converges with reasonable uncertainties.
 
-2. **Simultaneous SR + flavor CR fit**: Fit the signal region and flavor control region simultaneously using `RooSimultaneous`. The flavor CR constrains the softer exponential component, exploiting the e-mu symmetry of flavor-symmetric backgrounds (tt, tW).
+2. **Simultaneous SR + flavor CR fit** (current): Fit the signal region and flavor control region simultaneously using `RooSimultaneous`. The flavor CR constrains the steep exponential component (flavor-symmetric tt+tW), exploiting the e-mu symmetry: FCR = 2 * N1 * exp(c1 * m). This breaks the n1/n2 degeneracy observed in single-region double-exp fits.
 
 3. **Signal injection / closure test**: Inject a small fraction of MC signal onto the background, mask the signal window, and refit. Validates that the background model is unbiased in the presence of a signal.
 
@@ -44,7 +45,8 @@ This composition motivates the double exponential: the total spectrum is a mixtu
 | Script | Purpose |
 |--------|---------|
 | `fit_single_exp.py` | Single exponential fits (total + per-component) |
-| `fit_background.py` | Double exponential and power-law exponential fits |
+| `fit_background.py` | Double exponential and power-law exponential fits (single-region) |
+| `fit_double_exp.py` | Simultaneous SR + flavor CR double exponential fit |
 | `fit_utils.py` | Shared infrastructure (histogram loading, RooFit helpers, plotting) |
 
 ## Usage
@@ -80,6 +82,17 @@ python fitting/fit_background.py --era RunIII2024Summer24 --dir 20260223_lo_dy \
     --model double-exp --scan
 ```
 
+### Simultaneous double exponential (SR + flavor CR)
+
+```bash
+# Both channels, default settings:
+python fitting/fit_double_exp.py --era RunIII2024Summer24 --dir 20260223_lo_dy
+
+# Single channel with custom mass range:
+python fitting/fit_double_exp.py --era RunIII2024Summer24 --dir 20260223_lo_dy \
+    --channel ee --mass-range 1000 4000 --rebin 10
+```
+
 ### Shared arguments
 
 | Argument | Default | Description |
@@ -107,6 +120,11 @@ Each fit produces files in `fitting/outputs/<era>/<model>/<mass-range>_<binning>
 - `fit_<channel>.json` — fit results: parameter values, uncertainties, correlation matrix, chi2/ndf, and metadata
 - `fit_<channel>.pdf` — publication-quality plot (CMS style via mplhep)
 - `fit_<channel>.png` — rasterized version for quick inspection
+
+With `fit_double_exp.py` (simultaneous fit), each channel produces:
+- `fit_<channel>.json` — combined results with chi2/ndf for both SR and FCR
+- `fit_sr_<channel>.pdf/.png` — SR fit plot with both double-exp components
+- `fit_fcr_<channel>.pdf/.png` — flavor CR fit plot (single component)
 
 With `--component-fits` (single-exp only), additional files are produced:
 - `fit_DYJets_<channel>.json/.pdf/.png` — per-component fit

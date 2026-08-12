@@ -69,6 +69,6 @@ Run3Summer23BPix:
 RunIII2024Summer24:
   run: Run3
   year: "2024"
-  lumi: 108.95
+  lumi: 109.82
   com: 13.6
   <<: *run3_signals

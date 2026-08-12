@@ -4,6 +4,8 @@
 import sys
 import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 import argparse
 
 # ── Third-party ────────────────────────────────────────────────────────────────
@@ -30,7 +32,7 @@ from wrplotter.cli_utils import parse_multi, setup_logging, add_era_args
 
 def collect_syst_variations(sample, hist_obj, region_name, variable_name,
                             rebin, input_dirs, input_lumis, era, syst_hists,
-                            scales, systematics):
+                            scales, systematics, density=True, xmax=None):
     """Load systematic up/down variations for a single MC sample.
 
     Populates the nested syst_hists dict in-place. Uses the nominal
@@ -52,8 +54,12 @@ def collect_syst_variations(sample, hist_obj, region_name, variable_name,
                 era_for_scale=era,
                 get_kfactor_fn=get_kfactor,
                 scales=scales,
+                density=density,
+                xmax=xmax,
             )
             if syst_obj is None:
+                logger.warning("Missing systematic '%s %s' for sample '%s' in region '%s'; using nominal as fallback.",
+                               syst, direction, sample, region_name)
                 syst_obj = hist_obj
             syst_hists.setdefault(region_name, {}) \
                       .setdefault(variable_name, {}) \
@@ -62,7 +68,8 @@ def collect_syst_variations(sample, hist_obj, region_name, variable_name,
 
 
 def load_signal_overlays(region, hist_key, rebin, input_dirs, input_lumis,
-                         era, era_info, signal_arg, scales):
+                         era, era_info, signal_arg, scales, density=True,
+                         xmax=None):
     """Load signal sample histograms for overlay on signal-region plots.
 
     Returns a dict {sample_name: hist} for all successfully loaded signals.
@@ -87,6 +94,8 @@ def load_signal_overlays(region, hist_key, rebin, input_dirs, input_lumis,
             era_for_scale=era,
             get_kfactor_fn=get_kfactor,
             scales=scales,
+            density=density,
+            xmax=xmax,
         )
         if sig_hist is not None:
             signal_hists[sig_sample] = sig_hist
@@ -114,6 +123,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--unblind",action="store_true",help="Show data in signal regions (default: blinded).",)
     parser.add_argument("--signal","-s",dest="signal",action="append",default=None,help="Signal sample(s) to overlay on SR plots. Repeat or comma-separate: -s signal_WR4000_N2100 -s signal_WR6000_N3100. Defaults depend on era and region topology.",)
     parser.add_argument("--extra-label",dest="extra_label",type=str,default=None,help="Optional label printed below the lumi line on each plot.",)
+    parser.add_argument("--no-density",action="store_true",help="Skip dividing by bin width when using variable-width rebinning (show raw event counts per bin).",)
     parser.add_argument("--dry-run",action="store_true",help="Print which (region, variable) combinations would be plotted without loading histograms or saving files.",)
 
     # List options for discovery
@@ -216,6 +226,7 @@ def setup_context(args) -> dict:
     variables = build_variables()
     scales = load_kfactors()
     systematics = load_systematics()
+    density = not args.no_density
 
     return dict(
         era=era, run=run, year=year, lumi=lumi, com=com,
@@ -225,6 +236,7 @@ def setup_context(args) -> dict:
         sample_groups=ordered_groups, data_group_keys=data_group_keys,
         regions=regions, variables=variables,
         scales=scales, systematics=systematics,
+        density=density,
     )
 
 def main():
@@ -281,6 +293,7 @@ def main():
     out_dir      = ctx["output_dir"]
     scales       = ctx["scales"]
     systematics  = ctx["systematics"]
+    density      = ctx["density"]
 
     # ── Dry-run: just print what would be plotted and exit ─────────────────────
     if args.dry_run:
@@ -364,16 +377,21 @@ def main():
                         era_for_scale=era,
                         get_kfactor_fn=get_kfactor,
                         scales=scales,
+                        density=density,
+                        xmax=xmax,
                     )
                     if hist_obj is None:
                         continue
+                    has_ov = hist_obj.view(flow=True)['value'][-1] > 0
                     combined = hist_obj if (combined is None) else (combined + hist_obj)
+                    if has_ov:
+                        combined.view(flow=True)['value'][-1] = 1.0
 
                     if not is_data_group:
                         collect_syst_variations(
                             sample, hist_obj, region.name, variable.name,
                             rebin, input_dirs, input_lumis, era, syst_hists,
-                            scales, systematics,
+                            scales, systematics, density=density, xmax=xmax,
                         )
 
                 if combined is None:
@@ -424,7 +442,8 @@ def main():
 
             signal_hists = load_signal_overlays(
                 region, hist_key, rebin, input_dirs, input_lumis,
-                era, ctx["era_info"], args.signal, scales,
+                era, ctx["era_info"], args.signal, scales, density=density,
+                xmax=xmax,
             )
 
             fig = plot_stack(

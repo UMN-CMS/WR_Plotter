@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "era": "RunIII2024Summer24",
+    "channel": "mumu",
+    "topology": "resolved",
+    "region": "wr_mumu_resolved_sr",
+    "signal": "WR4000_N3900",
+    "variable": "mass_fourobject",
+    "rebin": 2,
+    "mass_range": [
+      800.0,
+      6000.0
+    ],
+    "timestamp": "2026-03-10T11:23:37.644975"
+  },
+  "signal_stats": {
+    "mean": 3959.263840036961,
+    "rms": 723.1236808781399,
+    "n_events": 1.3592260978631894,
+    "skewness": 0.23780834901242293,
+    "kurtosis": 2.6146352930963355
+  },
+  "fit_window": {
+    "lo": 1789.8927974025414,
+    "hi": 6000.0,
+    "n_sigma": 3.0
+  }
+}

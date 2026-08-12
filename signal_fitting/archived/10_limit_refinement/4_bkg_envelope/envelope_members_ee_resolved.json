@@ -1,0 +1,130 @@
+[
+  {
+    "label": "central",
+    "function": "expo",
+    "range": [
+      1000.0,
+      3500.0
+    ],
+    "params_pivot2000": [
+      2.677958470768932,
+      -3.122797487762601
+    ],
+    "chi2": 40.31658978884055,
+    "ndf": 23,
+    "passed": true,
+    "checks": {
+      "valid_minimum": true,
+      "cov_ok": true,
+      "no_param_at_limit": true,
+      "monotonic": true
+    }
+  },
+  {
+    "label": "expo2",
+    "function": "expo2",
+    "range": [
+      1000.0,
+      3500.0
+    ],
+    "params_pivot2000": [
+      2.680058792639207,
+      -3.125509848700905,
+      -0.006676077572602231
+    ],
+    "chi2": 40.300722796143845,
+    "ndf": 22,
+    "passed": true,
+    "checks": {
+      "valid_minimum": true,
+      "cov_ok": true,
+      "no_param_at_limit": true,
+      "monotonic": true
+    }
+  },
+  {
+    "label": "powexp",
+    "function": "powexp",
+    "range": [
+      1000.0,
+      3500.0
+    ],
+    "params_pivot2000": [
+      2.6723411667570547,
+      -0.17371828691555724,
+      -3.0178106713067936
+    ],
+    "chi2": 40.05151735619351,
+    "ndf": 22,
+    "passed": true,
+    "checks": {
+      "valid_minimum": true,
+      "cov_ok": true,
+      "no_param_at_limit": true,
+      "monotonic": true
+    }
+  },
+  {
+    "label": "lo800",
+    "function": "expo",
+    "range": [
+      800.0,
+      3500.0
+    ],
+    "params_pivot2000": [
+      2.7008170326103076,
+      -3.0733735713213135
+    ],
+    "chi2": 46.78061798955864,
+    "ndf": 25,
+    "passed": true,
+    "checks": {
+      "valid_minimum": true,
+      "cov_ok": true,
+      "no_param_at_limit": true,
+      "monotonic": true
+    }
+  },
+  {
+    "label": "lo1400",
+    "function": "expo",
+    "range": [
+      1400.0,
+      3500.0
+    ],
+    "params_pivot2000": [
+      2.6835220548297287,
+      -3.070671112272963
+    ],
+    "chi2": 37.045085809828066,
+    "ndf": 19,
+    "passed": true,
+    "checks": {
+      "valid_minimum": true,
+      "cov_ok": true,
+      "no_param_at_limit": true,
+      "monotonic": true
+    }
+  },
+  {
+    "label": "tail",
+    "function": "expo",
+    "range": [
+      1000.0,
+      6000.0
+    ],
+    "params_pivot2000": [
+      2.6701465882566544,
+      -3.133691552395633
+    ],
+    "chi2": 59.47290563577456,
+    "ndf": 38,
+    "passed": true,
+    "checks": {
+      "valid_minimum": true,
+      "cov_ok": true,
+      "no_param_at_limit": true,
+      "monotonic": true
+    }
+  }
+]

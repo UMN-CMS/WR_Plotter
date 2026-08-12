@@ -1,0 +1,69 @@
+% W_R -> lljj : signal-fitting / data-driven background-validation status & plan.
+% Standalone: compile with  pdflatex progress_slide.tex
+% Or drop the \begin{frame}...\end{frame} block into an existing deck.
+\documentclass[aspectratio=169]{beamer}
+\usetheme{default}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\begin{document}
+
+\begin{frame}{$W_R \to \ell\ell jj$: signal fitting \& background validation --- status}
+  \small
+  \begin{columns}[T]
+
+  % ---------------------------------------------------------------- DONE
+  \begin{column}{0.52\textwidth}
+    \textbf{\textcolor{green!50!black}{Done}}
+    \begin{itemize}\setlength{\itemsep}{2pt}
+      \item \textbf{Signal width (0--1):} per-$(m_{W_R},m_N)$ on-shell
+            resolution measured; window-robust Gaussian-core $\sigma$
+            (vs.\ RooKeysPdf FWHM) is the stable definition.
+      \item \textbf{Parameterization (2):} $\sigma/m_{W_R}$ vs.\
+            $x=m_N/m_{W_R}$ and $m_{W_R}$; compact \texttt{poly3+mass}
+            (LOMO-CV $\sim\!2$--$3\%$).
+      \item \textbf{Spectra (3):} SR $m_{\ell\ell jj}$ / $m_{\ell J}$ MC
+            shapes $+$ DY-CR \& flavour-CR data/MC.
+      \item \textbf{In-window background fit (4):} 6 analytic functions,
+            recentered at the window peak $\mu$; \emph{4 checks} (valid min.,
+            accurate covariance, no param.\ at limit, monotonic) $+$ physical
+            \emph{slope $\le 0$} $\Rightarrow$ \texttt{expo} \& \texttt{powlaw}
+            pass cleanly.
+      \item \textbf{Spurious signal (5):} fake yield from an $S{+}B$ fit to a
+            \emph{signal-free} template; pull acceptance bands.
+      \item \textbf{Signal injection (6):} Asimov recovery bias \emph{and}
+            Poisson toys for pull/coverage (coverage $\approx 1$ mid-mass).
+    \end{itemize}
+  \end{column}
+
+  % ---------------------------------------------------------------- TO COME
+  \begin{column}{0.48\textwidth}
+    \textbf{\textcolor{red!60!black}{To come}}
+    \begin{itemize}\setlength{\itemsep}{2pt}
+      \item \textbf{Closure \& data validation:} sideband closure (MC) and
+            unblinded flavour-CR / DY-CR validation (currently parked).
+      \item \textbf{Boosted:} extend spurious / injection beyond the
+            resolved-only studies.
+      \item \textbf{Smooth-truth template} to de-noise the spurious / injection
+            bias (isolate functional-form bias from MC stats).
+      \item \textbf{Realistic inputs:} matched eras $+$ DY $K$-factor $+$
+            reshape $\Rightarrow$ move from method-validation to deliverable
+            numbers.
+      \item \textbf{Systematic envelope:} vary window width, fit range, function
+            choice (discrete profiling) $\to$ background bias systematic.
+      \item \textbf{\textcolor{blue!60!black}{Combine:}} build datacards and run
+            \texttt{Combine} for the \emph{expected limits} (asymptotic
+            $\mathrm{CL}_s$) --- the final deliverable.
+    \end{itemize}
+  \end{column}
+
+  \end{columns}
+
+  \vspace{4pt}
+  \footnotesize
+  \textit{Caveat:} current numbers are method-validation only (Run-2 signal
+  shape on a Run-3 LO-DY background, $K$-factor $=1$); valid where the in-window
+  method holds (resolved $\lesssim 3.6$~TeV).
+\end{frame}
+
+\end{document}
