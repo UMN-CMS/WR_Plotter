@@ -9,5 +9,13 @@ fitting/outputs/
 __pycache__/
 *.pyc
 
+# Generated outputs (plots, tables, toy-study results, combine cards, logs)
+*.png
+*.pdf
+*.csv
+*.txt
+*.log
+*.out
+
 # Local Claude Code instructions
 CLAUDE_CODE_FITTING_INSTRUCTIONS.md

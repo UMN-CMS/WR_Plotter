@@ -310,6 +310,8 @@ def plot_fit(
     model_label: str,
     bin_width_gev: float,
     y_range: tuple[float, float] | None = None,
+    region_type: str = "SR",
+    show_components: bool = True,
 ) -> None:
     """Create a fit overlay plot with a pull panel using mplhep.
 
@@ -337,7 +339,7 @@ def plot_fit(
     # Scale each component relative to the total fit curve so they share
     # the same normalization (events / bin width) as the plotted curve.
     components = {}
-    if "n1" in params:
+    if show_components and "n1" in params:
         c1_val = params["c1"].getVal()
         c2_val = params["c2"].getVal()
         n1_val = params["n1"].getVal()
@@ -395,13 +397,14 @@ def plot_fit(
         fit_positive = fit_y[fit_y > 0]
         y_lo = min(visible.min(), fit_positive.min()) * 0.3 if len(fit_positive) > 0 else visible.min() * 0.3
         if len(visible) > 0:
-            ax.set_ylim(y_lo, 5000 * visible.max())
+            ax.set_ylim(y_lo, 50000 * visible.max())
 
     ax.legend(loc="upper right", fontsize=18)
 
     # Region label — same style as make_stackplots.py (plotting_helpers.plot_stack)
-    ch_label = {"ee": "ee", "mumu": r"$\mu\mu$"}[channel]
-    region_label = f"{ch_label}\n{topology.capitalize()} SR\n{era}"
+    ch_labels = {"ee": "ee", "mumu": r"$\mu\mu$", "emu": r"$e\mu$"}
+    ch_label = ch_labels.get(channel, channel)
+    region_label = f"{ch_label}\n{topology.capitalize()} {region_type}\n{era}"
     ax.text(
         0.05, 0.96, region_label,
         transform=ax.transAxes, fontsize=20,
@@ -419,11 +422,13 @@ def plot_fit(
         "Single exponential": r"$f(m) = e^{c \cdot m}$",
         "Double exponential": r"$f(m) = N_1 \cdot e^{c_1 \cdot m} + N_2 \cdot e^{c_2 \cdot m}$",
         "Power-law exp": r"$f(m) = m^{a} \cdot e^{c \cdot m}$",
+        "Simul. double exp (SR)": r"$f(m) = N_1 \cdot e^{c_1 \cdot m} + N_2 \cdot e^{c_2 \cdot m}$",
+        "Simul. double exp (FCR)": r"$f(m) = 2N_1 \cdot e^{c_1 \cdot m}$",
     }
     # LaTeX names for parameters (match the equation notation)
     latex_names = {
         "c": "c", "c1": "c_1", "c2": "c_2", "a": "a",
-        "n_bkg": "N_{bkg}", "n1": "N_1", "n2": "N_2",
+        "n_bkg": "N_{bkg}", "n1": "N_1", "n2": "N_2", "n_fcr": "2N_1",
     }
     fit_lines = [
         model_label + " Fit",
@@ -433,7 +438,7 @@ def plot_fit(
         p = params[name]
         lname = latex_names.get(name, name)
         # Yield parameters are event counts — show as integers
-        if name in ("n_bkg", "n1", "n2"):
+        if name in ("n_bkg", "n1", "n2", "n_fcr"):
             fit_lines.append(rf"${lname} = {p.getVal():.0f} \pm {p.getError():.0f}$")
         else:
             fit_lines.append(rf"${lname} = {p.getVal():.5f} \pm {p.getError():.5f}$")

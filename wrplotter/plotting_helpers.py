@@ -51,6 +51,7 @@ def custom_log_formatter(y: float, pos) -> str:
       1 -> '1', 10 -> '10', others -> '10^{n}'
     Gracefully handle non-positive y (matplotlib may ask).
     """
+    y = float(y)  # ensure plain Python float (ROOT/numpy scalars can confuse np.isclose)
     if y <= 0:
         return ""
     # exact 1 or 10 shown plainly
@@ -60,7 +61,7 @@ def custom_log_formatter(y: float, pos) -> str:
         return "10"
     n = int(np.round(np.log10(y)))
     # show only for powers of 10; empty for others to avoid clutter
-    if np.isclose(y, 10**n):
+    if np.isclose(y, 10.0**n):
         return rf"$10^{{{n}}}$"
     return ""
 
@@ -169,11 +170,12 @@ def plot_stack(
     # main panel
     if bkg_stack:
         hep.histplot(bkg_stack, stack=True, label=bkg_labels,
-                     color=bkg_colors, histtype="fill", alpha=0.7, ax=ax)
+                     color=bkg_colors, histtype="fill", alpha=0.7, ax=ax,
+                     flow="hint")
 
     if show_data and data is not None:
         hep.histplot(data, label="Data", xerr=True, color="k",
-                     histtype="errorbar", ax=ax)
+                     histtype="errorbar", ax=ax, flow="hint")
 
     # --- Signal overlays ---
     for idx, (sig_name, sig_hist) in enumerate(signal_hists.items()):
@@ -187,7 +189,8 @@ def plot_stack(
         hep.histplot(sig_hist, label=label,
                      color=_SIG_COLORS[idx % len(_SIG_COLORS)],
                      linestyle=_SIG_STYLES[idx % len(_SIG_STYLES)],
-                     histtype="step", linewidth=2, ax=ax)
+                     histtype="step", linewidth=2, ax=ax,
+                     flow="hint")
 
     # --- stat + syst uncertainties ---
     errps = {"hatch": "////", "facecolor": "none", "lw": 0, "edgecolor": "k", "alpha": 0.5}
@@ -209,11 +212,21 @@ def plot_stack(
                     up_total = np.sum(up_arrs, axis=0)
                     down_total = np.sum(down_arrs, axis=0)
 
+                    # Skip systematics whose varied histograms are entirely
+                    # zero — this means the systematic doesn't apply to this
+                    # channel (e.g. muscale/musmear in the ee channel).
+                    if np.allclose(up_total, 0) and np.allclose(down_total, 0):
+                        continue
+
                     delta_up = np.abs(up_total - tot_vals)
                     delta_down = np.abs(down_total - tot_vals)
                     delta = np.maximum(delta_up, delta_down)
 
-                    if np.any(delta > 0):
+                    # Use a relative tolerance to avoid false positives from
+                    # floating-point differences between sequential Hist addition
+                    # and np.sum reduction of the same histograms.
+                    rel_tol = np.maximum(np.abs(tot_vals), 1.0) * 1e-10
+                    if np.any(delta > rel_tol):
                         has_syst = True
                     syst_err2 += delta**2
 
@@ -289,6 +302,7 @@ def plot_stack(
     else:
         step = 2.0
     yticks = np.arange(ratio_ylim[0], ratio_ylim[1] + step/2, step)
+    yticks = yticks[yticks <= ratio_ylim[1]]
     rax.set_yticks(yticks)
     rax.axhline(1.0, ls="--", color="k")
     ax.set_xlim(*xlim)

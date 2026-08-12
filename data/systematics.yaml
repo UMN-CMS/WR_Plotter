@@ -1,6 +1,8 @@
 # Systematic uncertainty names used for up/down envelope plots.
 # Each entry corresponds to a pair of histogram keys:
 #   syst_{name}up_{region}/...  and  syst_{name}down_{region}/...
+#
+# Weight-based systematics:
 systematics:
   - lumi
   - pileup
@@ -8,6 +10,13 @@ systematics:
   - muonidsf
   - muonisosf
   - muontrigsf
+  - loosemuonrecosf
+  - loosemuonidsf
   - electronrecosf
-  - electronidsf
-  - electrontrigsf
+  # Shape systematics (re-run selections with shifted kinematics):
+  - jer
+  - jes
+  - elescale
+  - elesmear
+  - muscale
+  - musmear

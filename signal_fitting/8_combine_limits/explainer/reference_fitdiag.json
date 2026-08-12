@@ -1,0 +1,59 @@
+{
+ "k5f_m2000": {
+  "rate_per_fb": 24.335598250581167,
+  "r_hat": -0.4104,
+  "r_err_lo": 10.9612,
+  "r_err_hi": 11.2935,
+  "asymptotic_observed": 22.3969,
+  "ul_m2s": 11.981,
+  "ul_m1s": 16.1758,
+  "ul_med": 22.7196,
+  "ul_p1s": 32.2285,
+  "ul_p2s": 43.7467,
+  "fb": {
+   "r_hat": -0.016864,
+   "r_err_lo": 0.450417,
+   "r_err_hi": 0.464075,
+   "asymptotic_observed": 0.920334,
+   "ul_m2s": 0.492325,
+   "ul_m1s": 0.664696,
+   "ul_med": 0.933594,
+   "ul_p1s": 1.324335,
+   "ul_p2s": 1.797644
+  },
+  "source": "run2 optimization card card_k5_bw50_float_m2000.txt (31 bins x 50 GeV, [1150,2700], B=363.1): combine -M FitDiagnostics --rMin -100 --rMax 330 (2026-07-23) + combine -M AsymptoticLimits (10.9 scan, higgsCombine_k5_bw50_float.AsymptoticLimits.mH2000.root). POI is sigma x BR in fb; events = fb x rate_per_fb."
+ },
+ "fixed_m2000": {
+  "r_hat": 3.96149,
+  "r_err_lo": 18.2728,
+  "r_err_hi": 18.6679,
+  "source": "combine -M FitDiagnostics card_fixed_m2000.txt --rMin -100 --rMax 330 (10.6 parity card, 2026-07-11) -- the OLD k3_bw100 run3 parity, kept for the archived 10.6 comparison",
+  "asymptotic_observed": 39.6511,
+  "note": "observed limit from combine -M AsymptoticLimits (parity run log); the 5 Expected quantiles live in the 10.6 parity table"
+ },
+ "prod_m2000": {
+  "card": "production/cards/ee_resolved/card_float_m2000.txt",
+  "rate_per_fb": 24.3355981,
+  "postfit": {
+   "r": 0.0883,
+   "r_err": 0.3778,
+   "b_expo": -2.9195,
+   "b_expo_err": 0.1088,
+   "bkg_norm": 360.9694,
+   "bkg_norm_err": 21.0544,
+   "mu_sig": 1927.6659,
+   "mu_sig_err": 46.8758,
+   "sigma_sig": 158.3498,
+   "sigma_sig_err": 46.3815
+  },
+  "limits_fb": {
+   "obs": 0.9111,
+   "m2s": 0.4185,
+   "m1s": 0.5707,
+   "med": 0.8242,
+   "p1s": 1.2185,
+   "p2s": 1.7366
+  },
+  "source": "combine -M FitDiagnostics / -M AsymptoticLimits on card_float_m2000.txt (constrained slope + mu,sigma priors), combine-container CMSSW_16_0_0, 2026-07-29"
+ }
+}

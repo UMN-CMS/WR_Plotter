@@ -1,0 +1,70 @@
+{
+  "metadata": {
+    "era": "RunIII2024Summer24",
+    "channel": "ee",
+    "topology": "boosted",
+    "region": "wr_ee_boosted_sr",
+    "variable": "mass_fourobject",
+    "model": "single-exp",
+    "mode": "bkg-only",
+    "signal_tag": "WR4000_N100",
+    "signal_window_json": "/uscms_data/d3/bjackson/WrCoffea/WR_Plotter/fitting_v2/outputs/RunIII2024Summer24/signal_window/WR4000_N100/window_ee.json",
+    "signal_mean": 2493.917581619511,
+    "signal_rms": 1302.922146799006,
+    "fit_window": [
+      800.0,
+      6000.0
+    ],
+    "fit_window_n_sigma": 3.0,
+    "rebin": 2,
+    "bin_width_gev": 20.0,
+    "n_events_total": 673.9908708253961,
+    "timestamp": "2026-03-10T12:38:30.451121"
+  },
+  "roofit": {
+    "fit_status": {
+      "status": 0,
+      "edm": 2.7804007318427067e-05,
+      "cov_quality": 3,
+      "min_nll": 518.6669911994329
+    },
+    "parameters": {
+      "c": {
+        "value": -0.00507692344132168,
+        "error": 0.0001955060859572355,
+        "error_lo": -0.0001955060859572355,
+        "error_hi": 0.0001955060859572355,
+        "range": [
+          -0.01,
+          -0.0001
+        ]
+      },
+      "n_bkg": {
+        "value": 673.9908735247499,
+        "error": 25.961256716393734,
+        "error_lo": -25.961256716393734,
+        "error_hi": 25.961256716393734,
+        "range": [
+          0.0,
+          50000.0
+        ]
+      }
+    },
+    "correlation_matrix": [
+      [
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0
+      ]
+    ],
+    "goodness_of_fit": {
+      "chi2_per_ndf": 33.422670686673996,
+      "ndf": 258,
+      "n_bins": 260,
+      "chi2": 8623.04903716189
+    }
+  }
+}

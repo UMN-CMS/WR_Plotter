@@ -1,0 +1,638 @@
+{
+ "channel": "ee",
+ "topology": "resolved",
+ "era": "RunIII2024Summer24",
+ "lumi": 109.82,
+ "com": 13.6,
+ "bin_width": 100.0,
+ "bkg_dir": "20260317_lo_dy",
+ "signal_era": "RunIISummer20UL18",
+ "signal_dir": "20260624_signals",
+ "masses": {
+  "1200": {
+   "signal_tag": "WR1200_N600",
+   "m_N": 600,
+   "m_c": 1156.1,
+   "sigma": 114.66,
+   "fit_lo": 812.1,
+   "fit_hi": 1500.1,
+   "eff": 0.13622483801885846,
+   "rate_per_fb": 14.960211711231034,
+   "xsec_pb": 2.39481,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 21.4097,
+     "rms_Nsp": 47.9196,
+     "nsp_asimov": 21.9853,
+     "nsp_asimov_err": 47.9183
+    },
+    "powlaw": {
+     "mean_Nsp": 81.1985,
+     "rms_Nsp": 47.4488,
+     "nsp_asimov": 82.2644,
+     "nsp_asimov_err": 46.8877
+    }
+   }
+  },
+  "1400": {
+   "signal_tag": "WR1400_N600",
+   "m_N": 600,
+   "m_c": 1349.0,
+   "sigma": 125.44,
+   "fit_lo": 972.6,
+   "fit_hi": 1725.3,
+   "eff": 0.1560542708181373,
+   "rate_per_fb": 17.137880021247838,
+   "xsec_pb": 1.38875,
+   "ref": {
+    "expo": {
+     "mean_Nsp": -20.3676,
+     "rms_Nsp": 41.5373,
+     "nsp_asimov": -20.1857,
+     "nsp_asimov_err": 40.8565
+    },
+    "powlaw": {
+     "mean_Nsp": 15.4198,
+     "rms_Nsp": 40.0777,
+     "nsp_asimov": 15.3889,
+     "nsp_asimov_err": 40.2473
+    }
+   }
+  },
+  "1600": {
+   "signal_tag": "WR1600_N800",
+   "m_N": 800,
+   "m_c": 1541.9,
+   "sigma": 136.22,
+   "fit_lo": 1133.2,
+   "fit_hi": 1950.5,
+   "eff": 0.1712549062726967,
+   "rate_per_fb": 18.80721380686755,
+   "xsec_pb": 0.658876,
+   "ref": {
+    "expo": {
+     "mean_Nsp": -5.6204,
+     "rms_Nsp": 29.6611,
+     "nsp_asimov": -8.1808,
+     "nsp_asimov_err": 28.7528
+    },
+    "powlaw": {
+     "mean_Nsp": 17.4572,
+     "rms_Nsp": 27.8309,
+     "nsp_asimov": 15.48,
+     "nsp_asimov_err": 27.7088
+    }
+   }
+  },
+  "1800": {
+   "signal_tag": "WR1800_N800",
+   "m_N": 800,
+   "m_c": 1734.8,
+   "sigma": 146.99,
+   "fit_lo": 1293.8,
+   "fit_hi": 2175.8,
+   "eff": 0.18159734996956398,
+   "rate_per_fb": 19.943020973657514,
+   "xsec_pb": 0.40857600000000005,
+   "ref": {
+    "expo": {
+     "mean_Nsp": -13.1406,
+     "rms_Nsp": 25.5515,
+     "nsp_asimov": -15.6505,
+     "nsp_asimov_err": 21.8965
+    },
+    "powlaw": {
+     "mean_Nsp": 0.6531,
+     "rms_Nsp": 25.383,
+     "nsp_asimov": -1.2051,
+     "nsp_asimov_err": 21.36
+    }
+   }
+  },
+  "2000": {
+   "signal_tag": "WR2000_N1000",
+   "m_N": 1000,
+   "m_c": 1927.7,
+   "sigma": 157.77,
+   "fit_lo": 1454.4,
+   "fit_hi": 2401.0,
+   "eff": 0.19295620721331125,
+   "rate_per_fb": 21.190450676165838,
+   "xsec_pb": 0.21437000000000003,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 6.8918,
+     "rms_Nsp": 23.9713,
+     "nsp_asimov": 2.986,
+     "nsp_asimov_err": 20.1679
+    },
+    "powlaw": {
+     "mean_Nsp": 14.6876,
+     "rms_Nsp": 20.8687,
+     "nsp_asimov": 11.3726,
+     "nsp_asimov_err": 19.7949
+    }
+   }
+  },
+  "2200": {
+   "signal_tag": "WR2200_N1000",
+   "m_N": 1000,
+   "m_c": 2120.6,
+   "sigma": 168.55,
+   "fit_lo": 1614.9,
+   "fit_hi": 2626.2,
+   "eff": 0.19276229609764717,
+   "rate_per_fb": 21.16915535744361,
+   "xsec_pb": 0.13926,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 0.1587,
+     "rms_Nsp": 18.5699,
+     "nsp_asimov": -0.909,
+     "nsp_asimov_err": 15.4831
+    },
+    "powlaw": {
+     "mean_Nsp": 4.2994,
+     "rms_Nsp": 17.3446,
+     "nsp_asimov": 3.9256,
+     "nsp_asimov_err": 14.9472
+    }
+   }
+  },
+  "2400": {
+   "signal_tag": "WR2400_N1200",
+   "m_N": 1200,
+   "m_c": 2313.5,
+   "sigma": 179.32,
+   "fit_lo": 1775.5,
+   "fit_hi": 2851.4,
+   "eff": 0.2019905857849031,
+   "rate_per_fb": 22.182606130898055,
+   "xsec_pb": 0.0768873,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 0.1434,
+     "rms_Nsp": 11.5615,
+     "nsp_asimov": 1.8088,
+     "nsp_asimov_err": 11.5169
+    },
+    "powlaw": {
+     "mean_Nsp": 2.5685,
+     "rms_Nsp": 11.2632,
+     "nsp_asimov": 5.2167,
+     "nsp_asimov_err": 11.0736
+    }
+   }
+  },
+  "2600": {
+   "signal_tag": "WR2600_N1200",
+   "m_N": 1200,
+   "m_c": 2506.4,
+   "sigma": 190.1,
+   "fit_lo": 1936.1,
+   "fit_hi": 3076.7,
+   "eff": 0.2011852926320402,
+   "rate_per_fb": 22.094168836850656,
+   "xsec_pb": 0.0507056,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 3.4021,
+     "rms_Nsp": 12.6146,
+     "nsp_asimov": 4.7568,
+     "nsp_asimov_err": 10.9315
+    },
+    "powlaw": {
+     "mean_Nsp": 3.4527,
+     "rms_Nsp": 11.3879,
+     "nsp_asimov": 5.9859,
+     "nsp_asimov_err": 9.4491
+    }
+   }
+  },
+  "2800": {
+   "signal_tag": "WR2800_N1400",
+   "m_N": 1400,
+   "m_c": 2699.3,
+   "sigma": 200.88,
+   "fit_lo": 2096.7,
+   "fit_hi": 3301.9,
+   "eff": 0.20420097471625914,
+   "rate_per_fb": 22.425351043339578,
+   "xsec_pb": 0.029308,
+   "ref": {
+    "expo": {
+     "mean_Nsp": -5.0729,
+     "rms_Nsp": 9.6816,
+     "nsp_asimov": 4.2712,
+     "nsp_asimov_err": 6.3362
+    },
+    "powlaw": {
+     "mean_Nsp": -4.9696,
+     "rms_Nsp": 9.1731,
+     "nsp_asimov": 5.3331,
+     "nsp_asimov_err": 5.9214
+    }
+   }
+  },
+  "3000": {
+   "signal_tag": "WR3000_N1400",
+   "m_N": 1400,
+   "m_c": 2892.2,
+   "sigma": 211.65,
+   "fit_lo": 2257.2,
+   "fit_hi": 3527.1,
+   "eff": 0.20649087849243555,
+   "rate_per_fb": 22.67682827603927,
+   "xsec_pb": 0.0196926,
+   "ref": {
+    "expo": {
+     "mean_Nsp": -1.7958,
+     "rms_Nsp": 9.5005,
+     "nsp_asimov": 1.2842,
+     "nsp_asimov_err": 6.0441
+    },
+    "powlaw": {
+     "mean_Nsp": -1.3988,
+     "rms_Nsp": 8.7509,
+     "nsp_asimov": 1.4198,
+     "nsp_asimov_err": 5.5343
+    }
+   }
+  },
+  "3200": {
+   "signal_tag": "WR3200_N1600",
+   "m_N": 1600,
+   "m_c": 3085.1,
+   "sigma": 222.43,
+   "fit_lo": 2417.8,
+   "fit_hi": 3752.4,
+   "eff": 0.20851154527993854,
+   "rate_per_fb": 22.89873790264285,
+   "xsec_pb": 0.011709600000000002,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 2.1078,
+     "rms_Nsp": 9.5781,
+     "nsp_asimov": -1.1955,
+     "nsp_asimov_err": 3.892
+    },
+    "powlaw": {
+     "mean_Nsp": 2.8314,
+     "rms_Nsp": 9.0759,
+     "nsp_asimov": -0.8817,
+     "nsp_asimov_err": 3.3602
+    }
+   }
+  },
+  "3400": {
+   "signal_tag": "WR3400_N1600",
+   "m_N": 1600,
+   "m_c": 3278.0,
+   "sigma": 233.21,
+   "fit_lo": 2578.4,
+   "fit_hi": 3977.6,
+   "eff": 0.20960599411946207,
+   "rate_per_fb": 23.018930274199324,
+   "xsec_pb": 0.007873439999999999,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 0.9645,
+     "rms_Nsp": 9.1257,
+     "nsp_asimov": -1.6095,
+     "nsp_asimov_err": 3.1613
+    },
+    "powlaw": {
+     "mean_Nsp": 1.5756,
+     "rms_Nsp": 9.3175,
+     "nsp_asimov": -1.3116,
+     "nsp_asimov_err": 2.9095
+    }
+   }
+  },
+  "3600": {
+   "signal_tag": "WR3600_N1800",
+   "m_N": 1800,
+   "m_c": 3470.9,
+   "sigma": 243.98,
+   "fit_lo": 2738.9,
+   "fit_hi": 4202.8,
+   "eff": 0.20578471583591315,
+   "rate_per_fb": 22.59927749309998,
+   "xsec_pb": 0.00467838,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 0.0496,
+     "rms_Nsp": 14.7,
+     "nsp_asimov": 0.5256,
+     "nsp_asimov_err": 2.1309
+    },
+    "powlaw": {
+     "mean_Nsp": 0.2493,
+     "rms_Nsp": 11.2307,
+     "nsp_asimov": 0.0011,
+     "nsp_asimov_err": 3.8645
+    }
+   }
+  },
+  "3800": {
+   "signal_tag": "WR3800_N1800",
+   "m_N": 1800,
+   "m_c": 3663.8,
+   "sigma": 254.76,
+   "fit_lo": 2899.5,
+   "fit_hi": 4428.1,
+   "eff": 0.2108452550098791,
+   "rate_per_fb": 23.15502590518492,
+   "xsec_pb": 0.00317391,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 0.3457,
+     "rms_Nsp": 8.7336,
+     "nsp_asimov": -0.8584,
+     "nsp_asimov_err": 2.6084
+    },
+    "powlaw": {
+     "mean_Nsp": 0.5578,
+     "rms_Nsp": 8.364,
+     "nsp_asimov": 0.7851,
+     "nsp_asimov_err": 1.0856
+    }
+   }
+  },
+  "4000": {
+   "signal_tag": "WR4000_N2000",
+   "m_N": 2000,
+   "m_c": 3856.7,
+   "sigma": 265.54,
+   "fit_lo": 3060.1,
+   "fit_hi": 4653.3,
+   "eff": 0.20993343670670153,
+   "rate_per_fb": 23.05489001912996,
+   "xsec_pb": 0.0019317000000000002,
+   "ref": {
+    "expo": {
+     "mean_Nsp": -0.7368,
+     "rms_Nsp": 7.482,
+     "nsp_asimov": -0.1835,
+     "nsp_asimov_err": 1.5785
+    },
+    "powlaw": {
+     "mean_Nsp": -0.794,
+     "rms_Nsp": 7.4172,
+     "nsp_asimov": -0.1269,
+     "nsp_asimov_err": 1.5621
+    }
+   }
+  },
+  "4200": {
+   "signal_tag": "WR4200_N2000",
+   "m_N": 2000,
+   "m_c": 4049.6,
+   "sigma": 276.31,
+   "fit_lo": 3220.7,
+   "fit_hi": 4878.5,
+   "eff": 0.21094016872857485,
+   "rate_per_fb": 23.165449329772088,
+   "xsec_pb": 0.0013374980000000001,
+   "ref": {
+    "expo": {
+     "mean_Nsp": -1.4451,
+     "rms_Nsp": 8.2496,
+     "nsp_asimov": 1.0149,
+     "nsp_asimov_err": 1.5986
+    },
+    "powlaw": {
+     "mean_Nsp": -1.7347,
+     "rms_Nsp": 6.7299,
+     "nsp_asimov": 1.0358,
+     "nsp_asimov_err": 1.5347
+    }
+   }
+  },
+  "4400": {
+   "signal_tag": "WR4400_N2200",
+   "m_N": 2200,
+   "m_c": 4242.5,
+   "sigma": 287.09,
+   "fit_lo": 3381.2,
+   "fit_hi": 5103.8,
+   "eff": 0.20982170708532696,
+   "rate_per_fb": 23.042619872110606,
+   "xsec_pb": 0.000842127,
+   "ref": {
+    "expo": {
+     "mean_Nsp": -1.3791,
+     "rms_Nsp": 6.4332,
+     "nsp_asimov": 0.4857,
+     "nsp_asimov_err": 0.8172
+    },
+    "powlaw": {
+     "mean_Nsp": -0.7719,
+     "rms_Nsp": 5.8242,
+     "nsp_asimov": 0.4799,
+     "nsp_asimov_err": 0.8293
+    }
+   }
+  },
+  "4600": {
+   "signal_tag": "WR4600_N2200",
+   "m_N": 2200,
+   "m_c": 4435.4,
+   "sigma": 297.86,
+   "fit_lo": 3541.8,
+   "fit_hi": 5329.0,
+   "eff": 0.20182535340772106,
+   "rate_per_fb": 22.164460311235924,
+   "xsec_pb": 0.000598312,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 1.8969,
+     "rms_Nsp": 6.8967,
+     "nsp_asimov": -0.0382,
+     "nsp_asimov_err": 0.8517
+    },
+    "powlaw": {
+     "mean_Nsp": 1.8435,
+     "rms_Nsp": 6.4691,
+     "nsp_asimov": -0.0213,
+     "nsp_asimov_err": 0.8198
+    }
+   }
+  },
+  "4800": {
+   "signal_tag": "WR4800_N2400",
+   "m_N": 2400,
+   "m_c": 4628.3,
+   "sigma": 308.64,
+   "fit_lo": 3702.4,
+   "fit_hi": 5554.2,
+   "eff": 0.2045578372782562,
+   "rate_per_fb": 22.464541689898095,
+   "xsec_pb": 0.000380559,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 3.9449,
+     "rms_Nsp": 7.1035,
+     "nsp_asimov": -0.1632,
+     "nsp_asimov_err": 0.5799
+    },
+    "powlaw": {
+     "mean_Nsp": 3.6065,
+     "rms_Nsp": 7.0201,
+     "nsp_asimov": -0.1472,
+     "nsp_asimov_err": 0.554
+    }
+   }
+  },
+  "5000": {
+   "signal_tag": "WR5000_N2400",
+   "m_N": 2400,
+   "m_c": 4821.2,
+   "sigma": 319.42,
+   "fit_lo": 3862.9,
+   "fit_hi": 5779.5,
+   "eff": 0.20677838730876766,
+   "rate_per_fb": 22.708402494248862,
+   "xsec_pb": 0.000276924,
+   "ref": {
+    "expo": {
+     "mean_Nsp": 6.7539,
+     "rms_Nsp": 7.6493,
+     "nsp_asimov": -0.5215,
+     "nsp_asimov_err": 1.0477
+    },
+    "powlaw": {
+     "mean_Nsp": NaN,
+     "rms_Nsp": NaN,
+     "nsp_asimov": -0.4779,
+     "nsp_asimov_err": 1.0035
+    }
+   }
+  },
+  "5200": {
+   "signal_tag": "WR5200_N2600",
+   "m_N": 2600,
+   "m_c": 5014.1,
+   "sigma": 330.19,
+   "fit_lo": 4023.5,
+   "fit_hi": 6000.0,
+   "eff": 0.20853925195440037,
+   "rate_per_fb": 22.901780649632247,
+   "xsec_pb": 0.00018612000000000001,
+   "ref": {
+    "expo": {
+     "mean_Nsp": NaN,
+     "rms_Nsp": NaN,
+     "nsp_asimov": -1.4158,
+     "nsp_asimov_err": 2.1006
+    },
+    "powlaw": {
+     "mean_Nsp": NaN,
+     "rms_Nsp": NaN,
+     "nsp_asimov": -1.4201,
+     "nsp_asimov_err": 2.0913
+    }
+   }
+  },
+  "5400": {
+   "signal_tag": "WR5400_N2600",
+   "m_N": 2600,
+   "m_c": 5207.0,
+   "sigma": 340.97,
+   "fit_lo": 4184.1,
+   "fit_hi": 6000.0,
+   "eff": 0.20551226429508532,
+   "rate_per_fb": 22.569356864886267,
+   "xsec_pb": 0.00014028090000000001,
+   "ref": {
+    "expo": {
+     "mean_Nsp": NaN,
+     "rms_Nsp": NaN,
+     "nsp_asimov": 0.0127,
+     "nsp_asimov_err": 0.3428
+    },
+    "powlaw": {
+     "mean_Nsp": NaN,
+     "rms_Nsp": NaN,
+     "nsp_asimov": 0.0119,
+     "nsp_asimov_err": 0.344
+    }
+   }
+  },
+  "5600": {
+   "signal_tag": "WR5600_N2800",
+   "m_N": 2800,
+   "m_c": 5399.9,
+   "sigma": 351.75,
+   "fit_lo": 4344.7,
+   "fit_hi": 6000.0,
+   "eff": 0.20779767363417806,
+   "rate_per_fb": 22.820340518505432,
+   "xsec_pb": 9.78258e-05,
+   "ref": {
+    "expo": {
+     "mean_Nsp": NaN,
+     "rms_Nsp": NaN,
+     "nsp_asimov": 0.0202,
+     "nsp_asimov_err": 0.3893
+    },
+    "powlaw": {
+     "mean_Nsp": NaN,
+     "rms_Nsp": NaN,
+     "nsp_asimov": 0.0194,
+     "nsp_asimov_err": 0.3899
+    }
+   }
+  },
+  "5800": {
+   "signal_tag": "WR5800_N2800",
+   "m_N": 2800,
+   "m_c": 5592.8,
+   "sigma": 362.52,
+   "fit_lo": 4505.2,
+   "fit_hi": 6000.0,
+   "eff": 0.1911432199677202,
+   "rate_per_fb": 20.991348416855033,
+   "xsec_pb": 7.5012e-05,
+   "ref": {
+    "expo": {
+     "mean_Nsp": NaN,
+     "rms_Nsp": NaN,
+     "nsp_asimov": 0.0396,
+     "nsp_asimov_err": 0.565
+    },
+    "powlaw": {
+     "mean_Nsp": NaN,
+     "rms_Nsp": NaN,
+     "nsp_asimov": 0.0401,
+     "nsp_asimov_err": 0.5663
+    }
+   }
+  },
+  "6000": {
+   "signal_tag": "WR6000_N3000",
+   "m_N": 3000,
+   "m_c": 5785.7,
+   "sigma": 373.3,
+   "fit_lo": 4665.8,
+   "fit_hi": 6000.0,
+   "eff": 0.1555538352564866,
+   "rate_per_fb": 17.082922187867357,
+   "xsec_pb": 5.4129900000000005e-05,
+   "ref": {
+    "expo": {
+     "mean_Nsp": NaN,
+     "rms_Nsp": NaN,
+     "nsp_asimov": 0.0103,
+     "nsp_asimov_err": 1.4281
+    },
+    "powlaw": {
+     "mean_Nsp": NaN,
+     "rms_Nsp": NaN,
+     "nsp_asimov": 0.0098,
+     "nsp_asimov_err": 1.4443
+    }
+   }
+  }
+ }
+}

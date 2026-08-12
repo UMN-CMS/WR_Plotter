@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "era": "RunIII2024Summer24",
+    "channel": "ee",
+    "topology": "resolved",
+    "region": "wr_ee_resolved_sr",
+    "signal": "WR4000_N3900",
+    "variable": "mass_fourobject",
+    "rebin": 2,
+    "mass_range": [
+      800.0,
+      6000.0
+    ],
+    "timestamp": "2026-03-10T11:23:35.197495"
+  },
+  "signal_stats": {
+    "mean": 4002.840233109499,
+    "rms": 758.8286407168197,
+    "n_events": 1.0509286976955976,
+    "skewness": 0.4700624174690091,
+    "kurtosis": 2.8408078656360765
+  },
+  "fit_window": {
+    "lo": 1726.35431095904,
+    "hi": 6000.0,
+    "n_sigma": 3.0
+  }
+}

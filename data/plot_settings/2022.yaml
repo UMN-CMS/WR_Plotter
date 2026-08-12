@@ -84,7 +84,7 @@ wr_resolved_flavor_cr:
   eta_subleading_lepton:       { rebin: 2,  xlim: [-2.4, 2.4],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
   mass_dijet:                  { rebin: 20, xlim: [0, 4000],    ylim: [1e-2, 1e6], ratio_ylim: [0.5, 1.5] }
   mass_dilepton:               { rebin: 40, xlim: [400, 1500],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
-  mass_fourobject:             { rebin: 20, rebin_variable: [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000], xlim: [800, 5000],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
+  mass_fourobject:             { rebin: 20, rebin_variable: [0, 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000], xlim: [800, 8000],  ylim: [1e-1, 1e4], ratio_ylim: [0, 2.8] }
   mass_threeobject_leadlep:    { rebin: 20, xlim: [0, 4000],    ylim: [1e-2, 1e6], ratio_ylim: [0.5, 1.5] }
   mass_threeobject_subleadlep: { rebin: 20, xlim: [0, 4000],    ylim: [1e-2, 1e6], ratio_ylim: [0.5, 1.5] }
   phi_leading_jet:             { rebin: 2,  xlim: [-3.2, 3.2],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
@@ -195,7 +195,7 @@ wr_emu_boosted_flavor_cr:
   eta_leading_lepton:          { rebin: 2,  xlim: [-2.4, 2.4],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
   eta_subleading_lepton:       { rebin: 2,  xlim: [-2.4, 2.4],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
   mass_dilepton:               { rebin: 40, xlim: [400, 1500],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
-  mass_twoobject:              { rebin: 20, rebin_variable: [0, 800, 1000, 1200, 1400, 1600, 2000, 8000], xlim: [0, 4000],    ylim: [1e-2, 1e6], ratio_ylim: [0.5, 1.5] }
+  mass_twoobject:              { rebin: 20, rebin_variable: [0, 800, 1000, 1200, 1400, 1600, 2000, 8000], xlim: [800, 8000],    ylim: [1e-1, 2e3], ratio_ylim: [0, 2.8] }
   phi_leading_AK8Jets:         { rebin: 2,  xlim: [-3.2, 3.2],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
   phi_leading_lepton:          { rebin: 2,  xlim: [-3.2, 3.2],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
   phi_subleading_lepton:       { rebin: 2,  xlim: [-3.2, 3.2],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
@@ -212,7 +212,7 @@ wr_mue_boosted_flavor_cr:
   eta_leading_lepton:          { rebin: 2,  xlim: [-2.4, 2.4],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
   eta_subleading_lepton:       { rebin: 2,  xlim: [-2.4, 2.4],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
   mass_dilepton:               { rebin: 40, xlim: [400, 1500],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
-  mass_twoobject:              { rebin: 20, rebin_variable: [0, 800, 1000, 1200, 1400, 1600, 2000, 8000], xlim: [0, 4000],    ylim: [1e-2, 1e6], ratio_ylim: [0.5, 1.5] }
+  mass_twoobject:              { rebin: 20, rebin_variable: [0, 800, 1000, 1200, 1400, 1600, 2000, 8000], xlim: [800, 8000],    ylim: [1e-1, 2e3], ratio_ylim: [0, 2.8] }
   phi_leading_AK8Jets:         { rebin: 2,  xlim: [-3.2, 3.2],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
   phi_leading_lepton:          { rebin: 2,  xlim: [-3.2, 3.2],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
   phi_subleading_lepton:       { rebin: 2,  xlim: [-3.2, 3.2],  ylim: [1e-1, 1e7], ratio_ylim: [0.5, 1.5] }
@@ -256,4 +256,3 @@ wr_ee_boosted_sr:
   pt_leading_lepton:           { rebin: 2,  xlim: [0, 1000],    ylim: [1e-1, 1e7] }
   pt_subleading_lepton:        { rebin: 2,  xlim: [0, 800],     ylim: [1e-1, 1e7] }
   pt_twoobject:                { rebin: 5,  xlim: [0, 1000],    ylim: [1e-1, 1e7] }
-

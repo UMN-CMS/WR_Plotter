@@ -2,8 +2,8 @@
 """
 Generate cutflow tables from ROOT files produced by the WrCoffea analyzer.
 
-Default behaviour (no --channel) generates all 16 LaTeX tables
-(4 variants x 2 regions x 2 channels) and compiles a preview PDF.
+Default behaviour (no --channel) generates all 24 LaTeX tables
+(4 variants x 2 regions x 3 channels) and compiles a preview PDF.
 
 With --channel (and other optional flags), generates a single table.
 
@@ -52,12 +52,11 @@ _CUT_SEQUENCES = {
     "mumu": [
         ("no_cuts",                  "No cuts"),
         ("min_two_ak4_jets_pteta",   r"$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)"),
-        ("min_two_ak4_jets_id",      r"$\geq$2 AK4 jets (tight lepton veto)"),
+        ("min_two_ak4_jets_id",      r"$\geq$2 AK4 jets (tight w/ lepton veto)"),
         ("two_pteta_muons",          r"2 muons ($p_T > 53$, $|\eta| < 2.4$)"),
         ("two_id_muons",             r"2 muons (high-$p_T$ ID)"),
         ("mu_trigger",               "Muon trigger"),
         ("dr_all_pairs_gt0p4",       r"$\Delta R > 0.4$ (all pairs)"),
-        ("jet_veto_map",             "Jet veto map"),
         ("mlljj_gt800",              r"$m(\ell\ell jj) > 800$ GeV"),
         ("mll_gt200",                r"$m(\ell\ell) > 200$ GeV"),
         ("mll_gt400",                r"$m(\ell\ell) > 400$ GeV"),
@@ -65,12 +64,11 @@ _CUT_SEQUENCES = {
     "ee": [
         ("no_cuts",                  "No cuts"),
         ("min_two_ak4_jets_pteta",   r"$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)"),
-        ("min_two_ak4_jets_id",      r"$\geq$2 AK4 jets (tight lepton veto)"),
+        ("min_two_ak4_jets_id",      r"$\geq$2 AK4 jets (tight w/ lepton veto)"),
         ("two_pteta_electrons",      r"2 electrons ($p_T > 53$, $|\eta| < 2.4$)"),
         ("two_id_electrons",         "2 electrons (HEEP ID)"),
         ("e_trigger",                "Electron trigger"),
         ("dr_all_pairs_gt0p4",       r"$\Delta R > 0.4$ (all pairs)"),
-        ("jet_veto_map",             "Jet veto map"),
         ("mlljj_gt800",              r"$m(\ell\ell jj) > 800$ GeV"),
         ("mll_gt200",                r"$m(\ell\ell) > 200$ GeV"),
         ("mll_gt400",                r"$m(\ell\ell) > 400$ GeV"),
@@ -78,12 +76,11 @@ _CUT_SEQUENCES = {
     "em": [
         ("no_cuts",                  "No cuts"),
         ("min_two_ak4_jets_pteta",   r"$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)"),
-        ("min_two_ak4_jets_id",      r"$\geq$2 AK4 jets (tight lepton veto)"),
+        ("min_two_ak4_jets_id",      r"$\geq$2 AK4 jets (tight w/ lepton veto)"),
         ("two_pteta_em",             r"1 electron + 1 muon ($p_T > 53$, $|\eta| < 2.4$)"),
         ("two_id_em",                "Electron and muon passing ID"),
         ("emu_trigger",              r"$e\mu$ trigger"),
         ("dr_all_pairs_gt0p4",       r"$\Delta R > 0.4$ (all pairs)"),
-        ("jet_veto_map",             "Jet veto map"),
         ("mlljj_gt800",              r"$m(\ell\ell jj) > 800$ GeV"),
         ("mll_gt200",                r"$m(\ell\ell) > 200$ GeV"),
         ("mll_gt400",                r"$m(\ell\ell) > 400$ GeV"),
@@ -103,7 +100,6 @@ _CUT_SEQUENCES_BOOSTED = {
         ("no_extra_tight_sr",                "No extra tight lepton"),
         ("sf_lepton_in_ak8",                r"Loose SF lepton in merged jet"),
         ("no_of_lepton_in_ak8",             r"No loose OF lepton in merged jet"),
-        ("jet_veto_map",                     "Jet veto map"),
         ("mll_gt200_boosted",               r"$m(\ell\ell) > 200$ GeV"),
         ("mlj_gt800_boosted",               r"$m(\ell J) > 800$ GeV"),
     ],
@@ -118,7 +114,6 @@ _CUT_SEQUENCES_BOOSTED = {
         ("no_extra_tight_sr",                "No extra tight lepton"),
         ("sf_lepton_in_ak8",                r"Loose SF lepton in merged jet"),
         ("no_of_lepton_in_ak8",             r"No loose OF lepton in merged jet"),
-        ("jet_veto_map",                     "Jet veto map"),
         ("mll_gt200_boosted",               r"$m(\ell\ell) > 200$ GeV"),
         ("mlj_gt800_boosted",               r"$m(\ell J) > 800$ GeV"),
     ],
@@ -133,7 +128,6 @@ _CUT_SEQUENCES_BOOSTED = {
         ("no_extra_tight_cr",                "No extra tight lepton"),
         ("no_sf_lepton_in_ak8",             r"No loose SF lepton in merged jet"),
         ("of_lepton_in_ak8",                r"Loose OF lepton in merged jet"),
-        ("jet_veto_map",                     "Jet veto map"),
         ("mll_gt200_boosted",               r"$m(\ell\ell) > 200$ GeV"),
         ("mlj_gt800_boosted",               r"$m(\ell J) > 800$ GeV"),
     ],
@@ -352,17 +346,7 @@ def _fmt_latex_yield(x):
     return f"${mant:.2f} \\times 10^{{{exp}}}$"
 
 
-def _fmt_latex_eff(x):
-    """Format efficiency percentage for LaTeX in scientific notation."""
-    if x == 0:
-        return "0"
-    exp = int(math.floor(math.log10(abs(x))))
-    mant = x / (10 ** exp)
-    # Renormalize when rounding pushes mantissa to 10.00 (e.g. 9.997 → 10.00)
-    if round(mant, 2) >= 10:
-        exp += 1
-        mant /= 10
-    return f"${mant:.2f} \\times 10^{{{exp}}}$"
+_fmt_latex_eff = _fmt_latex_yield
 
 
 def _running_eff(yields, i):
@@ -656,7 +640,7 @@ def generate_table(era, dir_name, channel, boosted=False, onecut=False,
     year = str(era_info["year"])
     lumi = float(era_info["lumi"])
 
-    # Default signal points from lumi.json
+    # Default signal points from lumi.yaml
     signal_points = signal_filter
     if not signal_points:
         signal_points = default_signals(era_info, boosted=boosted, for_cutflow=True)
@@ -844,7 +828,7 @@ def generate_table(era, dir_name, channel, boosted=False, onecut=False,
 def main():
     parser = argparse.ArgumentParser(
         description="Generate cutflow tables from ROOT files. "
-        "Without --channel, generates all 16 tables and a preview PDF.",
+        "Without --channel, generates all 24 tables and a preview PDF.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -873,7 +857,6 @@ def main():
                         help="Region name for LaTeX label/caption")
     parser.add_argument("-o", "--output", default=None,
                         help="Override default output path")
-    parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
     setup_logging(verbose=args.verbose)

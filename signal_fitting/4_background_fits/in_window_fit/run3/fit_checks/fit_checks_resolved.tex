@@ -1,0 +1,28 @@
+\documentclass{article}
+\usepackage[paperwidth=20.6cm,paperheight=10.5cm,margin=6mm]{geometry}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\pagestyle{empty}
+\begin{document}
+\noindent
+{\large\textbf{In-window background-fit quality --- Resolved}}\\[2pt]
+ee \& $\mu\mu$, resolved;\ $m_{W_R}=2$--$3.8$\,TeV ($<4$\,TeV), $\mu\pm2\sigma$ windows\\[6pt]
+\begin{tabular}{l l r cccc c}
+\toprule
+ & & & \multicolumn{4}{c}{fits passing each check} & \\
+\cmidrule(lr){4-7}
+function & $f(m)$ & pars & \rotatebox{60}{valid minimum} & \rotatebox{60}{covariance accurate} & \rotatebox{60}{no par.\ at limit} & \rotatebox{60}{monotonic (falling)} & \rotatebox{60}{\textbf{all}} \\
+\midrule
+expo & $e^{a+bu}$ & 2 & 20 & 20 & 20 & 20 & \textbf{20} \\
+powlaw & $e^{a}\,(m/\mu)^{b}$ & 2 & 20 & 20 & 20 & 20 & \textbf{20} \\
+expo2 & $e^{a+bu+cu^{2}}$ & 3 & 20 & 20 & 19 & 14 & \textbf{14} \\
+powexp & $(m/\mu)^{b}\,e^{a+cu}$ & 3 & 20 & 20 & 1 & 20 & \textbf{1} \\
+expo3 & $e^{a+bu+cu^{2}+du^{3}}$ & 4 & 20 & 20 & 19 & 11 & \textbf{11} \\
+dexp & $e^{a_1+b_1u}+e^{a_2+b_2u}$ & 4 & 20 & 7 & 16 & 20 & \textbf{3} \\
+\bottomrule
+\multicolumn{8}{l}{\footnotesize ROOT TF1 + Minuit2 $\chi^2$ fit, $u=(m-\mu)/1000$; 20 windows per function (ee\,$+$\,$\mu\mu$ resolved, $m_{W_R}<4$\,TeV).}\\
+\multicolumn{8}{l}{\footnotesize Four checks. TFitResult::IsValid(): a converged minimum (EDM, call limit, Hesse); covariance accurate: CovMatrixStatus()$=3$ (not forced pos-def).}\\
+\multicolumn{8}{l}{\footnotesize no par.\ at limit: no slope railed against the $\le0$ bound (dexp also fences its norms); monotonic: the fit falls across the window (no local rise). pass $=$ all four hold.}\\
+\end{tabular}
+\end{document}
