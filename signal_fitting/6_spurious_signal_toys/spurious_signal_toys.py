@@ -474,6 +474,7 @@ def main():
                channel=channel, topology=topology, com=com, lumi=lumi, k=k,
                ntoys=args.ntoys)
     csv_path = args.output_dir / f"spurious_toy_table_{tag}.csv"
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
     with open(csv_path, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
         w.writeheader()
