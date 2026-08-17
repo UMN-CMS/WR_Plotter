@@ -177,7 +177,7 @@ def plot_brazil(name, pts, out, *, channel, topology, com, lumi, cl, trust_max,
     ax.set_ylim(bottom=min(0.0, min(lo2) if lo2 else 0.0))
     ax.text(0.03, 0.97,
             f"{CH_LAB[channel]}\n{TOPO_LAB[topology]}\n"
-            f"{name}: {FUNCS[name][1]}\n"
+            f"{name}: {FUNCS[name][1] if name in FUNCS else 'card model'}\n"
             r"CL$_s$ asymptotic, $\sigma=$RMS$(N_{\rm sp})$" "\n"
             f"centre: {center}",
             transform=ax.transAxes, va="top", fontsize=13)
@@ -201,7 +201,8 @@ def parse_args():
                    help="Stage-6 summary CSV. Default: "
                         "6_spurious_signal_toys/spurious_toy_table_{ch}_{topo}.csv")
     p.add_argument("--functions", nargs="+", default=["expo", "powlaw"],
-                   choices=list(FUNCS))
+                   help="Stage-4 function names, or card-model labels from "
+                        "card_model_toys.py (e.g. card_float, card_fcr)")
     p.add_argument("--cl", type=float, default=0.95, help="confidence level")
     p.add_argument("--center", default="zero", choices=["mean", "zero"],
                    help="band centre. 'zero' (default, the agreed convention -- "
@@ -246,7 +247,7 @@ def main():
     rows = read_table(table, channel, topology)
     logger.info("Read %d rows from %s", len(rows), table)
 
-    funcs = [f for f in args.functions if f in FUNCS]
+    funcs = list(args.functions)
     per_fn, out_rows = {n: [] for n in funcs}, []
     for r in rows:
         if r["function"] not in funcs or r["mWR"] < args.min_mass:

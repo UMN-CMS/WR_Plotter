@@ -81,3 +81,23 @@ histograms. Off-grid masses work via `--masses 2341 ...` (requires
 - The in-window method is only valid below ~3.6 TeV (resolved); above that the
   peak piles into the spectrum endpoint and the high-mass toys lose converged
   fits (dropped by `--min-toys`).
+
+## Card-model toys (`card_model_toys.py`, Aug 2026)
+
+Same Poisson-toy machinery, but the fit is the **combine card's likelihood**
+(`shared/card_sb_fit.CardSB`) instead of the Stage-4 TF1 chi²: 50 GeV bins,
+center-in-window snap, all-bins extended Poisson, fixed Gaussian signal.
+Models: `card_float` (k5_bw50 float card) and `card_fcr` (tt+tW norm anchored
+by a Poisson flavor-CR bin through a shared `mu_tt` — the homemade rateParam;
+the CR bin is fluctuated in every toy). Geometry/yields/b_tt come from the
+`8_combine_limits/optimization/inputs` jsons — the same files the workspace
+builders read.
+
+  python card_model_toys.py --ntoys 1000 --hist-adaptive -v
+  # then: expected_limit.py --table .../run2/card/card_toy_table_ee_resolved.csv \
+  #         --functions card_float card_fcr --output-dir run2/card
+
+Outputs in `run2/card/`. With the card likelihood the homemade RMS matches
+combine's asymptotic σ to 0.93–1.05 over 1400–2800 (the old 0.78 was the
+chi²-vs-likelihood convention gap). Runaway-tail RMS inflation still hits
+isolated points ≥3000 (float@3000, fcr@3200 in the first run).
