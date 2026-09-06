@@ -26,6 +26,16 @@ Two background modes, mirroring the card variants:
           component fit), so the tt norm is anchored by the CR bin through
           the shared mu_tt -- the homemade rateParam.
 
+  fcr_shape  nu_i = r S_i + R T e_i(b_tt) + B f_i(b)
+          plus a BINNED flavor-CR channel nu_c,i = T e_i(b_tt) + o_i
+          (o_i = fixed non-tt CR template, data_cr = the CR data spectrum).
+          T is the tt+tW yield in the CR window (free, measured by the CR
+          data -- no MC reference); R is the GLOBAL full-spectrum SR/CR
+          transfer factor (prepare_fcr R_global, ~0.42, flat vs mass); the
+          tt slope b_tt is a FIT parameter shared between the channels
+          (delta = 0). The CR anchors the tt norm AND shape; only o_i and
+          the single ratio R remain MC.
+
 The likelihood machinery (bin probabilities, Minuit2 minimization) follows
 explainer/combine_from_scratch.py CardModel; this module generalizes it to
 the two-channel CR-anchored structure and exposes a fit_splusb-style call for
@@ -77,6 +87,12 @@ class CardSB:
             self.T_tt, self.T_cr = float(fcr["T_tt"]), float(fcr["T_cr"])
             self.C_other, self.b_tt = float(fcr["C_other"]), float(fcr["b_tt"])
             self.t = self._expo_shape(self.b_tt)     # fixed tt bin probabilities
+        elif mode == "fcr_shape":
+            self.R = float(fcr["R"])                 # global SR/CR transfer
+            self.T_cr = float(fcr["T_cr"])           # MC CR yield: START only
+            self.b_tt = float(fcr["b_tt"])           # fit START value only
+            self.cr_other = np.asarray(fcr["cr_other"], float)
+            self.C_other = float(self.cr_other.sum())
         g = (np.exp(-0.5 * ((self.centers - m_c) / sigma) ** 2)
              / (sigma * math.sqrt(2 * math.pi)))
         norm = 0.5 * (math.erf((self.hi - m_c) / (SQRT2 * sigma))
@@ -99,16 +115,26 @@ class CardSB:
 
     def nu(self, r, pars):
         """SR expectation per bin. pars = (b, B) for float,
-        (mu_tt, b, B) for fcr."""
+        (mu_tt, b, B) for fcr, (T, b_tt, b, B) for fcr_shape."""
         if self.mode == "float":
             b, B = pars
             return np.clip(r * self.S + B * self._expo_shape(b), 1e-12, None)
+        if self.mode == "fcr_shape":
+            T, b_tt, b, B = pars
+            return np.clip(r * self.S
+                           + self.R * T * self._expo_shape(b_tt)
+                           + B * self._expo_shape(b), 1e-12, None)
         mu_tt, b, B = pars
         return np.clip(r * self.S + mu_tt * self.T_tt * self.t
                        + B * self._expo_shape(b), 1e-12, None)
 
     def nu_cr(self, pars):
-        """Flavor-CR one-bin expectation (fcr mode only)."""
+        """Flavor-CR expectation: one number (fcr) or a per-bin vector
+        (fcr_shape, whose T and b_tt are shared with the SR term)."""
+        if self.mode == "fcr_shape":
+            T, b_tt = pars[0], pars[1]
+            return np.clip(T * self._expo_shape(b_tt)
+                           + self.cr_other, 1e-12, None)
         mu_tt = pars[0]
         return max(mu_tt * self.T_cr + self.C_other, 1e-12)
 
@@ -121,6 +147,10 @@ class CardSB:
         if self.mode == "fcr" and data_cr is not None:
             vc = self.nu_cr(pars)
             out += 2.0 * (vc - float(data_cr) * math.log(vc))
+        elif self.mode == "fcr_shape" and data_cr is not None:
+            vc = self.nu_cr(pars)
+            out += 2.0 * float(np.sum(vc)
+                               - np.sum(np.asarray(data_cr) * np.log(vc)))
         return out
 
     # -- fits ------------------------------------------------------------------
@@ -153,6 +183,11 @@ class CardSB:
         if self.mode == "float":
             return ([-3.0, ntot],
                     [(-100.0, 0.0), (0.0, 10.0 * ntot + 50.0)])
+        if self.mode == "fcr_shape":
+            return ([self.T_cr, self.b_tt, -3.0,
+                     max(ntot - self.R * self.T_cr, 1.0)],
+                    [(0.0, 20.0 * self.T_cr + 50.0), (-100.0, 0.0),
+                     (-100.0, 0.0), (0.0, 10.0 * ntot + 50.0)])
         return ([1.0, -3.0, max(ntot - self.T_tt, 1.0)],
                 [(0.0, 5.0), (-100.0, 0.0), (0.0, 10.0 * ntot + 50.0)])
 

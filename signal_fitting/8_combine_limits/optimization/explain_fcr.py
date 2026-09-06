@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
-"""Explainer plots for the flavor-CR anchored card (`k5_bw50_fcr`).
+"""Explainer plots for the flavor-CR anchored fit (fcr_shape, transfer-factor
+form: the CR-window tt yield T and slope b_tt are measured by the binned e-mu
+CR and carried into the ee SR as R*T, R = global full-spectrum SR/CR ratio).
 
-Four figures, one idea each (running example m_WR = 2000, k5 window
-[1150, 2700], 50 GeV bins -- the card binning):
+Running example m_WR = 2000, k5 window [1150, 2700], 50 GeV bins (the card
+binning). All panels show the SAME simultaneous fit (r = 0 profiled, SR
+Asimov + real EGamma CR data):
 
-  1a/1b_region   WHY e-mu isolates tt: SR (ee) and flavor CR (e-mu) drawn in
-                 the analysis house style (Stage-3 build_stack + plot_data_mc:
-                 config sample colors/labels, hatched MC stat band, Data/Sim.
-                 ratio where unblinded), at the CARD binning (50 GeV), with
-                 the fit window shaded. DY -> ee/mumu never gives e-mu and the
-                 W_R signal is ee, so the e-mu selection keeps tt/tW (which
-                 decays to ee : e-mu : mumu = 1 : 2 : 1) and drops the rest.
-  2_model        WHAT the fit is: the SR window model split into the tt
-                 component (expo, slope FIXED from MC, norm = mu_tt x T_tt)
-                 and the floating rest expo, next to the one-bin CR channel
-                 whose expectation mu_tt x T_cr + C_other carries the SAME
-                 mu_tt -- the rateParam tie.
-  3_constraint   WHERE the constraint comes from: -2 Delta lnL vs mu_tt for
-                 the SR alone (tt/rest nearly degenerate -> shallow), the CR
-                 bin alone (Poisson count of ~500 -> +-4.5%), and both.
+  1a/1b_region   WHY e-mu isolates tt, and the fit on both canvases: SR (ee)
+                 and flavor CR (e-mu) in the analysis house style at the card
+                 binning, window shaded, with the fitted curves overlaid
+                 (dashed = the shared tt exponential, solid = tt + rest).
+                 tt/tW decays ee : e-mu : mumu = 1 : 2 : 1; DY and the W_R
+                 signal never give e-mu.
+  2a_sr_split    the SR window model zoomed: tt (norm and slope CR-shared) +
+                 free rest expo, with the model equation and fitted values.
+  2c_cr_shape    the CR channel as the fit sees it: card bins only, EGamma
+                 data vs T*t_i(b_tt) + o_i, fitted T and slope vs the MC
+                 expectations.
+  3_constraint   WHERE the constraint comes from: -2 Delta lnL vs T for
+                 SR alone (flat -- tt hides behind the free rest expo), CR
+                 alone (parabola, +-5%), and both (== CR alone).
   4_effect       WHAT it buys: fcr / float expected-limit ratio vs m_WR,
                  combine and the homemade card-model toys overlaid.
 
@@ -103,7 +105,7 @@ def load_sample(bkg_dirs, region, sample):
 # ---------------------------------------------------------------------------
 
 def plot_regions(bkg_dirs, input_lumis, v, wins, out_dir, com, lumi,
-                 fcr_var=None):
+                 fcr_var=None, fit_overlay=None):
     """SR (1a) and flavor CR (1b) in the analysis house style -- the Stage-3
     build_stack + plot_data_mc pipeline (config sample colors/labels, hatched
     MC stat band, Data/Sim. ratio where unblinded) -- at the CARD binning
@@ -140,6 +142,14 @@ def plot_regions(bkg_dirs, input_lumis, v, wins, out_dir, com, lumi,
             region, variable, rebin=rebin, xmax=4000.0,
             input_dirs=bkg_dirs, input_lumis=input_lumis,
             era=ERA, scales=scales, sample_groups=sgs, density=True)
+        if rname == SR_REGION:
+            # tt at the visual bottom, so the stack seam matches the fit's
+            # tt-vs-rest split (the dashed tt curve = top of the tt band)
+            ti = next((i for i, lab in enumerate(stack_labels)
+                       if "tW" in lab), None)
+            if ti is not None and ti != 0:
+                for lst in (stack_list, stack_colors, stack_labels):
+                    lst.insert(0, lst.pop(ti))
         fig = plot_data_mc(
             region, variable, stack_list=stack_list,
             stack_colors=stack_colors, stack_labels=stack_labels,
@@ -148,20 +158,39 @@ def plot_regions(bkg_dirs, input_lumis, v, wins, out_dir, com, lumi,
         ax = fig.axes[0]
         for a in fig.axes[:2]:
             a.axvspan(slo, shi, color="gold", alpha=0.15, zorder=0)
+        if fit_overlay:
+            # fcr_shape fit curves, drawn ONLY inside the window where the
+            # fit and its normalizations are defined
+            fo = fit_overlay
+            xs = np.linspace(slo, shi, 300)
+
+            def fitcurve(norm, slope):
+                k = slope / 1000.0
+                cn = (math.exp(k * (shi - fo["m_c"]))
+                      - math.exp(k * (slo - fo["m_c"]))) / k
+                return norm * np.exp(k * (xs - fo["m_c"])) * fo["bw"] / cn
+
+            if rname == FCR_REGION:
+                # tt component alone (dashed, matching the SR panel's tt
+                # line): sits ~10% below the total stack (non-tt not
+                # included)
+                ax.plot(xs, fitcurve(fo["T"], fo["b_tt"]),
+                        color="black", lw=1.8, ls="--", zorder=6)
+            else:
+                y_tt = fitcurve(fo["R"] * fo["T"], fo["b_tt"])
+                ax.plot(xs, y_tt + fitcurve(fo["B"], fo["b"]),
+                        color="black", lw=2.2, zorder=6)
+                ax.plot(xs, y_tt, color="black", lw=1.8, ls="--", zorder=6)
         y = wins[rname]
         tot = sum(y.values())
         ind = "    "
         text = f"window [{slo:.0f}, {shi:.0f}]:\n"
         if rname == FCR_REGION and fcr_var.get("N_data_EGamma"):
-            nd, tc = fcr_var["N_data_EGamma"], fcr_var["T_cr"]
-            co = fcr_var["C_other"]
-            mu, err = (nd - co) / tc, math.sqrt(nd) / tc
+            nd = fcr_var["N_data_EGamma"]
             text += (f"{ind}data  {nd:.0f}\n"
                      fr"{ind}non-$t\bar{{t}}$  {y['dy'] + y['oth']:.0f}" "\n"
                      fr"{ind}$t\bar{{t}}$+tW  {y['tt']:.0f}  "
-                     fr"({y['tt'] / tot:.0%})" "\n"
-                     fr"$\mu_{{tt}} = \frac{{{nd:.0f} - {co:.0f}}}"
-                     fr"{{{tc:.0f}}} = {mu:.3f} \pm {err:.3f}$")
+                     fr"({y['tt'] / tot:.0%})")
         else:
             text += (fr"{ind}non-$t\bar{{t}}$  {y['dy'] + y['oth']:.0f}" "\n"
                      fr"{ind}$t\bar{{t}}$+tW  {y['tt']:.0f}  "
@@ -175,23 +204,54 @@ def plot_regions(bkg_dirs, input_lumis, v, wins, out_dir, com, lumi,
 # 2 -- the two-channel model
 # ---------------------------------------------------------------------------
 
-def plot_split(sb, mu_sr, mu_cr, f, out, com, lumi):
+def plot_split(sb, mu_sr, cr_data, f, out, com, lumi):
     """2a -- ONLY the background split in the SR window: MC points + the two
     fitted components stacked like a stack plot (tt below, rest on top).
-    No signal curve, no CR panel, no equations."""
+    fcr_shape model: the tt slope b_tt is fit, shared with the CR channel."""
     hep.style.use("CMS")
     fig, ax = plt.subplots()
-    prof = sb.fit_profiled(0.0, mu_sr, data_cr=mu_cr)
-    mu_tt_hat, b_hat, B_hat = prof["params"]
-    tt_comp = mu_tt_hat * sb.T_tt * sb.t
+    prof = sb.fit_profiled(0.0, mu_sr, data_cr=cr_data)
+    T_hat, b_tt_hat, b_hat, B_hat = prof["params"]
+    T_err, b_tt_err, b_err, B_err = prof["perr"]
+    tt_comp = sb.R * T_hat * sb._expo_shape(b_tt_hat)
     rest_comp = B_hat * sb._expo_shape(b_hat)
     hep.histplot([tt_comp, rest_comp], bins=sb.edges, stack=True,
                  histtype="fill", alpha=0.8, color=[C_TT, C_DY],
-                 label=[fr"$t\bar{{t}}$+tW: size = $\mu_{{tt}}\times{sb.T_tt:.0f}$,"
-                        " shape frozen from MC",
+                 label=[fr"$t\bar{{t}}$+tW: size = $R\times T$,"
+                        " slope shared with CR",
                         "rest: size and shape free (as before)"], ax=ax)
     ax.errorbar(sb.centers, mu_sr, yerr=np.sqrt(mu_sr), fmt="ko", ms=5,
-                label="MC (Asimov data)")
+                label="MC")
+
+    # the actual fitted function, drawn continuously (both components are
+    # recentered expos, so the smooth curve is exact, not an interpolation)
+    xs = np.linspace(sb.lo, sb.hi, 400)
+
+    def curve(norm, b):
+        k = b / 1000.0
+        cn = ((math.exp(k * (sb.hi - sb.m_c))
+               - math.exp(k * (sb.lo - sb.m_c))) / k) if abs(b) > 1e-9 \
+            else (sb.hi - sb.lo)
+        return norm * np.exp(k * (xs - sb.m_c)) * sb.width / cn
+
+    ax.plot(xs, curve(sb.R * T_hat, b_tt_hat) + curve(B_hat, b_hat),
+            color="black", lw=2.0, label="total fit ($r = 0$)")
+    ax.plot(xs, curve(sb.R * T_hat, b_tt_hat),
+            color="black", lw=1.8, ls="--",
+            label=r"$t\bar{t}$ component (CR-shared)")
+    ax.text(0.53, 0.73,
+            fr"$\nu_i = r\,S_i \,+\, R\cdot T"
+            r"\cdot t_i(b_{tt}) \,+\, B\,e_i(b)$" "\n"
+            "     signal      tt (CR-shared)      rest (free)\n"
+            fr"$R = {sb.R:.3f}$ (MC transfer, full spectrum)" "\n"
+            "fitted:\n"
+            fr"  $\hat{{T}} = {T_hat:.0f} \pm {T_err:.0f}$, "
+            fr"$\hat{{b}}_{{tt}} = {b_tt_hat:.2f} \pm {b_tt_err:.2f}$ /TeV" "\n"
+            fr"  $\hat{{B}} = {B_hat:.0f} \pm {B_err:.0f}$, "
+            fr"$\hat{{b}} = {b_hat:.2f} \pm {b_err:.2f}$ /TeV",
+            transform=ax.transAxes, va="top", fontsize=13,
+            bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="black",
+                      lw=1.0, alpha=0.9))
     ax.set_xlabel(r"$m_{lljj}$ [GeV]")
     ax.set_ylabel("Events / 50 GeV")
     ax.set_yscale("log")
@@ -207,41 +267,57 @@ def plot_split(sb, mu_sr, mu_cr, f, out, com, lumi):
     _save(fig, out)
 
 
-def plot_cr_bin(sb, mu_cr, f, out, com, lumi):
-    """2b -- the flavor-CR counting channel alone: one bin, expectation
-    mu_tt x T_cr + C_other, observed count with sqrt(N)."""
+def plot_cr_shape(sb_shape, cr_data, f, out, com, lumi):
+    """2c -- the BINNED flavor-CR channel of the fcr_shape model: EGamma data
+    vs the fitted T*t_i(b_tt) + o_i, with T and the shared slope measured
+    from this spectrum (r = 0 profiled, simultaneous with the SR)."""
+    import card_sb_fit  # noqa: F401  (sb_shape built by caller)
     hep.style.use("CMS")
-    fig, ax = plt.subplots(figsize=(7, 8))
-    ax.bar([0], [f["T_cr"]], width=0.5, color=C_TT)
-    ax.bar([0], [f["C_other"]], width=0.5, bottom=[f["T_cr"]], color=C_OTH)
-    ax.errorbar([0], [mu_cr], yerr=[math.sqrt(mu_cr)], fmt="ko", ms=7,
-                capsize=6)
-    from matplotlib.lines import Line2D
-    from matplotlib.patches import Patch
-    handles = [
-        Patch(facecolor=C_TT,
-              label=fr"$t\bar{{t}}$+tW: $\mu_{{tt}}\times{f['T_cr']:.0f}$"),
-        Patch(facecolor=C_OTH, label=f"other: {f['C_other']:.0f} (fixed)"),
-        Line2D([0], [0], marker="o", color="k", ls="",
-               label=r"observed $\pm\sqrt{N}$"),
-    ]
-    ax.set_xticks([0])
-    ax.set_xticklabels(["flavor-CR bin\n(same mass window)"], fontsize=15)
-    ax.set_xlim(-0.6, 0.6)
-    ax.set_ylabel("Events")
-    ax.set_ylim(0, 1.5 * mu_cr)
-    rel = math.sqrt(mu_cr) / f["T_cr"]
-    ax.text(0.04, 0.97,
+    fig, ax = plt.subplots()
+    prof = sb_shape.fit_profiled(0.0, sb_shape._mu_sr, data_cr=cr_data)
+    T_hat, b_tt = prof["params"][0], prof["params"][1]
+    e_T, e_btt = prof["perr"][0], prof["perr"][1]
+    tt_comp = T_hat * sb_shape._expo_shape(b_tt)
+    hep.histplot([tt_comp, sb_shape.cr_other], bins=sb_shape.edges, stack=True,
+                 histtype="fill", alpha=0.8, color=[C_TT, C_OTH],
+                 label=[fr"$t\bar{{t}}$+tW: $T\times t_i(b_{{tt}})$,"
+                        " size and slope fitted",
+                        f"other: {sb_shape.C_other:.0f} ev (fixed MC)"], ax=ax)
+    ax.errorbar(sb_shape.centers, cr_data, yerr=np.sqrt(cr_data), fmt="ko",
+                ms=5, label="EGamma data")
+
+    xs = np.linspace(sb_shape.lo, sb_shape.hi, 400)
+    k = b_tt / 1000.0
+    cn = (math.exp(k * (sb_shape.hi - sb_shape.m_c))
+          - math.exp(k * (sb_shape.lo - sb_shape.m_c))) / k
+    ax.plot(xs, T_hat * np.exp(k * (xs - sb_shape.m_c))
+            * sb_shape.width / cn,
+            color="black", lw=1.8, ls="--",
+            label=r"$t\bar{t}$ component (fitted slope)")
+
+    ax.set_xlabel(r"$m_{lljj}$ [GeV]")
+    ax.set_ylabel("Events / 50 GeV")
+    ax.set_yscale("log")
+    ax.set_ylim(0.3, 300.0)
+    ax.set_xlim(sb_shape.lo, sb_shape.hi)
+    ax.text(0.03, 0.97,
             r"e$\mu$" "\nResolved Flavor CR\n" f"{ERA}\n"
-            fr"window [{sb.lo:.0f}, {sb.hi:.0f}]",
+            f"window [{sb_shape.lo:.0f}, {sb_shape.hi:.0f}]",
             transform=ax.transAxes, va="top", fontsize=15)
-    ax.text(0.04, 0.74,
-            fr"count $\approx$ {mu_cr:.0f} $\pm$ {math.sqrt(mu_cr):.0f}" "\n"
-            fr"$\Rightarrow$ tt size known to {rel:.1%}",
-            transform=ax.transAxes, va="top", fontsize=15)
-    ax.legend(handles=handles, fontsize=13, loc="upper right",
-              bbox_to_anchor=(0.97, 0.97))
-    _cmslabel(ax, com, lumi)
+    ax.text(0.55, 0.71,
+            fr"$\nu_{{c,i}} = T\cdot t_i(b_{{tt}}) \,+\, o_i$" "\n"
+            "fitted (shared with SR):\n"
+            fr"  $\hat{{T}} = {T_hat:.0f} \pm {e_T:.0f}$ ev" "\n"
+            fr"  $\hat{{b}}_{{tt}} = {b_tt:.2f} \pm {e_btt:.2f}$ /TeV" "\n"
+            "MC (for comparison):\n"
+            fr"  $T_{{cr}} = {sb_shape.T_cr:.0f}$ ev, "
+            fr"$b_{{tt}} = {f['b_tt']:.2f} \pm {f['b_tt_err']:.2f}$ /TeV",
+            transform=ax.transAxes, va="top", fontsize=13,
+            bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="black",
+                      lw=1.0, alpha=0.9))
+    ax.legend(fontsize=14, loc="upper right")
+    hep.cms.label(loc=0, ax=ax, data=True, label="Work in Progress",
+                  lumi=f"{lumi:.1f}", com=com, fontsize=13)
     _save(fig, out)
 
 
@@ -249,65 +325,59 @@ def plot_cr_bin(sb, mu_cr, f, out, com, lumi):
 # 3 -- where the constraint comes from
 # ---------------------------------------------------------------------------
 
-def profile_mu_tt(sb, mu_sr, mu_cr, mu_grid, use_sr=True, use_cr=True):
-    """-2 Delta lnL vs mu_tt with (r, b_rest, B_rest) profiled at each point
-    (only the terms selected)."""
-    def nll_at(mu_tt):
+def profile_T(sb, mu_sr, cr_data, t_grid, use_sr=True, use_cr=True):
+    """-2 Delta lnL vs T (the CR-window tt yield) for the fcr_shape model,
+    profiling (r, b_tt, b_rest, B_rest) at each point (terms selected)."""
+    ntot = float(mu_sr.sum())
+
+    def nll_at(T):
         if not use_sr:
-            vc = mu_tt * sb.T_cr + sb.C_other
-            return 2.0 * (vc - mu_cr * math.log(vc))
+            # CR channel alone: profile the shared slope b_tt
+            def fcn(p):
+                vc = np.clip(T * sb._expo_shape(p[0])
+                             + sb.cr_other, 1e-12, None)
+                v = 2.0 * float(np.sum(vc) - np.sum(cr_data * np.log(vc)))
+                return v if math.isfinite(v) else 1e30
+            _, _, nll, _ = sb._minimize(fcn, [-3.0], [(-100.0, 0.0)])
+            return nll
 
         def fcn(p):
-            v = sb.nll2(p[0], (mu_tt, p[1], p[2]), mu_sr,
-                        data_cr=mu_cr if use_cr else None) \
-                if use_cr else sb.nll2(p[0], (mu_tt, p[1], p[2]), mu_sr,
-                                       data_cr=None)
+            v = sb.nll2(p[0], (T, p[1], p[2], p[3]), mu_sr,
+                        data_cr=cr_data if use_cr else None)
             return v if math.isfinite(v) else 1e30
-        ntot = float(mu_sr.sum())
         _, _, nll, _ = sb._minimize(
-            fcn, [0.0, -3.0, max(ntot - sb.T_tt, 1.0)],
-            [(-2000.0, 2000.0), (-100.0, 0.0), (0.0, 10.0 * ntot + 50.0)])
+            fcn, [0.0, -3.0, -3.0, max(ntot - sb.R * sb.T_cr, 1.0)],
+            [(-2000.0, 2000.0), (-100.0, 0.0), (-100.0, 0.0),
+             (0.0, 10.0 * ntot + 50.0)])
         return nll
-    vals = np.array([nll_at(m) for m in mu_grid])
+    vals = np.array([nll_at(T) for T in t_grid])
     return vals - vals.min()
 
 
-def plot_constraint(sb, mu_sr, mu_cr, out, com, lumi):
+def plot_constraint(sb, mu_sr, cr_data, out, com, lumi):
     hep.style.use("CMS")
     fig, ax = plt.subplots()
-    grid = np.linspace(0.55, 1.45, 61)
-    # SR-only: drop the CR term (mu_tt only identified by the tt-vs-rest
-    # slope difference -> nearly flat)
-    sb_nocr = CardSB(sb.edges, sb.m_c, sb.sigma, mode="fcr",
-                     fcr=dict(T_tt=sb.T_tt, T_cr=sb.T_cr,
-                              C_other=sb.C_other, b_tt=sb.b_tt))
+    grid = np.linspace(0.55, 1.45, 61) * sb.T_cr
     # combined first (wide black), CR-alone on top (thin red dots): the two
     # coincide -- seeing red on black IS the message
     curves = [
-        (profile_mu_tt(sb, mu_sr, mu_cr, grid, use_sr=True, use_cr=True),
-         "SR + flavor CR (the fcr card)", "black", "-", 3.2),
-        (profile_mu_tt(sb, mu_sr, mu_cr, grid, use_sr=False, use_cr=True),
-         "flavor-CR bin alone", C_TT, ":", 2.0),
-        (profile_mu_tt(sb_nocr, mu_sr, mu_cr, grid, use_sr=True, use_cr=False),
-         "SR alone (r, rest norm+slope profiled)", C_DY, "--", 2.2),
+        (profile_T(sb, mu_sr, cr_data, grid, use_sr=True, use_cr=True),
+         "SR + flavor CR", "black", "-", 3.2),
+        (profile_T(sb, mu_sr, cr_data, grid, use_sr=False, use_cr=True),
+         "flavor CR alone", C_TT, ":", 2.0),
+        (profile_T(sb, mu_sr, cr_data, grid, use_sr=True, use_cr=False),
+         "SR alone", C_DY, "--", 2.2),
     ]
     for y, lab, col, ls, lw in curves:
         ax.plot(grid, y, color=col, ls=ls, lw=lw, label=lab)
-    ax.axhline(1.0, color="grey", lw=0.9, ls="-.")
-    ax.text(grid[1], 1.06, r"$-2\Delta\ln L = 1$  ($\pm1\sigma$)",
-            color="grey", fontsize=12)
-    ax.set_xlabel(r"$\mu_{tt}$ (tt+tW normalization scale)")
+    ax.set_xlabel(r"$T$ ($t\bar{t}$+tW yield in the CR window) [events]")
     ax.set_ylabel(r"$-2\,\Delta\ln L$")
     ax.set_ylim(0, 8)
-    ax.legend(fontsize=13, loc="center right")
+    ax.legend(fontsize=13, loc="upper right")
     ax.text(0.03, 0.97,
             r"ee Resolved SR + e$\mu$ Flavor CR" "\n"
             f"{ERA}\n"
-            fr"$m_{{W_R}}={MASS}$, window [{sb.lo:.0f}, {sb.hi:.0f}]" "\n"
-            r"the SR can barely tell $t\bar{t}$ from DY" "\n"
-            r"$\Rightarrow$ the constraint IS the CR" "\n"
-            "(black = red: adding the SR\n"
-            r"changes nothing about $\mu_{tt}$)",
+            fr"$m_{{W_R}}={MASS}$, window [{sb.lo:.0f}, {sb.hi:.0f}]",
             transform=ax.transAxes, va="top", fontsize=14)
     _cmslabel(ax, com, lumi)
     _save(fig, out)
@@ -392,7 +462,9 @@ def main():
     with open(HERE / "inputs" / "ee_resolved.json") as fh:
         meta = json.load(fh)["masses"][str(MASS)]
     with open(HERE / "inputs" / "ee_resolved_fcr.json") as fh:
-        f = json.load(fh)["masses"][str(MASS)]["vars"][VAR]
+        fcr_all = json.load(fh)
+    f = fcr_all["masses"][str(MASS)]["vars"][VAR]
+    r_global = fcr_all["R_global"]
     v = meta["vars"][VAR]
 
     bkg_dirs, input_lumis = input_dirs_for_era(ERA, repo_root(), BKG_DIR)
@@ -400,8 +472,6 @@ def main():
     edges, vals = rebin_snap(h.axes[0].edges(), h.values(), v["bw"],
                              v["fit_lo"], v["fit_hi"])
     mu_sr = np.where(np.isfinite(vals) & (vals > 0), vals, 0.0)
-    mu_cr = f["T_cr"] + f["C_other"]
-    sb = CardSB(edges, meta["m_c"], meta["sigma"], mode="fcr", fcr=f)
 
     # analysis sample-group colors, so every figure speaks the house palette
     global C_TT, C_DY
@@ -427,12 +497,33 @@ def main():
         wins[rname] = y
 
     out = args.output_dir
-    plot_regions(bkg_dirs, input_lumis, v, wins, out, com, lumi, fcr_var=f)
+    # binned CR channel (fcr_shape): data spectrum + fixed non-tt template
+    hcr = uproot.open(HERE / "inputs" / "ee_resolved_fcr.root")
+    _, cr_data = rebin_snap(hcr["fcr_data_EGamma_native"].axes[0].edges(),
+                            hcr["fcr_data_EGamma_native"].values(),
+                            v["bw"], v["fit_lo"], v["fit_hi"])
+    _, cr_other = rebin_snap(hcr["fcr_rest_native"].axes[0].edges(),
+                             hcr["fcr_rest_native"].values(),
+                             v["bw"], v["fit_lo"], v["fit_hi"])
+    sb_shape = CardSB(edges, meta["m_c"], meta["sigma"], mode="fcr_shape",
+                      fcr=dict(R=r_global, T_cr=f["T_cr"], b_tt=f["b_tt"],
+                               cr_other=cr_other))
+    sb_shape._mu_sr = mu_sr
+    prof_shape = sb_shape.fit_profiled(0.0, mu_sr, data_cr=cr_data)
+    fit_overlay = dict(T=prof_shape["params"][0],
+                       e_T=prof_shape["perr"][0],
+                       b_tt=prof_shape["params"][1],
+                       e_btt=prof_shape["perr"][1],
+                       b=prof_shape["params"][2],
+                       B=prof_shape["params"][3],
+                       R=sb_shape.R, m_c=sb_shape.m_c, bw=v["bw"])
+    plot_regions(bkg_dirs, input_lumis, v, wins, out, com, lumi, fcr_var=f,
+                 fit_overlay=fit_overlay)
     logger.info("1a/1b regions done")
-    plot_split(sb, mu_sr, mu_cr, f, out / "2a_sr_split", com, lumi)
-    plot_cr_bin(sb, mu_cr, f, out / "2b_cr_bin", com, lumi)
-    logger.info("2a/2b model done")
-    plot_constraint(sb, mu_sr, mu_cr, out / "3_constraint", com, lumi)
+    plot_split(sb_shape, mu_sr, cr_data, f, out / "2a_sr_split", com, lumi)
+    plot_cr_shape(sb_shape, cr_data, f, out / "2c_cr_shape", com, lumi)
+    logger.info("2a/2c model done")
+    plot_constraint(sb_shape, mu_sr, cr_data, out / "3_constraint", com, lumi)
     logger.info("3_constraint done")
     plot_effect(out / "4_effect", com, lumi)
     logger.info("4_effect done -> %s", out)

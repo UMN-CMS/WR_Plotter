@@ -135,10 +135,21 @@ def main():
                          ("fcr_tt_native", (e_ftt, v_ftt)),
                          ("fcr_rest_native", (e_frest, v_frest))]:
         to_th1(name, e, v).Write()
+    for dname, (ed, vd) in fcr_data.items():
+        to_th1(f"fcr_data_{dname}_native", ed, vd).Write()
     fout.Close()
 
+    # global transfer factor: full-spectrum tt SR/CR ratio (all events,
+    # summed). The ratio is flat vs mass -- per-window ratios agree within
+    # MC statistics (see plot_transfer_ratio.py) -- so one global number
+    # serves every window.
+    r_global = float(v_tt.sum() / v_ftt.sum())
+    logger.info("global transfer factor R = %.4f  (SR %.1f / CR %.1f)",
+                r_global, v_tt.sum(), v_ftt.sum())
+
     out = {"era": ERA, "bkg_dir": BKG_DIR, "fcr_region": FCR_REGION,
-           "tt_samples": TT, "rest_samples": REST, "masses": {}}
+           "tt_samples": TT, "rest_samples": REST, "R_global": r_global,
+           "masses": {}}
     for mass_s, m in sorted(geo["masses"].items(), key=lambda kv: int(kv[0])):
         m_c = m["m_c"]
         entry = {"m_c": m_c, "sigma": m["sigma"], "vars": {}}
