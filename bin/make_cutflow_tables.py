@@ -50,40 +50,52 @@ logger = logging.getLogger(__name__)
 
 _CUT_SEQUENCES = {
     "mumu": [
-        ("no_cuts",                  "No cuts"),
-        ("min_two_ak4_jets_pteta",   r"$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)"),
-        ("min_two_ak4_jets_id",      r"$\geq$2 AK4 jets (tight w/ lepton veto)"),
-        ("two_pteta_muons",          r"2 muons ($p_T > 53$, $|\eta| < 2.4$)"),
-        ("two_id_muons",             r"2 muons (high-$p_T$ ID)"),
-        ("mu_trigger",               "Muon trigger"),
-        ("dr_all_pairs_gt0p4",       r"$\Delta R > 0.4$ (all pairs)"),
-        ("mlljj_gt800",              r"$m(\ell\ell jj) > 800$ GeV"),
-        ("mll_gt200",                r"$m(\ell\ell) > 200$ GeV"),
-        ("mll_gt400",                r"$m(\ell\ell) > 400$ GeV"),
+        ("no_cuts", r"No cuts (after event filters)"),
+        ("min_two_ak4_jets_pteta", r"$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)"),
+        ("min_two_ak4_jets_id", r"$\geq$2 AK4 jets (tight w/ lepton veto)"),
+        ("two_pteta_muons", r"$\geq$2 muons ($p_T > 53$, $|\eta| < 2.4$)"),
+        ("two_id_muons", r"$\geq$2 muons (high-$p_T$ ID)"),
+        ("two_tight_leptons", r"Exactly two tight leptons"),
+        ("two_tight_muons", r"Two tight muons"),
+        ("lead_tight_lepton_pt60", r"Leading tight lepton $p_T > 60$ GeV"),
+        ("sublead_tight_pt53", r"Subleading tight lepton $p_T > 53$ GeV"),
+        ("mu_trigger", r"Muon trigger"),
+        ("dr_all_pairs_gt0p4", r"$\Delta R > 0.4$ (all pairs)"),
+        ("mlljj_gt800", r"$m(\ell\ell jj) > 800$ GeV"),
+        ("mll_gt200", r"$m(\ell\ell) > 200$ GeV"),
+        ("mll_gt400", r"$m(\ell\ell) > 400$ GeV"),
     ],
     "ee": [
-        ("no_cuts",                  "No cuts"),
-        ("min_two_ak4_jets_pteta",   r"$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)"),
-        ("min_two_ak4_jets_id",      r"$\geq$2 AK4 jets (tight w/ lepton veto)"),
-        ("two_pteta_electrons",      r"2 electrons ($p_T > 53$, $|\eta| < 2.4$)"),
-        ("two_id_electrons",         "2 electrons (HEEP ID)"),
-        ("e_trigger",                "Electron trigger"),
-        ("dr_all_pairs_gt0p4",       r"$\Delta R > 0.4$ (all pairs)"),
-        ("mlljj_gt800",              r"$m(\ell\ell jj) > 800$ GeV"),
-        ("mll_gt200",                r"$m(\ell\ell) > 200$ GeV"),
-        ("mll_gt400",                r"$m(\ell\ell) > 400$ GeV"),
+        ("no_cuts", r"No cuts (after event filters)"),
+        ("min_two_ak4_jets_pteta", r"$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)"),
+        ("min_two_ak4_jets_id", r"$\geq$2 AK4 jets (tight w/ lepton veto)"),
+        ("two_pteta_electrons", r"$\geq$2 electrons ($p_T > 53$, $|\eta| < 2.5$)"),
+        ("two_id_electrons", r"$\geq$2 electrons (HEEP ID)"),
+        ("two_tight_leptons", r"Exactly two tight leptons"),
+        ("two_tight_electrons", r"Two tight electrons"),
+        ("lead_tight_lepton_pt60", r"Leading tight lepton $p_T > 60$ GeV"),
+        ("sublead_tight_pt53", r"Subleading tight lepton $p_T > 53$ GeV"),
+        ("e_trigger", r"Electron trigger"),
+        ("dr_all_pairs_gt0p4", r"$\Delta R > 0.4$ (all pairs)"),
+        ("mlljj_gt800", r"$m(\ell\ell jj) > 800$ GeV"),
+        ("mll_gt200", r"$m(\ell\ell) > 200$ GeV"),
+        ("mll_gt400", r"$m(\ell\ell) > 400$ GeV"),
     ],
     "em": [
-        ("no_cuts",                  "No cuts"),
-        ("min_two_ak4_jets_pteta",   r"$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)"),
-        ("min_two_ak4_jets_id",      r"$\geq$2 AK4 jets (tight w/ lepton veto)"),
-        ("two_pteta_em",             r"1 electron + 1 muon ($p_T > 53$, $|\eta| < 2.4$)"),
-        ("two_id_em",                "Electron and muon passing ID"),
-        ("emu_trigger",              r"$e\mu$ trigger"),
-        ("dr_all_pairs_gt0p4",       r"$\Delta R > 0.4$ (all pairs)"),
-        ("mlljj_gt800",              r"$m(\ell\ell jj) > 800$ GeV"),
-        ("mll_gt200",                r"$m(\ell\ell) > 200$ GeV"),
-        ("mll_gt400",                r"$m(\ell\ell) > 400$ GeV"),
+        ("no_cuts", r"No cuts (after event filters)"),
+        ("min_two_ak4_jets_pteta", r"$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)"),
+        ("min_two_ak4_jets_id", r"$\geq$2 AK4 jets (tight w/ lepton veto)"),
+        ("two_pteta_em", r"$\geq$1 electron + $\geq$1 muon ($p_T > 53$)"),
+        ("two_id_em", r"$\geq$1 electron + $\geq$1 muon passing ID"),
+        ("two_tight_leptons", r"Exactly two tight leptons"),
+        ("two_tight_em", r"One tight electron + one tight muon"),
+        ("lead_tight_lepton_pt60", r"Leading tight lepton $p_T > 60$ GeV"),
+        ("sublead_tight_pt53", r"Subleading tight lepton $p_T > 53$ GeV"),
+        ("emu_trigger", r"$e\mu$ trigger"),
+        ("dr_all_pairs_gt0p4", r"$\Delta R > 0.4$ (all pairs)"),
+        ("mlljj_gt800", r"$m(\ell\ell jj) > 800$ GeV"),
+        ("mll_gt200", r"$m(\ell\ell) > 200$ GeV"),
+        ("mll_gt400", r"$m(\ell\ell) > 400$ GeV"),
     ],
 }
 
@@ -241,7 +253,7 @@ def _read_cutflow(root_path, channel, unweighted=False, hist_type="cumulative",
         unweighted: If True, read the unweighted variant.
         hist_type: "cumulative" (sequential cuts) or "onecut" (each cut independently).
         expected_keys: Optional list of expected bin label names (from _CUT_SEQUENCES).
-                       If the histogram has StrCategory labels, validates they match.
+                       Rejects an incompatible sequence rather than relabeling its yields.
         boosted: If True, read boosted cutflow (cutflow_boosted/...).
 
     Returns:
@@ -271,6 +283,11 @@ def _read_cutflow(root_path, channel, unweighted=False, hist_type="cumulative",
                 return None
 
             h = f[key]
+            vals = h.values(flow=False)
+            if expected_keys is not None and len(vals) != len(expected_keys):
+                logger.warning("Skipping %s:%s: expected %d bins, got %d",
+                               root_path, key, len(expected_keys), len(vals))
+                return None
             # Validate bin labels if available (StrCategory axis)
             ax_labels = h.axis().labels()
             if ax_labels is not None and expected_keys is not None:
@@ -282,7 +299,8 @@ def _read_cutflow(root_path, channel, unweighted=False, hist_type="cumulative",
                         "  ROOT file: %s\n  Expected:  %s",
                         root_path, key, list(ax_labels), list(expected_keys),
                     )
-            return h.values(flow=False)
+                    return None
+            return vals
     except FileNotFoundError:
         logger.debug("File not found: %s", root_path)
         return None

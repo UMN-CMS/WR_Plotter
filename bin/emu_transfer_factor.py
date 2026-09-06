@@ -2,25 +2,25 @@
 """
 Compute and plot the emu transfer factor (R_emu): the bin-by-bin ratio of
 mass histograms between same-flavor signal regions (ee and mumu) and the
-emu flavor sideband control region.
-
-The plot includes constant fit lines and chi2/ndf annotations for both channels.
+emu flavor sideband control region, with constant fits and chi2/ndf.
 
 Usage:
-    # All eras, resolved + boosted:
+    # All eras, resolved + boosted (nominal SR / flavor CR, m > 800 GeV):
     python3 bin/emu_transfer_factor.py
 
-    # Single era, resolved + boosted:
-    python3 bin/emu_transfer_factor.py --era RunIII2024Summer24
-
-    # Resolved only:
+    # Single era, resolved only:
     python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --resolved
 
-    # TF study: combine _tf_low (m < 800) + standard SR (m > 800) with split fits:
-    python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --tf-regions --input WRAnalyzer_TTbar.root
+    # Transfer-factor study (AN-19-083 App. J closure): read the ``_nomass``
+    # regions written by ``run_analysis.py --study transfer-factor
+    # --split-groups tt_tW`` and fit below / above 800 GeV separately:
+    python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --tf-study --input WRAnalyzer_TTbar.root
 
-    # Boosted TF study:
-    python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --boosted --tf-regions --input WRAnalyzer_TTbar.root
+Study mode reads one histogram per region (SR / flavor CR without the
+reconstructed-mass cut) and slices it at MASS_SPLIT.  800 GeV must remain a
+bin edge after any rebinning; the script refuses otherwise.  Files from the
+older analyzer that only contain ``_tf_low`` regions are read by summing
+``_tf_low`` with the nominal region.
 """
 
 # ── Standard library ────────────────────────────────────────────────────────────
@@ -53,6 +53,12 @@ logger = logging.getLogger(__name__)
 COLOR_EE = "red"
 COLOR_MUMU = "blue"
 
+# Boundary between the closure region (below) and the SR (above), in GeV.
+MASS_SPLIT = 800.0
+NOMASS_SUFFIX = "_nomass"
+LEGACY_INCLUSIVE_SUFFIX = "_tf"      # older analyzer: same mass-inclusive region under another name
+LEGACY_LOW_SUFFIX = "_tf_low"        # older analyzer: m < 800 copy, to be summed with the nominal region
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -72,15 +78,18 @@ def parse_args() -> argparse.Namespace:
         metavar="EDGES",
         help="Use variable bin widths. Optionally provide comma-separated edges "
              "(e.g. '0,200,400,600,800,1200,2000,8000'). "
-             "Without an argument, uses built-in defaults appropriate for --tf-regions or standard mode."
+             "Without an argument, uses built-in defaults appropriate for --tf-study or standard mode."
     )
     parser.add_argument(
         "--input", dest="input_file", type=str, default=None,
-        help="Override ROOT file name (default: WRAnalyzer_tt_tW.root)"
+        help="Override ROOT file name (default: WRAnalyzer_tt_tW.root; in --tf-study mode "
+             "WRAnalyzer_TTbar.root is preferred when present)"
     )
     parser.add_argument(
-        "--tf-regions", dest="tf_regions", action="store_true",
-        help="Load _tf_low (m < 800) and standard SR (m > 800) regions; fit separately below/above 800 GeV"
+        "--tf-study", dest="tf_study", action="store_true",
+        help="Transfer-factor study: read the _nomass regions (SR / flavor CR without the "
+             "m > 800 GeV cut, from run_analysis.py --study transfer-factor) and fit the "
+             "ratio separately below and above 800 GeV."
     )
     parser.add_argument(
         "--boosted", dest="boosted", action="store_true",
@@ -93,14 +102,54 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _load_hist(filepath: Path, region: str, variable: str = "mass_fourobject"):
+def _load_hist(filepath: Path, region: str, variable: str = "mass_fourobject", *, quiet=False):
     """Load a histogram by region/variable convention, returning None on failure."""
     hist_key = f"{region}/{variable}_{region}"
     try:
         return load_histogram(filepath, hist_key)
     except Exception as e:
-        logger.warning("Could not load %s from %s: %s", hist_key, filepath, e)
+        if not quiet:
+            logger.warning("Could not load %s from %s: %s", hist_key, filepath, e)
         return None
+
+
+def load_study_hist(filepath: Path, region: str, variable: str):
+    """Load the mass-inclusive histogram of *region* for the transfer-factor study.
+
+    Prefers ``<region>_nomass``.  Legacy files are supported in two forms:
+    ``<region>_tf`` (the same mass-inclusive region under its older name) and
+    ``<region>_tf_low`` (m < 800), which is summed with the nominal region
+    (m > 800) since together they cover the same events.  Returns None if
+    none of these is available.
+    """
+    h = _load_hist(filepath, region + NOMASS_SUFFIX, variable, quiet=True)
+    if h is not None:
+        return h
+    h = _load_hist(filepath, region + LEGACY_INCLUSIVE_SUFFIX, variable, quiet=True)
+    if h is not None:
+        logger.warning("%s%s not found in %s; using legacy mass-inclusive %s%s.",
+                       region, NOMASS_SUFFIX, filepath.name, region, LEGACY_INCLUSIVE_SUFFIX)
+        return h
+    low = _load_hist(filepath, region + LEGACY_LOW_SUFFIX, variable, quiet=True)
+    high = _load_hist(filepath, region, variable, quiet=True)
+    if low is None or high is None:
+        logger.warning("Could not load %s%s (nor legacy %s%s + %s) from %s",
+                       region, NOMASS_SUFFIX, region, LEGACY_LOW_SUFFIX, region, filepath)
+        return None
+    logger.warning("%s%s not found in %s; using legacy %s%s + nominal region.",
+                   region, NOMASS_SUFFIX, filepath.name, region, LEGACY_LOW_SUFFIX)
+    return low + high
+
+
+def require_edge(edges, value=MASS_SPLIT):
+    """Raise unless *value* is one of the bin *edges* (so slices at it are exact)."""
+    edges = np.asarray(edges, dtype=float)
+    if not np.any(np.isclose(edges, value, rtol=0, atol=1e-6)):
+        raise ValueError(
+            f"{value:g} GeV must be a bin edge to split the fit there; got edges {edges.tolist()}. "
+            "Choose a rebin factor that keeps it, or pass --variable-bins with it included."
+        )
+    return edges
 
 
 def compute_ratio(numerator_hist, denominator_hist):
@@ -171,9 +220,14 @@ def _constant(x, c):
     return np.full_like(x, c, dtype=float)
 
 
-def chi2_fit_constant(values, errors, centers, fit_range=(0, 8000)):
+def chi2_fit_constant(values, errors, edges, fit_range=None):
     """
     Fit a constant to binned ratio data using chi-squared minimization.
+
+    A bin enters the fit only if it lies entirely inside *fit_range*
+    (``lo_edge >= fit_range[0]`` and ``hi_edge <= fit_range[1]``), so two
+    adjacent ranges sharing an edge use disjoint bins and a bin straddling
+    the boundary is used by neither.  ``fit_range=None`` uses every bin.
 
     Uses scipy.optimize.curve_fit with absolute_sigma=True so the covariance
     matrix is scaled by the actual bin uncertainties (i.e. true chi-squared
@@ -186,8 +240,13 @@ def chi2_fit_constant(values, errors, centers, fit_range=(0, 8000)):
         chi2: chi-squared value
         ndf: number of degrees of freedom
     """
-    mask = ((centers >= fit_range[0]) & (centers <= fit_range[1])
-            & (values > 0) & (errors > 0))
+    edges = np.asarray(edges, dtype=float)
+    lo_edges, hi_edges = edges[:-1], edges[1:]
+    centers = 0.5 * (lo_edges + hi_edges)
+    in_range = np.ones(len(centers), dtype=bool)
+    if fit_range is not None:
+        in_range = (lo_edges >= fit_range[0] - 1e-6) & (hi_edges <= fit_range[1] + 1e-6)
+    mask = in_range & (values > 0) & (errors > 0)
 
     if np.sum(mask) < 2:
         return 0.0, 0.0, 0.0, 0
@@ -231,47 +290,25 @@ def _draw_fits_and_annotations(ax, fit_ranges, range_labels, fits_ee, fits_mumu)
         ax.axvline(x=fit_ranges[0][1], color='gray', linestyle=':', linewidth=1, alpha=0.5)
 
 
-def compute_fits(ratio_ee, ratio_ee_errors, ratio_mumu, ratio_mumu_errors,
-                 edges, tf_regions=False, fit_ranges=None, range_labels=None):
-    """Compute constant fits to the ratio data.
+def compute_fits(ratio, ratio_errors, edges, fit_ranges, range_labels, label=""):
+    """Constant fits of one ratio in each of *fit_ranges*.
 
-    Returns:
-        fits_ee: list of (fit_val, fit_err, chi2, ndf) per range
-        fits_mumu: list of (fit_val, fit_err, chi2, ndf) per range
-        fit_ranges: list of (lo, hi) tuples
-        range_labels: list of label strings
+    Returns a list of ``(fit_val, fit_err, chi2, ndf)``, one per range.
     """
-    centers = 0.5 * (edges[:-1] + edges[1:])
-
-    if fit_ranges is None:
-        if tf_regions:
-            fit_ranges = [(0, 800), (800, 8000)]
-            range_labels = ["low-mass", "high-mass"]
-        else:
-            fit_ranges = [(0, 8000)]
-            range_labels = ["full"]
-
-    fits_ee = [chi2_fit_constant(ratio_ee, ratio_ee_errors, centers, fit_range=fr)
-               for fr in fit_ranges]
-    fits_mumu = [chi2_fit_constant(ratio_mumu, ratio_mumu_errors, centers, fit_range=fr)
-                 for fr in fit_ranges]
-
-    for label, fe, fm in zip(range_labels, fits_ee, fits_mumu):
-        logger.info("Chi-squared constant fit (%s range):", label)
-        fv, ferr, chi2, ndf = fe
+    fits = [chi2_fit_constant(ratio, ratio_errors, edges, fit_range=fr) for fr in fit_ranges]
+    for rl, (fv, ferr, chi2, ndf) in zip(range_labels, fits):
         if ndf > 0:
-            logger.info("  ee:   %.4f +/- %.4f  (chi2/ndf = %.1f/%d = %.2f)",
-                         fv, ferr, chi2, ndf, chi2 / ndf)
+            logger.info("Chi-squared constant fit (%s, %s range): %.4f +/- %.4f  (chi2/ndf = %.1f/%d = %.2f)",
+                        label, rl, fv, ferr, chi2, ndf, chi2 / ndf)
         else:
-            logger.info("  ee:   fit failed (not enough bins)")
-        fv, ferr, chi2, ndf = fm
-        if ndf > 0:
-            logger.info("  mumu: %.4f +/- %.4f  (chi2/ndf = %.1f/%d = %.2f)",
-                         fv, ferr, chi2, ndf, chi2 / ndf)
-        else:
-            logger.info("  mumu: fit failed (not enough bins)")
+            logger.info("Chi-squared constant fit (%s, %s range): fit failed (not enough bins)", label, rl)
+    return fits
 
-    return fits_ee, fits_mumu, fit_ranges, range_labels
+
+def study_fit_ranges(edges, split=MASS_SPLIT):
+    """Fit ranges for the study: below and above *split*, on validated edges."""
+    edges = require_edge(edges, split)
+    return [(float(edges[0]), split), (split, float(edges[-1]))], ["low-mass", "high-mass"]
 
 
 def plot_ratio(ratio_ee, ratio_ee_errors, ratio_mumu, ratio_mumu_errors,
@@ -383,7 +420,7 @@ def write_latex_table(fits_ee, fits_mumu, fit_ranges, range_labels,
                       era, year, table_path, boosted=False):
     """Write a LaTeX table of R_emu fit results (like AN Table 59).
 
-    When ``--tf-regions`` is used, fit_ranges has two entries (low/high mass)
+    When ``--tf-study`` is used, fit_ranges has two entries (low/high mass)
     and the table gets one row per range.  Otherwise a single row.
     """
     category = "Boosted" if boosted else "Resolved"
@@ -392,10 +429,10 @@ def write_latex_table(fits_ee, fits_mumu, fit_ranges, range_labels,
     # Build row labels matching AN convention
     row_labels = []
     for lo, hi in fit_ranges:
-        if lo == 0 and hi == 800:
-            row_labels.append(f"{mass_var} $\\leq$ 800 GeV")
-        elif lo == 800:
-            row_labels.append(f"{mass_var} $>$ 800 GeV")
+        if hi == MASS_SPLIT:
+            row_labels.append(f"{mass_var} $<$ {MASS_SPLIT:g} GeV")
+        elif lo == MASS_SPLIT:
+            row_labels.append(f"{mass_var} $>$ {MASS_SPLIT:g} GeV")
         else:
             row_labels.append(f"{category}")
 
@@ -435,10 +472,10 @@ def write_channel_latex_table(ejet_fits, mujet_fits, fit_ranges, range_labels,
     mass_var = r"$m_{\ell J}$"
     row_labels = []
     for lo, hi in fit_ranges:
-        if lo == 0 and hi == 800:
-            row_labels.append(f"{mass_var} $\\leq$ 800 GeV")
-        elif lo == 800:
-            row_labels.append(f"{mass_var} $>$ 800 GeV")
+        if hi == MASS_SPLIT:
+            row_labels.append(f"{mass_var} $<$ {MASS_SPLIT:g} GeV")
+        elif lo == MASS_SPLIT:
+            row_labels.append(f"{mass_var} $>$ {MASS_SPLIT:g} GeV")
         else:
             row_labels.append("Boosted")
 
@@ -512,6 +549,35 @@ def compile_preview_pdf(table_dir, table_files):
             logger.error("  %s", line)
 
 
+def _rebin_all(hists, args, era, ee_region, variable):
+    """Rebin every histogram in *hists* (dict) consistently; return the new dict."""
+    if args.variable_bins is not None:
+        if args.variable_bins == "default":
+            if args.tf_study:
+                edges = [0, 100, 200, 300, 400, 500, 600, 700, 800, 1000, 1200, 1600, 2000, 2800, 4000, 8000]
+            else:
+                edges = [800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
+        else:
+            edges = [float(x) for x in args.variable_bins.split(",")]
+        logger.info("Rebinning with variable edges: %s", edges)
+        return {k: rebin_histogram(h, edges) for k, h in hists.items()}
+    if args.rebin:
+        logger.info("Rebinning with factor: %d", args.rebin)
+        return {k: rebin_histogram(h, args.rebin) for k, h in hists.items()}
+    plot_settings = load_plot_settings(era)
+    region_cfgs, common_vars = index_plot_settings(plot_settings)
+    num_vcfg = get_var_cfg(region_cfgs, common_vars, ee_region, variable)
+    rebin_factor = num_vcfg.get('rebin', 1) if num_vcfg else 1
+    logger.info("Rebinning from YAML config: %s", rebin_factor)
+    return {k: rebin_histogram(h, rebin_factor) for k, h in hists.items()}
+
+
+def _log_ratio(label, ratio, errors, edges):
+    logger.info("Ratio values per bin (%s):", label)
+    for i, (low, high) in enumerate(zip(edges[:-1], edges[1:])):
+        logger.info("  [%.0f, %.0f): %.4f +/- %.4f", low, high, ratio[i], errors[i])
+
+
 def process_topology(args, era, boosted):
     """Process a single era + topology (resolved or boosted).
 
@@ -526,7 +592,7 @@ def process_topology(args, era, boosted):
     com = info.get("com", 13.6)
 
     category = "boosted" if boosted else "resolved"
-    tf_suffix = "_tf" if args.tf_regions else ""
+    suffix = "_tf" if args.tf_study else ""
 
     # Build input path
     input_dir = repo_root() / "rootfiles" / run / str(year) / era
@@ -535,6 +601,8 @@ def process_topology(args, era, boosted):
 
     if args.input_file:
         filepath = input_dir / args.input_file
+    elif args.tf_study and (input_dir / "WRAnalyzer_TTbar.root").exists():
+        filepath = input_dir / "WRAnalyzer_TTbar.root"
     else:
         filepath = input_dir / "WRAnalyzer_tt_tW.root"
 
@@ -544,14 +612,11 @@ def process_topology(args, era, boosted):
 
     logger.info("Loading histograms from: %s (%s)", filepath, category)
 
-    # Determine region names and variable
+    # Region names and variable
     if boosted:
         ee_region = "wr_ee_boosted_sr"
         mumu_region = "wr_mumu_boosted_sr"
-        den_regions = [
-            "wr_emu_boosted_flavor_cr",
-            "wr_mue_boosted_flavor_cr",
-        ]
+        den_regions = ["wr_emu_boosted_flavor_cr", "wr_mue_boosted_flavor_cr"]
         variable = "mass_twoobject"
     else:
         ee_region = "wr_ee_resolved_sr"
@@ -559,68 +624,40 @@ def process_topology(args, era, boosted):
         den_regions = ["wr_resolved_flavor_cr"]
         variable = "mass_fourobject"
 
-    # Load histograms.  When --tf-regions, load _tf_low (m < 800) and
-    # standard SR (m > 800) histograms separately.
-    if args.tf_regions:
-        ee_low = _load_hist(filepath, ee_region + "_tf_low", variable)
-        mumu_low = _load_hist(filepath, mumu_region + "_tf_low", variable)
-        den_low = [_load_hist(filepath, r + "_tf_low", variable) for r in den_regions]
+    loader = (lambda r: load_study_hist(filepath, r, variable)) if args.tf_study \
+        else (lambda r: _load_hist(filepath, r, variable))
+    hists = {r: loader(r) for r in [ee_region, mumu_region] + den_regions}
+    missing = [r for r, h in hists.items() if h is None]
+    if missing:
+        logger.warning("Could not load %s — skipping %s %s", missing, era, category)
+        return None, []
+    for r in hists:
+        logger.info("Loaded %s/%s%s", r, variable, NOMASS_SUFFIX if args.tf_study else "")
 
-        ee_high = _load_hist(filepath, ee_region, variable)
-        mumu_high = _load_hist(filepath, mumu_region, variable)
-        den_high = [_load_hist(filepath, r, variable) for r in den_regions]
+    hists = _rebin_all(hists, args, era, ee_region, variable)
+    ee_num_hist = hists[ee_region]
+    mumu_num_hist = hists[mumu_region]
+    den_hists = [hists[r] for r in den_regions]
 
-        if any(h is None for h in [ee_low, mumu_low] + den_low):
-            logger.warning("Could not load _tf_low histograms — skipping %s %s", era, category)
-            return None, []
-        if any(h is None for h in [ee_high, mumu_high] + den_high):
-            logger.warning("Could not load standard SR histograms — skipping %s %s", era, category)
-            return None, []
+    # Sum denominator histograms (boosted has separate emu and mue regions)
+    den_hist = den_hists[0]
+    for h in den_hists[1:]:
+        den_hist = den_hist + h
 
-        logger.info("Loaded _tf_low and standard SR histograms for %s %s", era, category)
+    # Ratios
+    ratio_ee, ratio_ee_errors, edges = compute_ratio(ee_num_hist, den_hist)
+    ratio_mumu, ratio_mumu_errors, _ = compute_ratio(mumu_num_hist, den_hist)
+    _log_ratio("ee", ratio_ee, ratio_ee_errors, edges)
+    _log_ratio("mumu", ratio_mumu, ratio_mumu_errors, edges)
 
-        hist_sets = [
-            {
-                "suffix": "_tf_low",
-                "ee": ee_low, "mumu": mumu_low, "den": den_low,
-                "xlim": (0, 1000),
-                "fit_ranges": [(0, 800)], "range_labels": ["low-mass"],
-            },
-            {
-                "suffix": "_tf_high",
-                "ee": ee_high, "mumu": mumu_high, "den": den_high,
-                "xlim": None,
-                "fit_ranges": [(800, 8000)], "range_labels": ["high-mass"],
-            },
-        ]
+    # Fit ranges: split at MASS_SPLIT for the study, otherwise the full axis.
+    if args.tf_study:
+        fit_ranges, range_labels = study_fit_ranges(edges)
     else:
-        ee_num_hist = _load_hist(filepath, ee_region, variable)
-        mumu_num_hist = _load_hist(filepath, mumu_region, variable)
-        den_hists = [_load_hist(filepath, r, variable) for r in den_regions]
+        fit_ranges, range_labels = [(float(edges[0]), float(edges[-1]))], ["full"]
 
-        if ee_num_hist is None:
-            logger.warning("Could not load ee numerator '%s' — skipping %s %s", ee_region, era, category)
-            return None, []
-        if mumu_num_hist is None:
-            logger.warning("Could not load mumu numerator '%s' — skipping %s %s", mumu_region, era, category)
-            return None, []
-        if any(h is None for h in den_hists):
-            logger.warning("Could not load denominator(s) %s — skipping %s %s", den_regions, era, category)
-            return None, []
-
-        logger.info("Loaded ee numerator: %s/%s", ee_region, variable)
-        logger.info("Loaded mumu numerator: %s/%s", mumu_region, variable)
-        for r in den_regions:
-            logger.info("Loaded denominator: %s/%s", r, variable)
-
-        hist_sets = [
-            {
-                "suffix": "",
-                "ee": ee_num_hist, "mumu": mumu_num_hist, "den": den_hists,
-                "xlim": None,
-                "fit_ranges": None, "range_labels": None,
-            },
-        ]
+    fits_ee = compute_fits(ratio_ee, ratio_ee_errors, edges, fit_ranges, range_labels, "ee")
+    fits_mumu = compute_fits(ratio_mumu, ratio_mumu_errors, edges, fit_ranges, range_labels, "mumu")
 
     # Output paths
     output_dir = repo_root() / "plots" / run / str(year) / era
@@ -634,73 +671,15 @@ def process_topology(args, era, boosted):
 
     table_files = []
 
-    for hs in hist_sets:
-        suffix = hs["suffix"]
-        ee_num_hist = hs["ee"]
-        mumu_num_hist = hs["mumu"]
-        den_hists = hs["den"]
-        xlim = hs["xlim"]
-        hs_fit_ranges = hs["fit_ranges"]
-        hs_range_labels = hs["range_labels"]
-
-        # Rebin histograms (rebin individual denominators before summing so
-        # per-channel boosted plots can reuse them)
-        if args.variable_bins is not None:
-            if args.variable_bins == "default":
-                if args.tf_regions:
-                    variable_edges = [0, 100, 200, 300, 400, 500, 600, 700, 800, 1000, 1200, 1600, 2000, 2800, 4000, 8000]
-                else:
-                    variable_edges = [800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
-            else:
-                variable_edges = [float(x) for x in args.variable_bins.split(",")]
-            ee_num_hist = rebin_histogram(ee_num_hist, variable_edges)
-            mumu_num_hist = rebin_histogram(mumu_num_hist, variable_edges)
-            den_hists = [rebin_histogram(h, variable_edges) for h in den_hists]
-            logger.info("Rebinned with variable edges: %s", variable_edges)
-        elif args.rebin:
-            ee_num_hist = rebin_histogram(ee_num_hist, args.rebin)
-            mumu_num_hist = rebin_histogram(mumu_num_hist, args.rebin)
-            den_hists = [rebin_histogram(h, args.rebin) for h in den_hists]
-            logger.info("Rebinned with factor: %d", args.rebin)
-        else:
-            plot_settings = load_plot_settings(era)
-            region_cfgs, common_vars = index_plot_settings(plot_settings)
-            num_vcfg = get_var_cfg(region_cfgs, common_vars, ee_region, variable)
-            rebin_factor = num_vcfg.get('rebin', 1) if num_vcfg else 1
-            ee_num_hist = rebin_histogram(ee_num_hist, rebin_factor)
-            mumu_num_hist = rebin_histogram(mumu_num_hist, rebin_factor)
-            den_hists = [rebin_histogram(h, rebin_factor) for h in den_hists]
-            logger.info("Rebinned from YAML config: %s", rebin_factor)
-
-        # Sum denominator histograms (boosted has separate emu and mue regions)
-        den_hist = den_hists[0]
-        for h in den_hists[1:]:
-            den_hist = den_hist + h
-
-        # Compute ratios
-        ratio_ee, ratio_ee_errors, edges = compute_ratio(ee_num_hist, den_hist)
-        ratio_mumu, ratio_mumu_errors, _ = compute_ratio(mumu_num_hist, den_hist)
-
-        logger.info("Ratio values per bin (ee, %s):", suffix or "full")
-        for i, (low, high) in enumerate(zip(edges[:-1], edges[1:])):
-            logger.info("  [%.0f, %.0f): %.4f +/- %.4f", low, high, ratio_ee[i], ratio_ee_errors[i])
-
-        logger.info("Ratio values per bin (mumu, %s):", suffix or "full")
-        for i, (low, high) in enumerate(zip(edges[:-1], edges[1:])):
-            logger.info("  [%.0f, %.0f): %.4f +/- %.4f", low, high, ratio_mumu[i], ratio_mumu_errors[i])
-
-        # Compute fits
-        fits_ee, fits_mumu, fit_ranges, range_labels = compute_fits(
-            ratio_ee, ratio_ee_errors, ratio_mumu, ratio_mumu_errors,
-            edges, fit_ranges=hs_fit_ranges, range_labels=hs_range_labels,
-        )
-
-        # Plot
-        if args.output:
+    # Plots: full range, plus a low-mass zoom in study mode.
+    views = [("", None if not args.tf_study else (0, edges[-1]))]
+    if args.tf_study:
+        views.append(("_lowzoom", (0, 1000)))
+    for view_suffix, xlim in views:
+        if args.output and view_suffix == "":
             output_path = Path(args.output)
         else:
-            output_path = output_dir / f"emu_transfer_factor_{category}{suffix}_{era}.pdf"
-
+            output_path = output_dir / f"emu_transfer_factor_{category}{suffix}{view_suffix}_{era}.pdf"
         plot_ratio(
             ratio_ee, ratio_ee_errors,
             ratio_mumu, ratio_mumu_errors,
@@ -710,59 +689,42 @@ def process_topology(args, era, boosted):
             boosted=boosted, xlim=xlim,
         )
 
-        # Write LaTeX table
-        table_path = table_dir / f"emu_transfer_factor_{category}{suffix}.tex"
-        write_latex_table(
-            fits_ee, fits_mumu, fit_ranges, range_labels,
-            era, year, table_path, boosted=boosted,
+    # LaTeX table (one row per fit range)
+    table_path = table_dir / f"emu_transfer_factor_{category}{suffix}.tex"
+    write_latex_table(
+        fits_ee, fits_mumu, fit_ranges, range_labels,
+        era, year, table_path, boosted=boosted,
+    )
+    table_files.append(table_path)
+
+    # Per-channel boosted plots: match by jet flavor
+    #   e jet (eJ):  ee SR / mue CR  (both have electron in AK8 jet)
+    #   mu jet (muJ): mumu SR / emu CR (both have muon in AK8 jet)
+    if boosted:
+        emu_cr_hist, mue_cr_hist = den_hists[0], den_hists[1]
+        channels = [
+            ("ejet", "eJ", ee_num_hist, mue_cr_hist, r"Boosted\ SR\ (ee)", r"Boosted\ Flavor\ CR\ (\mu e)", COLOR_EE, 'o'),
+            ("mujet", r"$\mu$J", mumu_num_hist, emu_cr_hist, r"Boosted\ SR\ (\mu\mu)", r"Boosted\ Flavor\ CR\ (e\mu)", COLOR_MUMU, 's'),
+        ]
+        channel_fits = {}
+        for key, label, num, den, num_label, den_label, color, marker in channels:
+            ratio, ratio_err, _ = compute_ratio(num, den)
+            channel_fits[key] = compute_fits(ratio, ratio_err, edges, fit_ranges, range_labels, key)
+            for view_suffix, xlim in views:
+                path = output_dir / f"emu_transfer_factor_boosted_{key}{suffix}{view_suffix}_{era}.pdf"
+                plot_channel_ratio(
+                    ratio, ratio_err, edges, era, lumi,
+                    path, channel_fits[key], fit_ranges, range_labels,
+                    channel_label=label, num_label=num_label, den_label=den_label,
+                    color=color, marker=marker, com=com, xlim=xlim,
+                )
+
+        ch_table_path = table_dir / f"emu_transfer_factor_boosted_perchannel{suffix}.tex"
+        write_channel_latex_table(
+            channel_fits["ejet"], channel_fits["mujet"], fit_ranges, range_labels,
+            era, year, ch_table_path,
         )
-        table_files.append(table_path)
-
-        # Per-channel boosted plots: match by jet flavor
-        #   e jet (eJ):  ee SR / mue CR  (both have electron in AK8 jet)
-        #   mu jet (muJ): mumu SR / emu CR (both have muon in AK8 jet)
-        if boosted:
-            emu_cr_hist = den_hists[0]   # wr_emu_boosted_flavor_cr: e (resolved) + mu (in jet)
-            mue_cr_hist = den_hists[1]   # wr_mue_boosted_flavor_cr: mu (resolved) + e (in jet)
-            centers_ch = 0.5 * (edges[:-1] + edges[1:])
-
-            # e jet: ee SR / mue CR
-            ratio_ejet, ratio_ejet_err, _ = compute_ratio(ee_num_hist, mue_cr_hist)
-            fits_ejet = [chi2_fit_constant(ratio_ejet, ratio_ejet_err,
-                         centers_ch, fit_range=fr) for fr in fit_ranges]
-
-            ejet_path = output_dir / f"emu_transfer_factor_boosted_ejet{suffix}_{era}.pdf"
-            plot_channel_ratio(
-                ratio_ejet, ratio_ejet_err, edges, era, lumi,
-                ejet_path, fits_ejet, fit_ranges, range_labels,
-                channel_label="eJ",
-                num_label=r"Boosted\ SR\ (ee)",
-                den_label=r"Boosted\ Flavor\ CR\ (\mu e)",
-                color=COLOR_EE, com=com, xlim=xlim,
-            )
-
-            # mu jet: mumu SR / emu CR
-            ratio_mujet, ratio_mujet_err, _ = compute_ratio(mumu_num_hist, emu_cr_hist)
-            fits_mujet = [chi2_fit_constant(ratio_mujet, ratio_mujet_err,
-                          centers_ch, fit_range=fr) for fr in fit_ranges]
-
-            mujet_path = output_dir / f"emu_transfer_factor_boosted_mujet{suffix}_{era}.pdf"
-            plot_channel_ratio(
-                ratio_mujet, ratio_mujet_err, edges, era, lumi,
-                mujet_path, fits_mujet, fit_ranges, range_labels,
-                channel_label=r"$\mu$J",
-                num_label=r"Boosted\ SR\ (\mu\mu)",
-                den_label=r"Boosted\ Flavor\ CR\ (e\mu)",
-                color=COLOR_MUMU, marker='s', com=com, xlim=xlim,
-            )
-
-            # Per-channel LaTeX table
-            ch_table_path = table_dir / f"emu_transfer_factor_boosted_perchannel{suffix}.tex"
-            write_channel_latex_table(
-                fits_ejet, fits_mujet, fit_ranges, range_labels,
-                era, year, ch_table_path,
-            )
-            table_files.append(ch_table_path)
+        table_files.append(ch_table_path)
 
     return table_dir, table_files
 

@@ -210,6 +210,16 @@ Compute SR / flavor-CR transfer factors for tt+tW (resolved and boosted):
 python3 bin/emu_transfer_factor.py --era RunIII2024Summer24
 ```
 
+Transfer-factor study (fit below and above 800 GeV separately). Requires
+analyzer output produced with `--study transfer-factor --split-groups tt_tW`,
+which writes `<region>_nomass` histograms and a separate `WRAnalyzer_TTbar.root`:
+```bash
+python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --dir tf_study --tf-study --input WRAnalyzer_TTbar.root
+```
+800 GeV must stay a bin edge after rebinning (the default `--variable-bins`
+edges do); the script refuses otherwise. Older files that only contain
+`_tf_low` regions are still read by summing them with the nominal region.
+
 ---
 
 ## Repository Structure
