@@ -204,12 +204,47 @@ def plot_regions(bkg_dirs, input_lumis, v, wins, out_dir, com, lumi,
 # 2 -- the two-channel model
 # ---------------------------------------------------------------------------
 
-def plot_split(sb, mu_sr, cr_data, f, out, com, lumi):
+def _load_w2(bkg_dirs, region, samples):
+    """Summed native (edges, values, variances) over a sample list."""
+    key = f"{region}/mass_fourobject_{region}"
+    edges = values = w2 = None
+    for smp in samples:
+        for d in bkg_dirs:
+            fp = d / f"WRAnalyzer_{smp}.root"
+            if not fp.exists():
+                continue
+            h = uproot.open(fp)[key]
+            e, v, var = h.axes[0].edges(), h.values(), h.variances()
+            if edges is None:
+                edges, values, w2 = e, v.copy(), var.copy()
+            else:
+                values += v
+                w2 += var
+    keep = np.isfinite(values) & (values > 0)
+    return edges, np.where(keep, values, 0.0), np.where(keep, w2, 0.0)
+
+
+COARSE_BINS = [800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 4500]
+
+
+def plot_split(sb, mu_sr, cr_data, f, out, com, lumi, bkg_dirs=None,
+               coarse=False):
     """2a -- ONLY the background split in the SR window: MC points + the two
     fitted components stacked like a stack plot (tt below, rest on top).
-    fcr_shape model: the tt slope b_tt is fit, shared with the CR channel."""
+    fcr_shape model: the tt slope b_tt is fit, shared with the CR channel.
+    With bkg_dirs, a lower panel compares tt+tW / rest per card bin: MC
+    (points, sumw2 errors) vs the fitted components (curve). coarse=True
+    additionally marks the composition-plot bins that lie fully inside the
+    window and draws the ratio integrated over each (MC bar vs fit square)
+    -- the numbers that go onto bkg_fractions_*_m<MASS>."""
     hep.style.use("CMS")
-    fig, ax = plt.subplots()
+    if bkg_dirs is not None:
+        fig, (ax, axr) = plt.subplots(2, 1, sharex=True, figsize=(10, 11.5),
+                                      gridspec_kw=dict(height_ratios=[3, 1],
+                                                       hspace=0.05))
+    else:
+        fig, ax = plt.subplots()
+        axr = None
     prof = sb.fit_profiled(0.0, mu_sr, data_cr=cr_data)
     T_hat, b_tt_hat, b_hat, B_hat = prof["params"]
     T_err, b_tt_err, b_err, B_err = prof["perr"]
@@ -217,9 +252,8 @@ def plot_split(sb, mu_sr, cr_data, f, out, com, lumi):
     rest_comp = B_hat * sb._expo_shape(b_hat)
     hep.histplot([tt_comp, rest_comp], bins=sb.edges, stack=True,
                  histtype="fill", alpha=0.8, color=[C_TT, C_DY],
-                 label=[fr"$t\bar{{t}}$+tW: size = $R\times T$,"
-                        " slope shared with CR",
-                        "rest: size and shape free (as before)"], ax=ax)
+                 label=[r"$t\bar{t}$+tW: size and shape sim. fit with FCR",
+                        "Rest: size and shape floating"], ax=ax)
     ax.errorbar(sb.centers, mu_sr, yerr=np.sqrt(mu_sr), fmt="ko", ms=5,
                 label="MC")
 
@@ -238,17 +272,11 @@ def plot_split(sb, mu_sr, cr_data, f, out, com, lumi):
             color="black", lw=2.0, label="total fit ($r = 0$)")
     ax.plot(xs, curve(sb.R * T_hat, b_tt_hat),
             color="black", lw=1.8, ls="--",
-            label=r"$t\bar{t}$ component (CR-shared)")
+            label=r"$t\bar{t}$ component (sim. fit w/ FCR)")
     ax.text(0.53, 0.73,
             fr"$\nu_i = r\,S_i \,+\, R\cdot T"
             r"\cdot t_i(b_{tt}) \,+\, B\,e_i(b)$" "\n"
-            "     signal      tt (CR-shared)      rest (free)\n"
-            fr"$R = {sb.R:.3f}$ (MC transfer, full spectrum)" "\n"
-            "fitted:\n"
-            fr"  $\hat{{T}} = {T_hat:.0f} \pm {T_err:.0f}$, "
-            fr"$\hat{{b}}_{{tt}} = {b_tt_hat:.2f} \pm {b_tt_err:.2f}$ /TeV" "\n"
-            fr"  $\hat{{B}} = {B_hat:.0f} \pm {B_err:.0f}$, "
-            fr"$\hat{{b}} = {b_hat:.2f} \pm {b_err:.2f}$ /TeV",
+            "     signal      tt (sim. fit)      rest (free)",
             transform=ax.transAxes, va="top", fontsize=13,
             bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="black",
                       lw=1.0, alpha=0.9))
@@ -264,6 +292,55 @@ def plot_split(sb, mu_sr, cr_data, f, out, com, lumi):
             transform=ax.transAxes, va="top", fontsize=15)
     ax.legend(fontsize=14, loc="upper right")
     _cmslabel(ax, com, lumi)
+    if axr is not None:
+        e, v_tt, w_tt = _load_w2(bkg_dirs, SR_REGION, ["tt_tW"])
+        _, v_re, w_re = _load_w2(bkg_dirs, SR_REGION,
+                                 ["DYJets", "Nonprompt", "Other"])
+        bw, lo, hi = sb.width, sb.lo + 1e-3, sb.hi - 1e-3
+        _, tt = rebin_snap(e, v_tt, bw, lo, hi)
+        _, tt2 = rebin_snap(e, w_tt, bw, lo, hi)
+        _, re = rebin_snap(e, v_re, bw, lo, hi)
+        _, re2 = rebin_snap(e, w_re, bw, lo, hi)
+        good = (tt > 0) & (re > 0)
+        rmc = np.where(good, tt / np.where(good, re, 1), np.nan)
+        rerr = rmc * np.sqrt(np.where(good, tt2 / tt**2 + re2 / re**2, 0))
+        if not coarse:      # coarse: only the integrated bins in the panel
+            axr.errorbar(sb.centers, rmc, yerr=rerr, fmt="ko", ms=5,
+                         label="MC")
+            axr.plot(xs, curve(sb.R * T_hat, b_tt_hat) / curve(B_hat, b_hat),
+                     color="black", lw=2.0, label="fit")
+        axr.axhline(1.0, color="gray", lw=1.0, ls="--")
+        if coarse:
+            cb = [b for b in COARSE_BINS if sb.lo - 1 <= b <= sb.hi + 1]
+            for k, (a, b) in enumerate(zip(cb[:-1], cb[1:])):
+                for a_ in (ax, axr):
+                    a_.axvspan(a, b, color="gray",
+                               alpha=0.10 if k % 2 == 0 else 0.02, lw=0)
+                    a_.axvline(a, color="gray", lw=1.0, ls=":")
+                m = (sb.centers > a) & (sb.centers < b)
+                r_mc = tt[m].sum() / re[m].sum()
+                e_mc = r_mc * np.sqrt(tt2[m].sum() / tt[m].sum()**2
+                                      + re2[m].sum() / re[m].sum()**2)
+                r_fit = tt_comp[m].sum() / rest_comp[m].sum()
+                e_fit = r_fit * np.hypot(T_err / T_hat, B_err / B_hat)
+                xc = 0.5 * (a + b)
+                axr.errorbar([xc - 0.08 * (b - a)], [r_mc], yerr=[e_mc],
+                             xerr=[[xc - 0.08 * (b - a) - a],
+                                   [b - xc + 0.08 * (b - a)]],
+                             fmt="o", color="black", ms=7, lw=2.2, capsize=3,
+                             label="MC, integrated" if k == 0 else None)
+                axr.errorbar([xc + 0.08 * (b - a)], [r_fit], yerr=[e_fit],
+                             fmt="s", mfc="white", color=C_TT, ms=9, lw=2.2,
+                             capsize=3, zorder=5,
+                             label="fit, integrated" if k == 0 else None)
+            for a_ in (ax, axr):
+                a_.axvline(cb[-1], color="gray", lw=1.0, ls=":")
+        axr.set_ylim(0, 2.6)
+        axr.set_yticks([0, 1, 2])
+        axr.set_ylabel(r"$t\bar{t}$+tW / rest")
+        axr.set_xlabel(r"$m_{lljj}$ [GeV]")
+        axr.legend(fontsize=13, loc="upper right", ncol=2)
+        ax.set_xlabel("")
     _save(fig, out)
 
 
@@ -452,6 +529,9 @@ def plot_effect(out, com, lumi):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--output-dir", type=Path, default=HERE / "explain_fcr")
+    p.add_argument("--cr", choices=["data", "mc"], default="data",
+                   help="flavor-CR channel: EGamma data (default) or MC "
+                        "Asimov (tt+tW + rest); mc writes ONLY 2a_sr_split_crmc")
     p.add_argument("-v", "--verbose", action="count", default=0)
     args = p.parse_args()
     setup_logging(args.verbose)
@@ -505,10 +585,25 @@ def main():
     _, cr_other = rebin_snap(hcr["fcr_rest_native"].axes[0].edges(),
                              hcr["fcr_rest_native"].values(),
                              v["bw"], v["fit_lo"], v["fit_hi"])
+    if args.cr == "mc":     # same official MC files in the CR channel too
+        _, cr_tt = rebin_snap(hcr["fcr_tt_native"].axes[0].edges(),
+                              hcr["fcr_tt_native"].values(),
+                              v["bw"], v["fit_lo"], v["fit_hi"])
+        cr_data = cr_tt + cr_other
     sb_shape = CardSB(edges, meta["m_c"], meta["sigma"], mode="fcr_shape",
                       fcr=dict(R=r_global, T_cr=f["T_cr"], b_tt=f["b_tt"],
                                cr_other=cr_other))
     sb_shape._mu_sr = mu_sr
+    if args.cr == "mc":
+        plot_split(sb_shape, mu_sr, cr_data, f, out / "2a_sr_split_crmc",
+                   com, lumi, bkg_dirs=bkg_dirs)
+        plot_split(sb_shape, mu_sr, cr_data, f,
+                   out / "2a_sr_split_crmc_noratio", com, lumi)
+        plot_split(sb_shape, mu_sr, cr_data, f,
+                   out / "2a_sr_split_crmc_bins", com, lumi,
+                   bkg_dirs=bkg_dirs, coarse=True)
+        logger.info("2a (CR = MC Asimov) done -> %s", out)
+        return
     prof_shape = sb_shape.fit_profiled(0.0, mu_sr, data_cr=cr_data)
     fit_overlay = dict(T=prof_shape["params"][0],
                        e_T=prof_shape["perr"][0],
@@ -520,7 +615,8 @@ def main():
     plot_regions(bkg_dirs, input_lumis, v, wins, out, com, lumi, fcr_var=f,
                  fit_overlay=fit_overlay)
     logger.info("1a/1b regions done")
-    plot_split(sb_shape, mu_sr, cr_data, f, out / "2a_sr_split", com, lumi)
+    plot_split(sb_shape, mu_sr, cr_data, f, out / "2a_sr_split", com, lumi,
+               bkg_dirs=bkg_dirs)
     plot_cr_shape(sb_shape, cr_data, f, out / "2c_cr_shape", com, lumi)
     logger.info("2a/2c model done")
     plot_constraint(sb_shape, mu_sr, cr_data, out / "3_constraint", com, lumi)
