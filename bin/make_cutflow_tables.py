@@ -364,7 +364,17 @@ def _fmt_latex_yield(x):
     return f"${mant:.2f} \\times 10^{{{exp}}}$"
 
 
-_fmt_latex_eff = _fmt_latex_yield
+def _fmt_latex_eff(x):
+    """Format an efficiency in percent for LaTeX: 100, 95.3, 8.85, 0.012."""
+    if x == 0:
+        return "0"
+    if abs(x) >= 99.95:
+        return "100"
+    if abs(x) >= 10:
+        return f"{x:.1f}"
+    if abs(x) >= 1:
+        return f"{x:.2f}"
+    return f"{x:.2g}"
 
 
 def _running_eff(yields, i):
@@ -556,14 +566,16 @@ def build_latex_table(cut_labels, sample_columns, channel, lumi, year,
             "Each row shows the yield after applying that cut and all preceding cuts. "
         )
 
+    quantity = "selection efficiencies" if efficiency else "expected event yields"
     lines = []
     lines.append(r"\begin{table}[htp]")
     lines.append(
-        f"  \\topcaption{{{era}: expected event yields for the {region}, {chan_pretty} channel. "
+        f"  \\topcaption{{{era}: {quantity} for the {region}, {chan_pretty} channel. "
         f"{cut_description}"
         f"Background estimates are from simulation; "
         f"signal columns show $(m_{{W_R}},\\,m_{{N}})$ mass hypotheses in GeV. "
-        f"All yields are normalized to ${lumi:.1f}\\,\\mathrm{{fb}}^{{-1}}$ ({year}).}}"
+        f"{'Efficiencies are computed from yields' if efficiency else 'All yields are'} "
+        f"normalized to ${lumi:.1f}\\,\\mathrm{{fb}}^{{-1}}$ ({year}).}}"
     )
     lines.append(f"  \\label{{tab:cutflow_{hist_label}_{region}_{channel}_{year}}}")
     lines.append(r"  \centering")
