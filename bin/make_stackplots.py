@@ -60,6 +60,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--era",dest="era",type=str,choices=_ERA_CHOICES,required=False,help="Specify the era",)
     parser.add_argument("--dir",dest="dir",type=str,default="",help="Optional subdirectory under the input & default EOS output paths",)
+    parser.add_argument("--unskimmed",action="store_true",help="Read ROOT files and save plots from the era's unskimmed subdirectory.",)
     parser.add_argument("--name",dest="name",type=str,default="",help="Append a suffix to the filenames",)
     parser.add_argument("--plot-config",dest="plot_config",type=str,default=None,help="YAML file with rebin/xlim/ylim for each (region,variable)",)
     parser.add_argument("--region","-r",dest="regions",action="append",default=None,help="Region name(s). Repeat or comma-separate: -r a -r b  or  -r a,b",)
@@ -137,6 +138,7 @@ def parse_args() -> argparse.Namespace:
 def setup_plotter(args) -> Plotter:
     working_dir = REPO_DIR
     info = load_lumi(args.era)
+    output_subdir = "unskimmed" if args.unskimmed else args.dir
 
     plotter = Plotter()
     plotter.era  = args.era
@@ -147,29 +149,33 @@ def setup_plotter(args) -> Plotter:
 
     if "sub_eras" in info:
         dirs = []
+        data_dirs = []
         for se in info["sub_eras"]:
             se_info = load_lumi(se)
             d = working_dir / "rootfiles" / se_info["run"] / se_info["year"] / se
-            if args.dir:
-                d = d / args.dir
+            if args.dir and not args.unskimmed:
+                d = d / output_subdir
             dirs.append(d)
+            data_dirs.append(d / "unskimmed" if args.unskimmed else d)
         plotter.input_directory = dirs
+        plotter.data_input_directory = data_dirs
         plotter.input_lumis = info["sub_lumis"]
     else:
         base = working_dir / "rootfiles" / plotter.run / plotter.year / plotter.era
-        if args.dir:
-            base = base / args.dir
+        if args.dir and not args.unskimmed:
+            base = base / output_subdir
         plotter.input_directory = [base]
+        plotter.data_input_directory = [base / "unskimmed" if args.unskimmed else base]
         plotter.input_lumis = [plotter.lumi]
 
     if args.local_plots:
         local_base = REPO_DIR / "plots" / plotter.run / plotter.year / plotter.era
-        if args.dir:
-            local_base = local_base / args.dir
+        if output_subdir:
+            local_base = local_base / output_subdir
         local_base.mkdir(parents=True, exist_ok=True)
         plotter.output_directory = local_base
     else:
-        plotter.output_directory = output_dir(plotter.run, plotter.year, plotter.era, args.dir or None)
+        plotter.output_directory = output_dir(plotter.run, plotter.year, plotter.era, output_subdir or None)
 
     groups, order = load_sample_groups(args.era)
 
@@ -263,7 +269,8 @@ def main():
                 
                 for sample in sample_group.samples:
                     hist_obj = load_and_rebin(
-                        input_dirs=plotter.input_directory,
+                        input_dirs=(plotter.data_input_directory if is_data_group
+                                    else plotter.input_directory),
                         sample=sample,
                         hist_key=hist_key,
                         plotter=plotter,
@@ -288,7 +295,8 @@ def main():
                                 f"{variable.name}_syst_{syst}{direction}_{region.name}"
                             )
                             syst_obj = load_and_rebin(
-                                input_dirs=plotter.input_directory,
+                                input_dirs=(plotter.data_input_directory if is_data_group
+                                            else plotter.input_directory),
                                 sample=sample,
                                 hist_key=syst_hist_key,
                                 plotter=plotter,
@@ -320,8 +328,10 @@ def main():
                     )
                     plotter.accumulate_histogram(combined, color, label)
 
-            if not plotter.stack_list and not plotter.data_hist:
-                logging.warning(f"  Skipped '{region.name}/{variable.name}' (no histograms found).")
+            if not plotter.stack_list:
+                logging.warning(
+                    f"  Skipped '{region.name}/{variable.name}' (no MC histograms found)."
+                )
                 continue
 
             # Determine if this is a signal region and if we should blind it

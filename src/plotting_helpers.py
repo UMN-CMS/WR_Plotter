@@ -147,7 +147,13 @@ def plot_stack(plotter, region, variable,
 
     # MC total uncertainty band (stat ⊕ syst)
     errps = {"hatch": "////", "facecolor": "none", "lw": 0, "edgecolor": "k", "alpha": 0.5}
-    hep.histplot(tot, histtype="band", yerr=mc_total_errs, ax=ax, **errps, label="MC stat. + syst. unc.")
+    ax.stairs(
+        tot_vals + mc_total_errs,
+        edges,
+        baseline=tot_vals - mc_total_errs,
+        **errps,
+        label="MC stat. + syst. unc.",
+    )
 
     # ratio
     rel_err = np.divide(mc_total_errs, tot_vals,
@@ -187,7 +193,7 @@ def plot_stack(plotter, region, variable,
 
     hep.cms.label(loc=0, ax=ax, data=region.unblind_data,
                   label="Work in Progress", lumi=f"{plotter.lumi:.1f}",
-                  com=13.6, fontsize=fontsize_label)
+                  fontsize=fontsize_label)
 
     xlabel = f"{variable.tlatex_alias} [{variable.unit}]" if getattr(variable, "unit", "") else variable.tlatex_alias
     rax.set_xlabel(xlabel)
