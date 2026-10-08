@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 
 MU0, SIG = 0.1, 13.4
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 NHAT = MU0 - 2 * SIG                 # -2 sigma downward fluctuation = -26.7
 Z = 1.6449
 UL_naive = NHAT + Z * SIG            # -4.66

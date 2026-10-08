@@ -15,7 +15,7 @@ MU0, SIG = 0.1, 13.4
 Z = 1.6449
 SHIFT = Z * SIG                 # 1.645 sigma ~ 22.0
 UL_MED = MU0 + SHIFT           # median limit
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 
 def gauss(x, mu, s):
     return np.exp(-0.5 * ((x - mu) / s) ** 2) / (s * math.sqrt(2 * math.pi))

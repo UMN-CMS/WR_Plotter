@@ -152,11 +152,11 @@ percentiles divide through unchanged* — the median stays the median, the 68%
 band stays the 68% band. Nothing statistical happens in Stage 7b; it is a unit
 conversion.
 
-**Worked example continued** (m = 1200): `eff = 0.136`, `L = 109.8 fb^-1` →
-one pb of signal would leave `1000 × 109.8 × 0.136 ≈ 15,000` events in the
+**Worked example continued** (m = 1200): `eff = 0.136`, `L = 109.7 fb^-1` →
+one pb of signal would leave `1000 × 109.7 × 0.136 ≈ 15,000` events in the
 window. The 109.1-event median limit becomes
 
-    sigma_UL = 109.1 / 14958 = 7.3e-3 pb = 7.3 fb
+    sigma_UL = 109.1 / 14944 = 7.3e-3 pb = 7.3 fb
 
 ---
 

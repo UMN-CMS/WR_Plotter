@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 
 XSEC_FB = 0.0768873 * 1000.0       # theory ~ 76.9 fb
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 MWR = 2.4
 
 # expected sigma band (fb), from step4_xsec_band (CLs, center-mean)

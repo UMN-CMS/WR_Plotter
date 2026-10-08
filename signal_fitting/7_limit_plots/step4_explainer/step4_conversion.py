@@ -10,7 +10,7 @@ from scipy.special import ndtri
 
 MU0, SIG = 0.1434, 11.5615        # WR2400_N1200 nsp_hist moments
 EFF = 0.2013                       # S_fit/genEventSumw (fit-consistent)
-LUMI = 109.8                       # fb^-1
+LUMI = 109.7                       # fb^-1
 ALPHA = 0.05
 
 def Phi(z):

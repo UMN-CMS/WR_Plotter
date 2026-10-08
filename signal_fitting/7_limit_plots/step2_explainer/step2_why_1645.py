@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 
 SIG = 13.4
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 NHAT = 1.4
 Z = 1.6449
 UL = NHAT + Z * SIG                 # 23.44

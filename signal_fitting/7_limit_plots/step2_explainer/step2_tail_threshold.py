@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 
 SIG = 13.4
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 NHAT = 1.4          # nominal (Asimov) fit value from the diagnostic plot
 THRESH = 5.0
 Z = 1.6449

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Step 4 aside -- cross section and event count are the SAME axis. A signal of
-N events sits at sigma = N / (L * eff); with L=109.8 fb^-1 and eff=0.20 that is
+N events sits at sigma = N / (L * eff); with L=109.7 fb^-1 and eff=0.20 that is
 1 fb <-> 22 events. So '77 fb' is ~1700 events (fixed) -- you cannot have 10 or
 1000 events at 77 fb. Right axis shows the event equivalent of the left (sigma)
 axis. CMS style."""
@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 
 EFF = 0.2013
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 XSEC_FB = 0.0768873 * 1000.0       # theory ~ 76.9 fb
 MWR = 2.4
 DENOM = LUMI * EFF                  # N = sigma[fb] * DENOM   (~22.1)

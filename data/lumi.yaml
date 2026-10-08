@@ -23,52 +23,52 @@ RunIISummer20UL18:
 Run3Summer22:
   run: Run3
   year: "2022"
-  lumi: 7.9804
+  lumi: 8.08     # processed luminosity of the skims_v2 data, 2022B + C + D (see WrCoffea wrcoffea/config.yaml)
   com: 13.6
   <<: *run3_signals
 
 Run3Summer22EE:
   run: Run3
   year: "2022"
-  lumi: 26.6717
+  lumi: 26.64    # processed luminosity of the skims_v2 data, 2022E + F + G
   com: 13.6
   <<: *run3_signals
 
 "2022":
   run: Run3
   year: "2022"
-  lumi: 34.6521
+  lumi: 34.72
   com: 13.6
   sub_eras:  [Run3Summer22, Run3Summer22EE]
-  sub_lumis: [7.9804, 26.6717]
+  sub_lumis: [8.08, 26.64]
   <<: *run3_signals
 
 Run3Summer23:
   run: Run3
   year: "2023"
-  lumi: 18.063
+  lumi: 18.59    # processed luminosity of the skims_v2 data, 2023B + 2023C (see WrCoffea wrcoffea/config.yaml)
   com: 13.6
   <<: *run3_signals
 
 Run3Summer23BPix:
   run: Run3
   year: "2023"
-  lumi: 9.693
+  lumi: 9.675    # processed luminosity of the skims_v2 data, 2023D
   com: 13.6
   <<: *run3_signals
 
 "2023":
   run: Run3
   year: "2023"
-  lumi: 27.756
+  lumi: 28.265
   com: 13.6
   sub_eras:  [Run3Summer23, Run3Summer23BPix]
-  sub_lumis: [18.063, 9.693]
+  sub_lumis: [18.59, 9.675]
   <<: *run3_signals
 
 RunIII2024Summer24:
   run: Run3
   year: "2024"
-  lumi: 109.82
+  lumi: 109.70   # processed luminosity of the skims_v2 data (see WrCoffea wrcoffea/config.yaml)
   com: 13.6
   <<: *run3_signals

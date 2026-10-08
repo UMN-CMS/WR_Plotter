@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 
 MU0, SIG = 0.1, 13.4
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 NHAT = MU0 - 2 * SIG
 S_SIG = 9.0
 

@@ -15,7 +15,7 @@ import mplhep as hep
 from scipy.special import ndtri
 
 MU0, SIG = 0.1434, 11.5615      # WR2400_N1200 grid point (ee, resolved, expo)
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 ALPHA = 0.05
 Z = 1.6449
 

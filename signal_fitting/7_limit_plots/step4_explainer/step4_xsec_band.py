@@ -13,7 +13,7 @@ from scipy.special import ndtri
 
 MU0, SIG = 0.1434, 11.5615        # WR2400_N1200 nsp_hist moments
 EFF = 0.2013                       # S_fit/genEventSumw
-LUMI, COM = 109.8, 13.6            # fb^-1
+LUMI, COM = 109.7, 13.6            # fb^-1
 XSEC_FB = 0.0768873 * 1000.0       # theory sigma x BR = 76.9 fb
 NSP_ASIMOV = 1.8088                # nominal-MC (Asimov) fitted yield
 ALPHA = 0.05

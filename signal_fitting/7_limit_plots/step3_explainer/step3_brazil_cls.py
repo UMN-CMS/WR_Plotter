@@ -13,7 +13,7 @@ import mplhep as hep
 from scipy.special import ndtri
 
 MU0, SIG = 0.1, 13.4            # off-grid m_WR=2341 (ee, resolved, expo)
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 ALPHA = 0.05
 Z = 1.6449
 

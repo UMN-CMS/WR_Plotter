@@ -14,7 +14,7 @@ from scipy.special import ndtri
 
 MU0, SIG = 0.1434, 11.5615
 EFF = 0.2013
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 XSEC_FB = 0.0768873 * 1000.0       # theory ~ 76.9 fb
 ALPHA = 0.05
 MWR = 2.4

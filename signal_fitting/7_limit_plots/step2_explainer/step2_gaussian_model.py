@@ -11,7 +11,7 @@ import mplhep as hep
 
 MU0 = 0.1
 SIG = 13.4
-LUMI = 109.8
+LUMI = 109.7
 COM = 13.6
 NTOYS = 1000
 BINW = 4.0          # nsp_hist bin width: 2*hist_range/hist_bins = 2*60/30

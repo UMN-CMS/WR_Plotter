@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 
 SIG = 13.4
-LUMI = 109.8
+LUMI = 109.7
 COM = 13.6
 HYPS = [(0.0,  "#1f77b4", "background only"),
         (9.0,  "#2ca02c", None),

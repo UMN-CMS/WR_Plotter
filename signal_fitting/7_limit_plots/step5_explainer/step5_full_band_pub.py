@@ -14,7 +14,7 @@ import mplhep as hep
 
 HERE = pathlib.Path(__file__).resolve().parent
 CSV = HERE.parent / "xsec_limit_table_ee_resolved.csv"
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 
 rows = []
 with open(CSV) as fh:

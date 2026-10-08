@@ -15,7 +15,7 @@ import mplhep as hep
 
 HERE = pathlib.Path(__file__).resolve().parent
 CSV = HERE.parent / "xsec_limit_table_ee_resolved.csv"
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 TRUST_LO, TRUST_HI = 1.8, 3.2       # TeV -- Gaussian-trustworthy window
 
 # --- read the expo band (pb -> fb) ---

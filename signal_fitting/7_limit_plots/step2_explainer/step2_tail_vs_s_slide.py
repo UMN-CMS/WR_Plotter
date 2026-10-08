@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 
 SIG = 13.4
-LUMI, COM = 109.8, 13.6
+LUMI, COM = 109.7, 13.6
 
 def Phi(z):
     return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
