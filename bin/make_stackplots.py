@@ -30,6 +30,11 @@ from wrplotter.config import (list_eras, load_lumi, load_plot_settings, load_kfa
 from wrplotter.cli_utils import parse_multi, setup_logging, add_era_args
 
 
+# composite systematic sources: one band from the envelope of several
+# correlated analyzer variations (kept in step with signal_fitting/shared/syst_band.ENVELOPES)
+SYST_ENVELOPES = {"scale": ("scalemur", "scalemuf", "scalemurf")}
+
+
 def collect_syst_variations(sample, hist_obj, region_name, variable_name,
                             rebin, input_dirs, input_lumis, era, syst_hists,
                             scales, systematics, density=True, xmax=None):
@@ -39,32 +44,61 @@ def collect_syst_variations(sample, hist_obj, region_name, variable_name,
     histogram as fallback so samples without a given systematic
     contribute delta=0 rather than biasing the envelope.
     """
+    def _load(name, direction):
+        return load_and_rebin(
+            input_dirs=input_dirs,
+            sample=sample,
+            hist_key=(f"syst_{name}{direction}_{region_name}/"
+                      f"{variable_name}_syst_{name}{direction}_{region_name}"),
+            n_rebin=rebin,
+            sublumis=input_lumis,
+            era_for_scale=era,
+            get_kfactor_fn=get_kfactor,
+            scales=scales,
+            density=density,
+            xmax=xmax,
+        )
+
     for syst in systematics:
-        for direction in ["up", "down"]:
-            syst_hist_key = (
-                f"syst_{syst}{direction}_{region_name}/"
-                f"{variable_name}_syst_{syst}{direction}_{region_name}"
-            )
-            syst_obj = load_and_rebin(
-                input_dirs=input_dirs,
-                sample=sample,
-                hist_key=syst_hist_key,
-                n_rebin=rebin,
-                sublumis=input_lumis,
-                era_for_scale=era,
-                get_kfactor_fn=get_kfactor,
-                scales=scales,
-                density=density,
-                xmax=xmax,
-            )
-            if syst_obj is None:
-                logger.warning("Missing systematic '%s %s' for sample '%s' in region '%s'; using nominal as fallback.",
-                               syst, direction, sample, region_name)
-                syst_obj = hist_obj
+        members = SYST_ENVELOPES.get(syst)
+        if members:
+            # composite source (e.g. QCD scale): per-bin envelope over every
+            # member variation becomes this source's up/down
+            variants = [h for m in members for d in ("up", "down")
+                        if (h := _load(m, d)) is not None]
+            if variants:
+                stack = np.array([h.values() for h in variants])
+                pair = {"up": _hist_with_values(hist_obj, stack.max(axis=0)),
+                        "down": _hist_with_values(hist_obj, stack.min(axis=0))}
+            else:
+                logger.warning("Missing systematic '%s' (%s) for sample '%s' in region '%s'; using nominal as fallback.",
+                               syst, "/".join(members), sample, region_name)
+                pair = {"up": hist_obj, "down": hist_obj}
+        else:
+            pair = {}
+            for direction in ["up", "down"]:
+                syst_obj = _load(syst, direction)
+                if syst_obj is None:
+                    logger.warning("Missing systematic '%s %s' for sample '%s' in region '%s'; using nominal as fallback.",
+                                   syst, direction, sample, region_name)
+                    syst_obj = hist_obj
+                pair[direction] = syst_obj
+        for direction, syst_obj in pair.items():
             syst_hists.setdefault(region_name, {}) \
                       .setdefault(variable_name, {}) \
                       .setdefault(syst, {}) \
                       .setdefault(direction, {})[sample] = syst_obj
+
+
+def _hist_with_values(template, values):
+    """Copy of `template` with its bin values replaced (variances kept)."""
+    h = template.copy()
+    view = h.view()
+    if hasattr(view, "value"):
+        view.value[...] = values
+    else:
+        view[...] = values
+    return h
 
 
 def load_signal_overlays(region, hist_key, rebin, input_dirs, input_lumis,

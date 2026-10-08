@@ -13,6 +13,9 @@ systematics:
   - loosemuonrecosf
   - loosemuonidsf
   - electronrecosf
+  - electronidsf
+  - electrontrigsf
+  - looseelectronrecosf
   # Shape systematics (re-run selections with shifted kinematics):
   - jer
   - jes
@@ -20,3 +23,8 @@ systematics:
   - elesmear
   - muscale
   - musmear
+  # Theory (weight-based, normalized per dataset so only acceptance/shape move):
+  # "scale" is a composite: envelope of scalemur / scalemuf / scalemurf
+  - scale
+  - psisr
+  - psfsr
