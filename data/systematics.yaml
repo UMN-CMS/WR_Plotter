@@ -28,3 +28,8 @@ systematics:
   - scale
   - psisr
   - psfsr
+  # PDF (Hessian eigenvectors) and alpha_s: no variation folders; formed from the
+  # analyzer's PDF members at the plot binning (wrplotter/pdf.py); mass_fourobject /
+  # mass_twoobject only
+  - pdf
+  - alphas

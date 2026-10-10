@@ -18,6 +18,9 @@ every file adding either its own variation or its own nominal, never nothing:
 
 Composite sources (``SYST_ENVELOPES``) become one up/down pair from the
 per-bin envelope of their member variations.
+
+``pdf`` and ``alphas`` have no variation folders: they are formed from the
+analyzer's PDF members at the plot binning (``wrplotter/pdf.py``).
 """
 from __future__ import annotations
 
@@ -32,6 +35,7 @@ from hist import Hist
 
 from .histogram_cache import keys_in_file
 from .histogram_utils import add_hists
+from .pdf import PDF_SOURCES, pdf_variations
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +118,7 @@ def sample_variations(
     systematics: Sequence[str],
     *,
     load: Callable[[Path, str], Hist | None],
+    rebin: Callable[[Hist], Hist] | None = None,
 ) -> dict[str, dict[str, Hist]]:
     """``{syst: {"up": Hist, "down": Hist}}`` of one sample in one region.
 
@@ -122,20 +127,27 @@ def sample_variations(
     key)* reads one histogram of one file, rebinned like the nominal.  Each
     variation is summed over the files, a file without it adding its own
     nominal (see the module docstring).  Systematics with no variation in any
-    file are left out.
+    file are left out.  ``pdf`` / ``alphas`` come from the PDF members, each
+    member rebinned with *rebin* (the plot's rebinning) before the quadrature.
     """
     files = [f for f, h in nominals.items() if h is not None]
-    sources = {f: _sources_in_file(str(f)) for f in files}
-    present = frozenset().union(*sources.values())
-    if not present:
-        return {}
-    _report_era_gaps(sources, {m for s in systematics for m in SYST_ENVELOPES.get(s, (s,))})
-
     nominal = None
     for f in files:
         nominal = add_hists(nominal, nominals[f])
     out: dict[str, dict[str, Hist]] = {}
+    pdf_wanted = [s for s in systematics if s in PDF_SOURCES]
+    if pdf_wanted and rebin is not None and nominal is not None:
+        out.update(pdf_variations(files, region, variable, nominal, rebin, pdf_wanted))
+
+    sources = {f: _sources_in_file(str(f)) for f in files}
+    present = frozenset().union(*sources.values())
+    if not present:
+        return out
+    _report_era_gaps(sources, {m for s in systematics for m in SYST_ENVELOPES.get(s, (s,))})
+
     for syst in systematics:
+        if syst in PDF_SOURCES:
+            continue
         members = [m for m in SYST_ENVELOPES.get(syst, (syst,)) if m in present]
         if not members:
             continue

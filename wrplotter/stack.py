@@ -14,7 +14,7 @@ from typing import Sequence
 from hist import Hist
 
 from .histogram_cache import load_and_rebin, load_file, load_per_file, sum_files
-from .histogram_utils import add_hists
+from .histogram_utils import add_hists, rebin_histogram
 from .inputs import Inputs, sr_data_unblinded
 from .regions import Region
 from .sample_groups import SampleGroup
@@ -99,6 +99,11 @@ class HistLoader:
         """*hist_key* of one file, rebinned like every other histogram of the plot."""
         return load_file(path, hist_key, self.binning.rebin,
                          density=self.binning.density, xmax=self.binning.xmax)
+
+    def rebin(self, h: Hist) -> Hist:
+        """*h* (raw, analysis binning) rebinned like every other histogram of the plot."""
+        return rebin_histogram(h, self.binning.rebin, density=self.binning.density,
+                               xmax=self.binning.xmax)
 
 
 @dataclass
@@ -211,7 +216,7 @@ def build_stack(
             combined = add_hists(combined, h)
             if systematics:
                 variations = sample_variations(per_file, region.name, variable, systematics,
-                                               load=load.file)
+                                               load=load.file, rebin=load.rebin)
                 per_sample_syst.append((sample, h, variations))
         if combined is not None:
             out.mc.append((group, combined))
