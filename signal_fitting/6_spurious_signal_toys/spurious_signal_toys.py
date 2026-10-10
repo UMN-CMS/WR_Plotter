@@ -119,7 +119,7 @@ def _quantile(nsps, p):
 
 def plot_nsp_hist(nsps, n_asimov, mWR, name, out, *, mean, rms, hist_range,
                   hist_bins, channel, topology, com, lumi, k, ntoys,
-                  adaptive=False):
+                  adaptive=False, sym=r"\hat{N}_{\rm sig}", ref_label="Original MC"):
     """Per-mass distribution of the toy spurious yield N_sp, with the original-MC
     (unfluctuated) value and the toy mean overlaid. `mean`/`rms` are the
     ROOT-computed summary stats (TMath), passed in so the plot and the CSV agree.
@@ -128,7 +128,9 @@ def plot_nsp_hist(nsps, n_asimov, mWR, name, out, *, mean, rms, hist_range,
     identical axes (toys beyond it pile into the edge bins). With `adaptive=True`
     the range instead tracks the distribution's own 2.5/97.5% quantiles (padded),
     so a shifted mean (e.g. <N_sp> = -55) is centred rather than dumped into the
-    overflow bin, and the 5/95% quantiles are always on-axis (drawn as markers)."""
+    overflow bin, and the 5/95% quantiles are always on-axis (drawn as markers).
+    `sym` is the LaTeX symbol for the fitted signal yield (default N_sig;
+    the seminar decks use r)."""
     hep.style.use("CMS")
     fig, ax = plt.subplots()
     m, s, n = mean, rms, len(nsps)
@@ -153,16 +155,16 @@ def plot_nsp_hist(nsps, n_asimov, mWR, name, out, *, mean, rms, hist_range,
                     color="#555555", fontsize=11, va="bottom", ha="left")
     ax.axvline(0.0, color="grey", lw=0.8, ls=":")
     ax.axvline(m, color="#1f77b4", lw=1.6,
-               label=fr"Mean over {n} toys $\langle \hat{{N}}_{{\rm sig}}\rangle={m:.1f}$")
+               label=fr"Mean over {n} toys $\langle {sym}\rangle={m:.1f}$")
     if math.isfinite(n_asimov):
         ax.axvline(n_asimov, color="#e42536", lw=1.6, ls="--",
-                   label=fr"Original MC $\hat{{N}}_{{\rm sig}}={n_asimov:.1f}$")
-    ax.set_xlabel(r"Fitted signal yield $\hat{N}_{\rm sig}$ [events]")
+                   label=fr"{ref_label} ${sym}={n_asimov:.1f}$")
+    ax.set_xlabel(fr"Fitted signal yield ${sym}$ [events]")
     ax.set_ylabel("Toys")
     ax.text(0.04, 0.95,
             f"{CH_LAB[channel]}\n{TOPO_LAB[topology]}\n"
             fr"$m_{{W_R}}={mWR:.0f}$ GeV" "\n"
-            fr"$\langle \hat{{N}}_{{\rm sig}}\rangle = {m:.1f}$" "\n"
+            fr"$\langle {sym}\rangle = {m:.1f}$" "\n"
             fr"RMS $= {s:.1f}$" "\n"
             fr"$N_{{\rm toys}}={n}$",
             transform=ax.transAxes, va="top", fontsize=15)

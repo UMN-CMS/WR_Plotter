@@ -62,7 +62,7 @@ from spurious_signal_toys import plot_nsp_hist                          # noqa: 
 
 logger = logging.getLogger("card_model_toys")
 
-MODELS = ["card_float", "card_fcr"]
+MODELS = ["card_float", "card_fcr", "card_fcrs"]
 
 
 def parse_args():
@@ -76,6 +76,12 @@ def parse_args():
     p.add_argument("--variant", default="k5_bw50",
                    help="window_bw key from the optimization inputs")
     p.add_argument("--models", nargs="+", default=MODELS, choices=MODELS)
+    p.add_argument("--ref-label", default="Original MC",
+                   help="legend label of the fit to the unfluctuated truth on the toy plot")
+    p.add_argument("--cr-shape", default="mc", choices=["mc", "data"],
+                   help="fcr_shape with CR data: 'mc' spreads the data count over the MC "
+                        "shape (tt scaled by mu_tt); 'data' uses the data histogram itself "
+                        "as the CR truth, as the explainer fits do")
     p.add_argument("--cr-obs", default="mc", choices=["mc", "EGamma", "Muon"],
                    help="flavor-CR observation for card_fcr. 'mc': Asimov "
                         "(mu_tt = 1 truth). A dataset name: the CR DATA count "
@@ -91,10 +97,19 @@ def parse_args():
     p.add_argument("--opt-inputs", type=Path,
                    default=HERE.parents[0] / "8_combine_limits" / "optimization"
                    / "inputs")
+    p.add_argument("--bkg-hist-file", type=Path, default=None,
+                   help="ROOT file whose 'bkg_native' (10 GeV summed "
+                        "background) is the toy mean; default "
+                        "<opt-inputs>/<tag>.root. The smoothing study "
+                        "(4_background_fits/smoothing) passes its "
+                        "smoothed_<method>.root here.")
     p.add_argument("--no-toy-plots", action="store_true")
     p.add_argument("--hist-range", type=float, default=60.0)
     p.add_argument("--hist-bins", type=int, default=30)
     p.add_argument("--hist-adaptive", action="store_true")
+    p.add_argument("--nsig-symbol", default="N", choices=["N", "r"],
+                   help="symbol for the fitted signal yield on the toy "
+                        "histograms: N (N_sig, default) or r (r-hat)")
     p.add_argument("--output-dir", type=Path, default=None,
                    help="Default: <script dir>/<run2|run3>/card")
     p.add_argument("-v", "--verbose", action="count", default=0)
@@ -118,11 +133,15 @@ def main():
     with open(args.opt_inputs / f"{tag}_fcr.json") as fh:
         fcr_meta = json.load(fh)
     import uproot
-    h = uproot.open(args.opt_inputs / f"{tag}.root")["bkg_native"]
+    bkg_file = args.bkg_hist_file or (args.opt_inputs / f"{tag}.root")
+    h = uproot.open(bkg_file)["bkg_native"]
     e10, v10 = h.axes[0].edges(), h.values()
+    logger.info("background toy mean from %s", bkg_file)
     if args.cr_obs != "mc":
         fs = uproot.open(args.opt_inputs / f"{tag}_fcr.root")
         tt10, rest10 = fs["tt_native"].values(), fs["rest_native"].values()
+    fs2 = uproot.open(args.opt_inputs / f"{tag}_fcr.root")
+    ftt10, frest10 = fs2["fcr_tt_native"].values(), fs2["fcr_rest_native"].values()
 
     masses = sorted(int(m) for m in meta["masses"])
     if args.masses:
@@ -142,12 +161,25 @@ def main():
         b_window = float(mu_sr.sum())
 
         for model in args.models:
-            mode = "fcr" if model == "card_fcr" else "float"
+            mode = {"card_fcr": "fcr", "card_fcrs": "fcr_shape"}.get(model, "float")
             midx = MODELS.index(model)
             label = model
             mu_sr_m, mu_cr_m, b_win_m = mu_sr, mu_cr, b_window
-            sb = CardSB(edges, m["m_c"], m["sigma"], mode=mode, fcr=f)
-            if mode == "fcr" and args.cr_obs != "mc":
+            if mode == "fcr_shape":
+                # the simultaneous SHAPE fit of the seminar slides: the CR is
+                # a per-bin vector (tt expo with the SR's slope + fixed non-tt)
+                _, ftt_v = rebin_snap(e10, ftt10, v["bw"], v["fit_lo"], v["fit_hi"])
+                _, frest_v = rebin_snap(e10, frest10, v["bw"], v["fit_lo"], v["fit_hi"])
+                ftt_v = np.where(np.isfinite(ftt_v) & (ftt_v > 0), ftt_v, 0.0)
+                frest_v = np.where(np.isfinite(frest_v) & (frest_v > 0), frest_v, 0.0)
+                mu_cr_m = ftt_v + frest_v
+                sb = CardSB(edges, m["m_c"], m["sigma"], mode=mode,
+                            fcr=dict(R=fcr_meta["R_global"], T_cr=f["T_cr"],
+                                     b_tt=f["b_tt"], cr_other=frest_v,
+                                     R_err_rel=f.get("R_err_rel", 0.0)))
+            else:
+                sb = CardSB(edges, m["m_c"], m["sigma"], mode=mode, fcr=f)
+            if mode in ("fcr", "fcr_shape") and args.cr_obs != "mc":
                 # CR DATA anchor: truth made consistent with the measured
                 # mu_tt -- SR tt scaled, CR bin centred on the data count.
                 # (SR stays blind: its "data" is still the scaled MC.)
@@ -160,14 +192,22 @@ def main():
                 vals_d = mu_tt_data * t_v + r_v
                 mu_sr_m = np.where(np.isfinite(vals_d) & (vals_d > 0),
                                    vals_d, 0.0)
-                mu_cr_m = n_data
+                # CR truth: the data count, spread over the MC shape in the
+                # shape model (tt scaled by the same mu_tt, non-tt as is)
+                mu_cr_m = (mu_tt_data * ftt_v + frest_v if mode == "fcr_shape"
+                           else n_data)
+                if mode == "fcr_shape" and args.cr_shape == "data":
+                    hd = fs2[f"fcr_data_{args.cr_obs}_native"]
+                    _, d_v = rebin_snap(hd.axes[0].edges(), hd.values(), v["bw"],
+                                        v["fit_lo"], v["fit_hi"])
+                    mu_cr_m = np.where(np.isfinite(d_v) & (d_v > 0), d_v, 0.0)
                 b_win_m = float(mu_sr_m.sum())
-                label = "card_fcrd"
+                label = model + "d"
                 logger.info("  m=%d: CR data (%s) N=%.0f -> mu_tt=%.3f, "
                             "B_window %.1f", mass, args.cr_obs, n_data,
                             mu_tt_data, b_win_m)
 
-            asi = sb.fit(mu_sr_m, data_cr=mu_cr_m if mode == "fcr" else None)
+            asi = sb.fit(mu_sr_m, data_cr=mu_cr_m if mode != "float" else None)
             nsp_asimov = asi["nsig"] if asi["status"] == 0 else float("nan")
             nsp_asimov_err = (asi["nsig_err"] if asi["status"] == 0
                               else float("nan"))
@@ -178,8 +218,13 @@ def main():
             for _ in range(args.ntoys):
                 data_toy = np.array([rng.Poisson(x) for x in mu_sr_m],
                                     dtype=float)
-                cr_toy = (float(rng.Poisson(mu_cr_m))
-                          if mode == "fcr" else None)
+                if mode == "fcr":
+                    cr_toy = float(rng.Poisson(mu_cr_m))
+                elif mode == "fcr_shape":
+                    cr_toy = np.array([rng.Poisson(x) for x in mu_cr_m],
+                                      dtype=float)
+                else:
+                    cr_toy = None
                 res = sb.fit(data_toy, data_cr=cr_toy)
                 if res["status"] != 0:
                     continue
@@ -190,6 +235,8 @@ def main():
                 pulls.append(nf / ne)
                 if mode == "fcr":
                     mu_tts.append(float(res["params"][0]))
+                elif mode == "fcr_shape":
+                    mu_tts.append(float(res["params"][0]) / f["T_cr"])
             n_ok = len(nsps)
             base = {"channel": channel, "topology": topology,
                     "function": label, "mWR": mass, "signal_tag": "",
@@ -209,7 +256,7 @@ def main():
                 rows.append({**base, "mean_Nsp": "", "rms_Nsp": "",
                              "pull_mean": "", "pull_mean_err": "",
                              "pull_width": "", "pull_width_err": "",
-                             "frac_pull_gt_0p5": "", "q95_abs_Nsp": "",
+                             "frac_pull_gt_0p5": "", "q95_abs_Nsp": "", "q95_upper_Nsp": "",
                              "mu_tt_mean": "", "mu_tt_rms": ""})
                 logger.info("  m=%d %-10s -> only %d/%d toys ok, skip",
                             mass, label, n_ok, args.ntoys)
@@ -225,6 +272,10 @@ def main():
             qval, qprob = array.array("d", [0.0]), array.array("d", [0.95])
             ROOT.TMath.Quantiles(n_ok, 1, absn, qval, qprob, True)
             q95 = float(qval[0])
+            srt = array.array("d", sorted(nsps))
+            qup = array.array("d", [0.0])
+            ROOT.TMath.Quantiles(n_ok, 1, srt, qup, array.array("d", [0.95]), True)
+            q95_up = float(qup[0])           # one-sided: 1 toy in 20 lands above
             if mu_tts:
                 mt_a = array.array("d", mu_tts)
                 mt_mean = float(ROOT.TMath.Mean(len(mu_tts), mt_a))
@@ -241,15 +292,20 @@ def main():
                          round(pwidth / math.sqrt(2 * (n_ok - 1)), 4),
                          "frac_pull_gt_0p5": round(frac_gt, 4),
                          "q95_abs_Nsp": round(q95, 4),
+                         "q95_upper_Nsp": round(q95_up, 4),
                          "mu_tt_mean": round(mt_mean, 4)
                          if mt_mean is not None else "",
                          "mu_tt_rms": round(mt_rms, 4)
                          if mt_rms is not None else ""})
-            logger.info("  m=%d %-10s -> <Nsp>=%.1f+/-%.1f (Asimov %.1f) "
-                        "pull=%.2f+/-%.2f%s [%d toys]", mass, label, mean_nsp,
-                        rms_nsp, nsp_asimov, pmean, pwidth,
+            logger.info("  m=%d %-10s -> <Nsp>=%.1f+/-%.1f (unfluctuated %.1f) "
+                        "pull=%.2f+/-%.2f, 95%% one-sided %.1f%s [%d toys]", mass, label,
+                        mean_nsp, rms_nsp, nsp_asimov, pmean, pwidth, q95_up,
                         f" mu_tt={mt_mean:.3f}+/-{mt_rms:.3f}"
                         if mt_mean is not None else "", n_ok)
+            out_npz = args.output_dir / "nsp_hist" / tag / label / f"m{mass}_toys.npz"
+            out_npz.parent.mkdir(parents=True, exist_ok=True)
+            np.savez(out_npz, r=np.asarray(nsps), pull=np.asarray(pulls),
+                     r_unfluctuated=nsp_asimov)
             if not args.no_toy_plots:
                 plot_nsp_hist(
                     nsps, nsp_asimov, mass, "expo",   # style key only
@@ -257,7 +313,9 @@ def main():
                     mean=mean_nsp, rms=rms_nsp,
                     hist_range=args.hist_range, hist_bins=args.hist_bins,
                     channel=channel, topology=topology, com=com, lumi=lumi,
-                    k=5.0, ntoys=args.ntoys, adaptive=args.hist_adaptive)
+                    k=5.0, ntoys=args.ntoys, adaptive=args.hist_adaptive,
+                    sym=r"\hat{N}_{\rm sig}" if args.nsig_symbol == "N"
+                    else r"\hat{r}", ref_label=args.ref_label)
 
     if not rows:
         logger.error("No results produced.")

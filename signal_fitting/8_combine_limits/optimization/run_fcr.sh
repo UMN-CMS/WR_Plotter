@@ -16,16 +16,21 @@ source /cvmfs/cms.cern.ch/cmsset_default.sh
 cd /home/cmsusr/CMSSW_* && eval "$(scramv1 runtime -sh)" && cd "$HERE"
 TAG="ee_resolved"
 ONLY_MASS="${1:-}"
+# FCR_INPUTS / FCR_CARDS / FCR_RESULTS: alternative input/card/result dirs
+# (relative to this dir), e.g. the 2024 seminar chain: inputs_2024 cards_2024
+INPUTS="${FCR_INPUTS:-inputs}"
+CARDS="${FCR_CARDS:-cards}"
+RESULTS="${FCR_RESULTS:-results}"
 
-python3 make_fcr_workspaces.py
+python3 make_fcr_workspaces.py --input-dir "$HERE/$INPUTS" --output-dir "$HERE/$CARDS" ${FCR_EXTRA:-}
 
-RES="$HERE/results/$TAG"
+RES="$HERE/$RESULTS/$TAG"
 mkdir -p "$RES"
 cd "$RES"
 while IFS=$'\t' read -r card mass label; do
     [[ -n "$ONLY_MASS" && "$mass" != "$ONLY_MASS" ]] && continue
     echo ">>> m=$mass $label"
-    combine -M AsymptoticLimits "$card" -m "$mass" -n "_${label}" --rMax 20 \
+    combine -M AsymptoticLimits "$card" -m "$mass" -n "_${label}" --rMax 50 \
         | grep -E "Expected 50" || true
-done < "$HERE/cards/$TAG/manifest_fcr.txt"
+done < "$HERE/$CARDS/$TAG/manifest_fcr.txt"
 echo "Done. Results in $RES"

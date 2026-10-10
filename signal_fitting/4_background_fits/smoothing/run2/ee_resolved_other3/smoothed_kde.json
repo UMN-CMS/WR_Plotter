@@ -1,0 +1,72 @@
+{
+ "method": "kde",
+ "kwargs": {
+  "var_kind": "m",
+  "mirror": "MirrorLeft",
+  "rho": 1.0,
+  "resample": 1
+ },
+ "era": "RunIISummer20UL18",
+ "bkg_dir": "20261001_split_bkgs",
+ "region": "wr_ee_resolved_sr",
+ "variable": "mass_fourobject",
+ "threshold": 800.0,
+ "components": {
+  "Diboson": {
+   "var_kind": "m",
+   "mirror": "MirrorLeft",
+   "rho": 1.0,
+   "resample": 1,
+   "n_entries": 48,
+   "n_negative_dropped": 0,
+   "sum_weights": 28.94453942794333,
+   "total_raw": 28.944539427943333,
+   "total_pre_rescale": 1.000000605473467,
+   "rescale": 28.94452190280331,
+   "n_clipped": 0
+  },
+  "Triboson": {
+   "var_kind": "m",
+   "mirror": "MirrorLeft",
+   "rho": 1.0,
+   "resample": 1,
+   "n_entries": 61,
+   "n_negative_dropped": 1,
+   "sum_weights": 2.713008110040648,
+   "total_raw": 2.6704573662772013,
+   "total_pre_rescale": 0.9999999985409276,
+   "rescale": 2.670457370173592,
+   "n_clipped": 0
+  },
+  "ttV": {
+   "var_kind": "m",
+   "mirror": "MirrorLeft",
+   "rho": 1.0,
+   "resample": 1,
+   "n_entries": 213,
+   "n_negative_dropped": 0,
+   "sum_weights": 6.037678147898272,
+   "total_raw": 6.037678147898272,
+   "total_pre_rescale": 0.999999993182031,
+   "rescale": 6.037678189062975,
+   "n_clipped": 0
+  }
+ },
+ "totals": {
+  "Diboson": {
+   "raw": 28.944539427943333,
+   "raw_err": 3.296776240637592,
+   "smooth": 28.944539427943337
+  },
+  "Triboson": {
+   "raw": 2.6704573662772013,
+   "raw_err": 0.3600219853990627,
+   "smooth": 2.6704573662772013
+  },
+  "ttV": {
+   "raw": 6.037678147898272,
+   "raw_err": 0.07522238800836253,
+   "smooth": 6.037678147898273
+  }
+ }
+}

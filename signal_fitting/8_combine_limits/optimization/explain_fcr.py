@@ -49,8 +49,7 @@ sys.path.insert(0, str(SIGFIT / "3_background_plots" / "cr_plots"))
 
 from wrplotter.cli_utils import setup_logging                           # noqa: E402
 from wrplotter.config import (load_lumi, load_plot_settings,            # noqa: E402
-                              index_plot_settings, get_var_cfg,
-                              load_kfactors)
+                              index_plot_settings, get_var_cfg)
 from wrplotter.paths import input_dirs_for_era, repo_root               # noqa: E402
 from wrplotter.regions import regions_for_era                           # noqa: E402
 from wrplotter.sample_groups import load_sample_groups                  # noqa: E402
@@ -63,9 +62,27 @@ from plot_control_regions import build_stack, plot_data_mc              # noqa: 
 
 logger = logging.getLogger("explain_fcr")
 
-ERA, BKG_DIR = "RunIISummer20UL18", "20260714_run2_bkgs"
+import os                                                               # noqa: E402
+# seminar era switch (see explainer/_common.py): WR_SEMINAR_ERA=2024 moves the
+# whole family onto the 2024 inputs/outputs; default stays the run2 chain
+SEMINAR_ERA = os.environ.get("WR_SEMINAR_ERA", "2018")
+if SEMINAR_ERA == "2024":
+    ERA, BKG_DIR = "RunIII2024Summer24", "20261004_full_systs"
+    INPUTS, OUT_DEFAULT = HERE / "inputs_2024", HERE / "explain_fcr_2024"
+else:
+    ERA, BKG_DIR = "RunIISummer20UL18", "20260714_run2_bkgs"
+    INPUTS, OUT_DEFAULT = INPUTS, HERE / "explain_fcr"
 MASS, VAR = 2000, "k5_bw50"
+CHANNEL, TAG, CH_LABEL = "ee", "ee_resolved", "ee"
 SR_REGION, FCR_REGION = "wr_ee_resolved_sr", "wr_resolved_flavor_cr"
+
+
+def set_channel(channel):
+    """Switch the module onto one lepton channel (ee or mumu)."""
+    global CHANNEL, TAG, CH_LABEL, SR_REGION
+    CHANNEL, TAG = channel, f"{channel}_resolved"
+    CH_LABEL = "ee" if channel == "ee" else r"$\mu\mu$"
+    SR_REGION = f"wr_{channel}_resolved_sr"
 C_TT, C_DY, C_OTH = "#e42536", "#5790fc", "#9c9ca1"   # tt / DY / NP+Other
 
 
@@ -105,7 +122,8 @@ def load_sample(bkg_dirs, region, sample):
 # ---------------------------------------------------------------------------
 
 def plot_regions(bkg_dirs, input_lumis, v, wins, out_dir, com, lumi,
-                 fcr_var=None, fit_overlay=None):
+                 fcr_var=None, fit_overlay=None, suffix_tag="",
+                 shade_window=True, tt_bottom=True):
     """SR (1a) and flavor CR (1b) in the analysis house style -- the Stage-3
     build_stack + plot_data_mc pipeline (config sample colors/labels, hatched
     MC stat band, Data/Sim. ratio where unblinded) -- at the CARD binning
@@ -115,7 +133,6 @@ def plot_regions(bkg_dirs, input_lumis, v, wins, out_dir, com, lumi,
     groups, order = load_sample_groups()
     all_groups = [groups[k] for k in order if k in groups]
     mc_groups = [g for g in all_groups if getattr(g, "kind", "mc") != "data"]
-    scales = load_kfactors()
     name_to_var = {vv.name: vv for vv in build_variables()}
     region_cfgs, common_vars = index_plot_settings(load_plot_settings(ERA))
     variable = name_to_var["mass_fourobject"]
@@ -141,8 +158,8 @@ def plot_regions(bkg_dirs, input_lumis, v, wins, out_dir, com, lumi,
         stack_list, stack_colors, stack_labels, data_hist = build_stack(
             region, variable, rebin=rebin, xmax=4000.0,
             input_dirs=bkg_dirs, input_lumis=input_lumis,
-            era=ERA, scales=scales, sample_groups=sgs, density=True)
-        if rname == SR_REGION:
+            era=ERA, sample_groups=sgs, density=True)
+        if rname == SR_REGION and tt_bottom:
             # tt at the visual bottom, so the stack seam matches the fit's
             # tt-vs-rest split (the dashed tt curve = top of the tt band)
             ti = next((i for i, lab in enumerate(stack_labels)
@@ -150,14 +167,29 @@ def plot_regions(bkg_dirs, input_lumis, v, wins, out_dir, com, lumi,
             if ti is not None and ti != 0:
                 for lst in (stack_list, stack_colors, stack_labels):
                     lst.insert(0, lst.pop(ti))
+        syst_fn = None
+        try:
+            from syst_band import total_syst_envelope
+            mc_samples = [smp for g in mc_groups for smp in g.samples]
+            e_s, n_s, u_s, d_s = total_syst_envelope(
+                bkg_dirs, rname, "mass_fourobject", mc_samples, rebin=rebin)
+            if u_s.any():
+                c_s = 0.5 * (e_s[:-1] + e_s[1:])
+                ru = np.divide(u_s, n_s, out=np.zeros_like(u_s), where=n_s > 0)
+                rd = np.divide(d_s, n_s, out=np.zeros_like(d_s), where=n_s > 0)
+                syst_fn = (lambda c, ru=ru, rd=rd, c_s=c_s:
+                           (np.interp(c, c_s, ru), np.interp(c, c_s, rd)))
+        except Exception as exc:                        # pragma: no cover
+            logger.warning("no systematic band for %s: %s", rname, exc)
         fig = plot_data_mc(
             region, variable, stack_list=stack_list,
             stack_colors=stack_colors, stack_labels=stack_labels,
             data_hist=data_hist, xlim=(800.0, 4000.0), ylim=ylim,
-            ratio_ylim=ratio_ylim, lumi=lumi, com=com)
+            ratio_ylim=ratio_ylim, lumi=lumi, com=com, syst_rel_fn=syst_fn)
         ax = fig.axes[0]
-        for a in fig.axes[:2]:
-            a.axvspan(slo, shi, color="gold", alpha=0.15, zorder=0)
+        if shade_window:
+            for a in fig.axes[:2]:
+                a.axvspan(slo, shi, color="gold", alpha=0.15, zorder=0)
         if fit_overlay:
             # fcr_shape fit curves, drawn ONLY inside the window where the
             # fit and its normalizations are defined
@@ -195,9 +227,10 @@ def plot_regions(bkg_dirs, input_lumis, v, wins, out_dir, com, lumi,
             text += (fr"{ind}non-$t\bar{{t}}$  {y['dy'] + y['oth']:.0f}" "\n"
                      fr"{ind}$t\bar{{t}}$+tW  {y['tt']:.0f}  "
                      fr"({y['tt'] / tot:.0%})")
-        ax.text(0.60, 0.58, text,
-                transform=ax.transAxes, va="top", ha="left", fontsize=15)
-        _save(fig, out_dir / suffix)
+        if shade_window:
+            ax.text(0.60, 0.58, text,
+                    transform=ax.transAxes, va="top", ha="left", fontsize=15)
+        _save(fig, out_dir / (suffix + suffix_tag))
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +261,8 @@ COARSE_BINS = [800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 4500]
 
 
 def plot_split(sb, mu_sr, cr_data, f, out, com, lumi, bkg_dirs=None,
-               coarse=False):
+               coarse=False, stat_box=True, inject=None, float_r=False,
+               figsize=(10, 11.5), hspace=0.05, ymax=300.0):
     """2a -- ONLY the background split in the SR window: MC points + the two
     fitted components stacked like a stack plot (tt below, rest on top).
     fcr_shape model: the tt slope b_tt is fit, shared with the CR channel.
@@ -236,26 +270,52 @@ def plot_split(sb, mu_sr, cr_data, f, out, com, lumi, bkg_dirs=None,
     (points, sumw2 errors) vs the fitted components (curve). coarse=True
     additionally marks the composition-plot bins that lie fully inside the
     window and draws the ratio integrated over each (MC bar vs fit square)
-    -- the numbers that go onto bkg_fractions_*_m<MASS>."""
+    -- the numbers that go onto bkg_fractions_*_m<MASS>.
+    inject=N: the points are MC + N signal events (N * S_i, no fluctuation)
+    and the fit is the global one (r floating); the fitted signal r_hat*S_i
+    is stacked on top of the two background components."""
     hep.style.use("CMS")
     if bkg_dirs is not None:
-        fig, (ax, axr) = plt.subplots(2, 1, sharex=True, figsize=(10, 11.5),
+        fig, (ax, axr) = plt.subplots(2, 1, sharex=True, figsize=figsize,
                                       gridspec_kw=dict(height_ratios=[3, 1],
-                                                       hspace=0.05))
+                                                       hspace=hspace))
     else:
         fig, ax = plt.subplots()
         axr = None
-    prof = sb.fit_profiled(0.0, mu_sr, data_cr=cr_data)
-    T_hat, b_tt_hat, b_hat, B_hat = prof["params"]
-    T_err, b_tt_err, b_err, B_err = prof["perr"]
-    tt_comp = sb.R * T_hat * sb._expo_shape(b_tt_hat)
+    if inject is None and not float_r:
+        prof = sb.fit_profiled(0.0, mu_sr, data_cr=cr_data)
+        points, r_hat, r_err = mu_sr, 0.0, 0.0
+    elif inject is None:
+        # the global fit (r floating) on the signal-free pseudo-data: the
+        # same fit as the parameter table on the seminar slide
+        points = mu_sr
+        prof = sb.fit(points, data_cr=cr_data)
+        r_hat, r_err = prof["nsig"], prof["nsig_err"]
+    else:
+        points = mu_sr + inject * sb.S
+        prof = sb.fit(points, data_cr=cr_data)
+        r_hat, r_err = prof["nsig"], prof["nsig_err"]
+    T_hat, b_tt_hat, b_hat, B_hat = prof["params"][:4]
+    T_err, b_tt_err, b_err, B_err = prof["perr"][:4]
+    rho_hat = prof["params"][4] if sb.has_rho else 1.0
+    logger.info("plot_split %s: inject=%s r=%.2f+-%.2f T=%.1f+-%.1f "
+                "b_tt=%.3f+-%.3f b=%.3f+-%.3f B=%.1f+-%.1f", out.name,
+                inject, r_hat, r_err, T_hat, T_err, b_tt_hat, b_tt_err,
+                b_hat, b_err, B_hat, B_err)
+    tt_comp = rho_hat * sb.R * T_hat * sb._expo_shape(b_tt_hat)
     rest_comp = B_hat * sb._expo_shape(b_hat)
-    hep.histplot([tt_comp, rest_comp], bins=sb.edges, stack=True,
-                 histtype="fill", alpha=0.8, color=[C_TT, C_DY],
-                 label=[r"$t\bar{t}$+tW: size and shape sim. fit with FCR",
-                        "Rest: size and shape floating"], ax=ax)
-    ax.errorbar(sb.centers, mu_sr, yerr=np.sqrt(mu_sr), fmt="ko", ms=5,
-                label="MC")
+    comps = [tt_comp, rest_comp]
+    cols = [C_TT, C_DY]
+    labs = [r"$t\bar{t}$+tW: size and shape sim. fit with FCR",
+            "Rest: size and shape floating"]
+    if inject is not None or (float_r and r_hat >= 0.0):
+        comps.append(r_hat * sb.S)
+        cols.append("crimson")
+        labs.append(fr"Signal: $\hat r = {r_hat:.0f}$ events")
+    hep.histplot(comps, bins=sb.edges, stack=True,
+                 histtype="fill", alpha=0.8, color=cols, label=labs, ax=ax)
+    ax.errorbar(sb.centers, points, yerr=np.sqrt(points), fmt="ko", ms=5,
+                label="MC" if inject is None else f"MC + {inject:.0f} signal")
 
     # the actual fitted function, drawn continuously (both components are
     # recentered expos, so the smooth curve is exact, not an interpolation)
@@ -268,12 +328,23 @@ def plot_split(sb, mu_sr, cr_data, f, out, com, lumi, bkg_dirs=None,
             else (sb.hi - sb.lo)
         return norm * np.exp(k * (xs - sb.m_c)) * sb.width / cn
 
-    ax.plot(xs, curve(sb.R * T_hat, b_tt_hat) + curve(B_hat, b_hat),
-            color="black", lw=2.0, label="total fit ($r = 0$)")
-    ax.plot(xs, curve(sb.R * T_hat, b_tt_hat),
+    tot_curve = curve(rho_hat * sb.R * T_hat, b_tt_hat) + curve(B_hat, b_hat)
+    if inject is not None or float_r:
+        tot_curve = tot_curve + r_hat * sb.width / (
+            math.sqrt(2 * math.pi) * sb.sigma) * np.exp(
+            -0.5 * ((xs - sb.m_c) / sb.sigma) ** 2)
+    if inject is None and not float_r:
+        tot_label = "total fit ($r = 0$)"
+    elif inject is None:
+        tot_label = fr"total fit, $r$ floating: $\hat r = {r_hat:.0f} \pm {r_err:.0f}$"
+    else:
+        tot_label = "total fit ($r$ floating)"
+    ax.plot(xs, tot_curve, color="black", lw=2.0, label=tot_label)
+    ax.plot(xs, curve(rho_hat * sb.R * T_hat, b_tt_hat),
             color="black", lw=1.8, ls="--",
             label=r"$t\bar{t}$ component (sim. fit w/ FCR)")
-    ax.text(0.53, 0.73,
+    if stat_box:
+      ax.text(0.53, 0.73,
             fr"$\nu_i = r\,S_i \,+\, R\cdot T"
             r"\cdot t_i(b_{tt}) \,+\, B\,e_i(b)$" "\n"
             "     signal      tt (sim. fit)      rest (free)",
@@ -283,10 +354,10 @@ def plot_split(sb, mu_sr, cr_data, f, out, com, lumi, bkg_dirs=None,
     ax.set_xlabel(r"$m_{lljj}$ [GeV]")
     ax.set_ylabel("Events / 50 GeV")
     ax.set_yscale("log")
-    ax.set_ylim(0.3, 300.0)
+    ax.set_ylim(0.3, ymax)
     ax.set_xlim(sb.lo, sb.hi)
     ax.text(0.03, 0.97,
-            "ee\nResolved SR\n" f"{ERA}\n"
+            f"{CH_LABEL}\nResolved SR\n" f"{ERA}\n"
             fr"$m_{{W_R}}={MASS}$" "\n"
             f"window [{sb.lo:.0f}, {sb.hi:.0f}]",
             transform=ax.transAxes, va="top", fontsize=15)
@@ -307,7 +378,7 @@ def plot_split(sb, mu_sr, cr_data, f, out, com, lumi, bkg_dirs=None,
         if not coarse:      # coarse: only the integrated bins in the panel
             axr.errorbar(sb.centers, rmc, yerr=rerr, fmt="ko", ms=5,
                          label="MC")
-            axr.plot(xs, curve(sb.R * T_hat, b_tt_hat) / curve(B_hat, b_hat),
+            axr.plot(xs, curve(rho_hat * sb.R * T_hat, b_tt_hat) / curve(B_hat, b_hat),
                      color="black", lw=2.0, label="fit")
         axr.axhline(1.0, color="gray", lw=1.0, ls="--")
         if coarse:
@@ -344,22 +415,28 @@ def plot_split(sb, mu_sr, cr_data, f, out, com, lumi, bkg_dirs=None,
     _save(fig, out)
 
 
-def plot_cr_shape(sb_shape, cr_data, f, out, com, lumi):
+def plot_cr_shape(sb_shape, cr_data, f, out, com, lumi, other_bottom=False, float_r=False):
     """2c -- the BINNED flavor-CR channel of the fcr_shape model: EGamma data
     vs the fitted T*t_i(b_tt) + o_i, with T and the shared slope measured
     from this spectrum (r = 0 profiled, simultaneous with the SR)."""
     import card_sb_fit  # noqa: F401  (sb_shape built by caller)
     hep.style.use("CMS")
     fig, ax = plt.subplots()
-    prof = sb_shape.fit_profiled(0.0, sb_shape._mu_sr, data_cr=cr_data)
+    # float_r: the global fit with r floating (as 2a_sr_split_nobox --float-r),
+    # otherwise the background-only (r = 0) profile
+    prof = (sb_shape.fit(sb_shape._mu_sr, data_cr=cr_data) if float_r
+            else sb_shape.fit_profiled(0.0, sb_shape._mu_sr, data_cr=cr_data))
     T_hat, b_tt = prof["params"][0], prof["params"][1]
     e_T, e_btt = prof["perr"][0], prof["perr"][1]
     tt_comp = T_hat * sb_shape._expo_shape(b_tt)
-    hep.histplot([tt_comp, sb_shape.cr_other], bins=sb_shape.edges, stack=True,
-                 histtype="fill", alpha=0.8, color=[C_TT, C_OTH],
-                 label=[fr"$t\bar{{t}}$+tW: $T\times t_i(b_{{tt}})$,"
-                        " size and slope fitted",
-                        f"other: {sb_shape.C_other:.0f} ev (fixed MC)"], ax=ax)
+    comps = [tt_comp, sb_shape.cr_other]
+    cols = [C_TT, C_OTH]
+    labs = [fr"$t\bar{{t}}$+tW: $T\times t_i(b_{{tt}})$," " size and slope fitted",
+            f"other: {sb_shape.C_other:.0f} ev (fixed MC)"]
+    if other_bottom:      # frozen non-tt at the bottom, fitted tt on top
+        comps, cols, labs = comps[::-1], cols[::-1], labs[::-1]
+    hep.histplot(comps, bins=sb_shape.edges, stack=True,
+                 histtype="fill", alpha=0.8, color=cols, label=labs, ax=ax)
     ax.errorbar(sb_shape.centers, cr_data, yerr=np.sqrt(cr_data), fmt="ko",
                 ms=5, label="EGamma data")
 
@@ -367,15 +444,16 @@ def plot_cr_shape(sb_shape, cr_data, f, out, com, lumi):
     k = b_tt / 1000.0
     cn = (math.exp(k * (sb_shape.hi - sb_shape.m_c))
           - math.exp(k * (sb_shape.lo - sb_shape.m_c))) / k
-    ax.plot(xs, T_hat * np.exp(k * (xs - sb_shape.m_c))
-            * sb_shape.width / cn,
-            color="black", lw=1.8, ls="--",
-            label=r"$t\bar{t}$ component (fitted slope)")
+    if not other_bottom:
+        ax.plot(xs, T_hat * np.exp(k * (xs - sb_shape.m_c))
+                * sb_shape.width / cn,
+                color="black", lw=1.8, ls="--",
+                label=r"$t\bar{t}$ component (fitted slope)")
 
     ax.set_xlabel(r"$m_{lljj}$ [GeV]")
     ax.set_ylabel("Events / 50 GeV")
     ax.set_yscale("log")
-    ax.set_ylim(0.3, 300.0)
+    ax.set_ylim(1.0 if other_bottom else 0.3, 300.0)
     ax.set_xlim(sb_shape.lo, sb_shape.hi)
     ax.text(0.03, 0.97,
             r"e$\mu$" "\nResolved Flavor CR\n" f"{ERA}\n"
@@ -419,13 +497,17 @@ def profile_T(sb, mu_sr, cr_data, t_grid, use_sr=True, use_cr=True):
             return nll
 
         def fcn(p):
-            v = sb.nll2(p[0], (T, p[1], p[2], p[3]), mu_sr,
+            pars = (T, p[1], p[2], p[3]) + ((p[4],) if sb.has_rho else ())
+            v = sb.nll2(p[0], pars, mu_sr,
                         data_cr=cr_data if use_cr else None)
             return v if math.isfinite(v) else 1e30
-        _, _, nll, _ = sb._minimize(
-            fcn, [0.0, -3.0, -3.0, max(ntot - sb.R * sb.T_cr, 1.0)],
-            [(-2000.0, 2000.0), (-100.0, 0.0), (-100.0, 0.0),
-             (0.0, 10.0 * ntot + 50.0)])
+        s0 = [0.0, -3.0, -3.0, max(ntot - sb.R * sb.T_cr, 1.0)]
+        lim = [(-2000.0, 2000.0), (-100.0, 0.0), (-100.0, 0.0),
+               (0.0, 10.0 * ntot + 50.0)]
+        if sb.has_rho:
+            s0.append(1.0)
+            lim.append((0.2, 3.0))
+        _, _, nll, _ = sb._minimize(fcn, s0, lim)
         return nll
     vals = np.array([nll_at(T) for T in t_grid])
     return vals - vals.min()
@@ -452,7 +534,7 @@ def plot_constraint(sb, mu_sr, cr_data, out, com, lumi):
     ax.set_ylim(0, 8)
     ax.legend(fontsize=13, loc="upper right")
     ax.text(0.03, 0.97,
-            r"ee Resolved SR + e$\mu$ Flavor CR" "\n"
+            f"{CH_LABEL} Resolved SR + e$\\mu$ Flavor CR" "\n"
             f"{ERA}\n"
             fr"$m_{{W_R}}={MASS}$, window [{sb.lo:.0f}, {sb.hi:.0f}]",
             transform=ax.transAxes, va="top", fontsize=14)
@@ -526,9 +608,41 @@ def plot_effect(out, com, lumi):
 
 # ---------------------------------------------------------------------------
 
+def pseudo_data_sr(inputs, v, f, tt_to_cr=False, dataset="EGamma", tag=None):
+    """(edges, mu_sr, mu_tt) -- the SR pseudo-data in the snapped window.
+    Default: the summed MC. tt_to_cr=True: the MC with its tt+tW part scaled
+    by mu_tt = (N_data - C_other)/T_cr, i.e. to what the flavor-CR DATA says
+    (what card_model_toys does for the CR-data toys); without it a CR
+    data/MC offset shows up as a fake r in the anchored fit of the MC."""
+    tag = tag or TAG
+    h = uproot.open(inputs / f"{tag}.root")["bkg_native"]
+    e10, v10 = h.axes[0].edges(), h.values()
+    mu_tt = 1.0
+    if tt_to_cr:
+        fs = uproot.open(inputs / f"{tag}_fcr.root")
+        tt10, rest10 = fs["tt_native"].values(), fs["rest_native"].values()
+        mu_tt = (f[f"N_data_{dataset}"] - f["C_other"]) / f["T_cr"]
+        v10 = mu_tt * tt10 + rest10
+        logger.info("SR pseudo-data: MC with tt scaled by mu_tt = %.3f "
+                    "(flavor-CR %s data %.0f, MC %.1f)", mu_tt, dataset,
+                    f[f"N_data_{dataset}"], f["T_cr"] + f["C_other"])
+    edges, vals = rebin_snap(e10, v10, v["bw"], v["fit_lo"], v["fit_hi"])
+    return edges, np.where(np.isfinite(vals) & (vals > 0), vals, 0.0), mu_tt
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--output-dir", type=Path, default=HERE / "explain_fcr")
+    p.add_argument("--output-dir", type=Path, default=OUT_DEFAULT)
+    p.add_argument("--float-r", action="store_true",
+                   help="2a_sr_split_nobox: draw the global fit (r floating) "
+                        "instead of the r = 0 profile")
+    p.add_argument("--inject", type=float, nargs="+", default=[10.0],
+                   help="signal events injected for the 2a_sr_split_inj<N> plots")
+    p.add_argument("--tt-to-cr", action="store_true",
+                   help="SR pseudo-data = MC with tt+tW scaled to the "
+                        "flavor-CR data (see pseudo_data_sr)")
+    p.add_argument("--channel", choices=["ee", "mumu"], default="ee",
+                   help="lepton channel of the signal region (inputs <channel>_resolved*)")
     p.add_argument("--cr", choices=["data", "mc"], default="data",
                    help="flavor-CR channel: EGamma data (default) or MC "
                         "Asimov (tt+tW + rest); mc writes ONLY 2a_sr_split_crmc")
@@ -539,19 +653,17 @@ def main():
     info = load_lumi(ERA)
     lumi, com = info["lumi"], info.get("com", 13.6)
 
-    with open(HERE / "inputs" / "ee_resolved.json") as fh:
+    set_channel(args.channel)
+    with open(INPUTS / f"{TAG}.json") as fh:
         meta = json.load(fh)["masses"][str(MASS)]
-    with open(HERE / "inputs" / "ee_resolved_fcr.json") as fh:
+    with open(INPUTS / f"{TAG}_fcr.json") as fh:
         fcr_all = json.load(fh)
     f = fcr_all["masses"][str(MASS)]["vars"][VAR]
     r_global = fcr_all["R_global"]
     v = meta["vars"][VAR]
 
     bkg_dirs, input_lumis = input_dirs_for_era(ERA, repo_root(), BKG_DIR)
-    h = uproot.open(HERE / "inputs" / "ee_resolved.root")["bkg_native"]
-    edges, vals = rebin_snap(h.axes[0].edges(), h.values(), v["bw"],
-                             v["fit_lo"], v["fit_hi"])
-    mu_sr = np.where(np.isfinite(vals) & (vals > 0), vals, 0.0)
+    edges, mu_sr, mu_tt_pd = pseudo_data_sr(INPUTS, v, f, args.tt_to_cr)
 
     # analysis sample-group colors, so every figure speaks the house palette
     global C_TT, C_DY
@@ -574,11 +686,13 @@ def main():
                 _, vw = rebin_snap(e, val, v["bw"], v["fit_lo"], v["fit_hi"])
                 tot += float(vw.sum())
             y[lab] = tot
+        if rname == SR_REGION and args.tt_to_cr:
+            y["tt"] *= mu_tt_pd              # the pseudo-data's tt+tW
         wins[rname] = y
 
     out = args.output_dir
     # binned CR channel (fcr_shape): data spectrum + fixed non-tt template
-    hcr = uproot.open(HERE / "inputs" / "ee_resolved_fcr.root")
+    hcr = uproot.open(INPUTS / f"{TAG}_fcr.root")
     _, cr_data = rebin_snap(hcr["fcr_data_EGamma_native"].axes[0].edges(),
                             hcr["fcr_data_EGamma_native"].values(),
                             v["bw"], v["fit_lo"], v["fit_hi"])
@@ -592,7 +706,8 @@ def main():
         cr_data = cr_tt + cr_other
     sb_shape = CardSB(edges, meta["m_c"], meta["sigma"], mode="fcr_shape",
                       fcr=dict(R=r_global, T_cr=f["T_cr"], b_tt=f["b_tt"],
-                               cr_other=cr_other))
+                               cr_other=cr_other,
+                               R_err_rel=f.get("R_err_rel", 0.0)))
     sb_shape._mu_sr = mu_sr
     if args.cr == "mc":
         plot_split(sb_shape, mu_sr, cr_data, f, out / "2a_sr_split_crmc",
@@ -611,18 +726,66 @@ def main():
                        e_btt=prof_shape["perr"][1],
                        b=prof_shape["params"][2],
                        B=prof_shape["params"][3],
-                       R=sb_shape.R, m_c=sb_shape.m_c, bw=v["bw"])
+                       R=sb_shape.R * (prof_shape["params"][4]
+                                       if sb_shape.has_rho else 1.0),
+                       m_c=sb_shape.m_c, bw=v["bw"])
     plot_regions(bkg_dirs, input_lumis, v, wins, out, com, lumi, fcr_var=f,
                  fit_overlay=fit_overlay)
+    # seminar variant: the two region plots with the window but no fit curves
+    plot_regions(bkg_dirs, input_lumis, v, wins, out, com, lumi, fcr_var=f,
+                 fit_overlay=None, suffix_tag="_nofit")
+    # and with no window and the usual stack order (global-R slide)
+    plot_regions(bkg_dirs, input_lumis, v, wins, out, com, lumi, fcr_var=f,
+                 fit_overlay=None, suffix_tag="_plain", shade_window=False, tt_bottom=False)
+    # same, with the fitted tt exponential drawn inside the window
+    plot_regions(bkg_dirs, input_lumis, v, wins, out, com, lumi, fcr_var=f,
+                 fit_overlay=fit_overlay, suffix_tag="_plainfit", shade_window=False, tt_bottom=False)
+    if args.float_r:
+        # the same plot from the r-floating two-region fit, to sit beside
+        # 2a_sr_split_nobox(_sq) --float-r: one likelihood, one fit
+        glob_shape = sb_shape.fit(mu_sr, data_cr=cr_data)
+        fit_overlay_f = dict(fit_overlay,
+                             T=glob_shape["params"][0], e_T=glob_shape["perr"][0],
+                             b_tt=glob_shape["params"][1], e_btt=glob_shape["perr"][1],
+                             b=glob_shape["params"][2], B=glob_shape["params"][3],
+                             R=sb_shape.R * (glob_shape["params"][4]
+                                             if sb_shape.has_rho else 1.0))
+        logger.info("plainfit_floatr: r = %.2f, T = %.1f, b_tt = %.3f (r = 0 profile: T = %.1f, b_tt = %.3f)",
+                    glob_shape["nsig"], fit_overlay_f["T"], fit_overlay_f["b_tt"],
+                    fit_overlay["T"], fit_overlay["b_tt"])
+        plot_regions(bkg_dirs, input_lumis, v, wins, out, com, lumi, fcr_var=f,
+                     fit_overlay=fit_overlay_f, suffix_tag="_plainfit_floatr",
+                     shade_window=False, tt_bottom=False)
     logger.info("1a/1b regions done")
     plot_split(sb_shape, mu_sr, cr_data, f, out / "2a_sr_split", com, lumi,
                bkg_dirs=bkg_dirs)
+    plot_split(sb_shape, mu_sr, cr_data, f, out / "2a_sr_split_nobox", com, lumi,
+               bkg_dirs=bkg_dirs, stat_box=False, float_r=args.float_r)
+    # same figure on the canvas of the control-region plots (plot_data_mc: 10 x 10,
+    # 3:1 panels, hspace 0.1), to sit beside 1b_region_fcr_plainfit at equal size
+    plot_split(sb_shape, mu_sr, cr_data, f, out / "2a_sr_split_nobox_sq", com, lumi,
+               bkg_dirs=bkg_dirs, stat_box=False, float_r=args.float_r,
+               figsize=(10.35, 10), hspace=0.1, ymax=3000.0)  # headroom: curves clear the labels
+    # seminar: same, with N signal events added to the pseudo-data, r floating
+    for n_inj in args.inject:
+        plot_split(sb_shape, mu_sr, cr_data, f, out / f"2a_sr_split_inj{n_inj:.0f}",
+                   com, lumi, stat_box=False, inject=float(n_inj), ymax=3000.0)
     plot_cr_shape(sb_shape, cr_data, f, out / "2c_cr_shape", com, lumi)
+    if args.float_r:     # the CR half of the same r-floating fit as 2a_sr_split_nobox
+        plot_cr_shape(sb_shape, cr_data, f, out / "2c_cr_shape_floatr", com, lumi,
+                      float_r=True)
+        plot_cr_shape(sb_shape, cr_data, f, out / "2c_cr_shape_otherbottom_floatr", com,
+                      lumi, other_bottom=True, float_r=True)
+    plot_cr_shape(sb_shape, cr_data, f, out / "2c_cr_shape_otherbottom", com, lumi,
+                  other_bottom=True)
     logger.info("2a/2c model done")
     plot_constraint(sb_shape, mu_sr, cr_data, out / "3_constraint", com, lumi)
     logger.info("3_constraint done")
-    plot_effect(out / "4_effect", com, lumi)
-    logger.info("4_effect done -> %s", out)
+    try:
+        plot_effect(out / "4_effect", com, lumi)
+        logger.info("4_effect done -> %s", out)
+    except Exception as exc:                            # 2024: no scan yet
+        logger.warning("4_effect skipped: %s", exc)
 
 
 if __name__ == "__main__":

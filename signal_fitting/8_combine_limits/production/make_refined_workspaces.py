@@ -40,6 +40,8 @@ reference plot.
 
 Run inside the combine container (see run_refined.sh):
   python3 make_refined_workspaces.py
+  python3 make_refined_workspaces.py --bkg-source smooth:kernel --masses 2000 4600
+      (smoothing study: 4_background_fits/smoothing; cards_smooth_kernel/)
 """
 from __future__ import annotations
 
@@ -158,7 +160,7 @@ def member_window_norm(anchor, h_full, i0, i1):
 
 
 def build_card(h_full, m, variant, regime, out_dir, tag, *, anchor=None,
-               rmax=100.0):
+               rmax=100.0, note="", anchor_norm="env"):
     mass_i = int(float(m["mass"]))
     i0, i1 = snap_range(h_full, m["fit_lo"], m["fit_hi"])
     slo, shi = (h_full.GetXaxis().GetBinLowEdge(i0),
@@ -198,11 +200,18 @@ def build_card(h_full, m, variant, regime, out_dir, tag, *, anchor=None,
             "bkg_pdf", formula.format(p=f"{PIVOT:.10g}"),
             ROOT.RooArgList(x, *pars))
         b_env = member_window_norm(anchor, h_full, i0, i1)
+        if anchor_norm == "window":              # smoothing study: fix the
+            b_env = nobs                         # norm to the window yield
         norm = ROOT.RooRealVar("bkg_pdf_norm", "", b_env)
         norm.setConstant(True)
         extra = (f"# background anchored: member={anchor['member']} "
-                 f"B_env={b_env:.3f} (window MC {nobs:.3f})")
+                 f"B_env={member_window_norm(anchor, h_full, i0, i1):.3f} "
+                 f"(window MC {nobs:.3f})"
+                 + (f"\n# anchor norm = window MC ({anchor_norm})"
+                    if anchor_norm == "window" else ""))
 
+    if note:                                     # e.g. smoothed background
+        extra += f"\n# {note}"
     m_c, s0 = float(m["m_c"]), float(m["sigma"])
     if variant == "float" and float(m["mass"]) <= SIG_PRIOR_MAX:
         # 10.9 'both030': mu and sigma float with 0.3*sigma0 Gaussian priors
@@ -264,9 +273,38 @@ def main():
                    default=STAGE9 / "run2" / "inputs")
     p.add_argument("--rmax-table", type=Path,
                    default=STAGE9 / "run2" / "combine_limit_table_ee_resolved.csv")
-    p.add_argument("--output-dir", type=Path, default=HERE / "cards")
+    p.add_argument("--output-dir", type=Path, default=None,
+                   help="default: cards/ (raw) or cards_smooth_<method>/")
+    p.add_argument("--bkg-source", default="raw",
+                   help="'raw' (the production MC histograms) or "
+                        "'smooth:<method>' -- the smoothed background from "
+                        "4_background_fits/smoothing (bkg_native of "
+                        "smoothed_<method>.root) plays data_obs / the window "
+                        "MC; default raw")
+    p.add_argument("--smooth-dir", type=Path,
+                   default=HERE.parents[1] / "4_background_fits" / "smoothing"
+                   / "run2" / "ee_resolved")
+    p.add_argument("--anchor-source", default="same", choices=["same", "raw"],
+                   help="with a smoothed background: fit the anchors on the "
+                        "same smoothed spectrum (default) or on the raw MC")
+    p.add_argument("--masses", nargs="+", type=int, default=None,
+                   help="subset of masses to build (default: all)")
+    p.add_argument("--anchor-norm", default="env", choices=["env", "window"],
+                   help="anchored cards: fix the background norm to the "
+                        "transported anchor fit B_env (default) or to the "
+                        "window integral of the (smoothed) histogram "
+                        "(smoothing study: the 'mcmax' question)")
     args = p.parse_args()
     tag = f"{args.channel}_{args.topology}"
+    smooth_method = None
+    if args.bkg_source.startswith("smooth:"):
+        smooth_method = args.bkg_source.split(":", 1)[1]
+    elif args.bkg_source != "raw":
+        raise SystemExit(f"--bkg-source must be raw or smooth:<method>, "
+                         f"got {args.bkg_source}")
+    if args.output_dir is None:
+        args.output_dir = HERE / (f"cards_smooth_{smooth_method}" if smooth_method
+                                  else "cards")
 
     with open(args.input_dir / f"{tag}.json") as fh:
         meta = json.load(fh)["masses"]
@@ -279,8 +317,27 @@ def main():
     fin_opt = ROOT.TFile(str(OPT_INPUTS / f"{tag}.root"))
     h50 = fin_opt.Get("bkg_native").Rebin(5, "h50")
 
+    # optional smoothed background (4_background_fits/smoothing): its 10 GeV
+    # bkg_native rebinned x10 / x5 replaces data_obs_full / bkg_native (both
+    # grids start at 0, so the edges are identical)
+    note = ""
+    if smooth_method:
+        fsm = ROOT.TFile(str(args.smooth_dir / f"smoothed_{smooth_method}.root"))
+        hs = fsm.Get("bkg_native")
+        if not hs:
+            raise SystemExit(f"no bkg_native in {fsm.GetName()}")
+        h_full_obs = hs.Rebin(10, "h_full_smooth")
+        h50_obs = hs.Rebin(5, "h50_smooth")
+        note = (f"background source: smooth:{smooth_method} "
+                f"(anchors on {'raw' if args.anchor_source == 'raw' else 'smooth'})")
+        print(note)
+    else:
+        h_full_obs, h50_obs = h_full, h50
+    h_anchor = h_full if (not smooth_method or args.anchor_source == "raw") \
+        else h_full_obs
+
     print("anchor fits (binned Poisson-ML on the summed run2 background MC):")
-    anchors = {mb: fit_anchor(h_full, mb) for mb in MEMBERS}
+    anchors = {mb: fit_anchor(h_anchor, mb) for mb in MEMBERS}
 
     rmax = load_rmax(args.rmax_table)
     out_dir = args.output_dir / tag
@@ -289,6 +346,8 @@ def main():
     manifest = []
     for key, m in sorted(meta.items(), key=lambda kv: float(kv[0])):
         mass = float(key)
+        if args.masses and int(mass) not in args.masses:
+            continue
         m = dict(m, mass=key)
         rm = rmax.get(int(mass), 100.0)
         if args.float_min <= mass <= args.float_max:
@@ -298,17 +357,20 @@ def main():
                   "fit_lo": v["fit_lo"], "fit_hi": v["fit_hi"],
                   "rate_per_fb": v["rate_per_fb"], "eff": v["eff"],
                   "signal_tag": o["signal_tag"]}
-            card, mi, b_env = build_card(h50, mf, "float", "float",
+            card, mi, b_env = build_card(h50_obs, mf, "float", "float",
                                          out_dir, tag,
-                                         anchor=anchors["central"], rmax=rm)
+                                         anchor=anchors["central"], rmax=rm,
+                                         note=note)
             manifest.append(f"{card}\t{mi}\tfloat\tfloat\t{rm:g}")
         else:
             regime = "anch_low" if mass < args.float_min else "anch_sparse"
             for mb in MEMBERS:
                 variant = "anchored" if mb == "central" else f"anch_{mb}"
-                card, mi, b_env = build_card(h_full, m, variant, regime,
+                card, mi, b_env = build_card(h_full_obs, m, variant, regime,
                                              out_dir, tag,
-                                             anchor=anchors[mb], rmax=rm)
+                                             anchor=anchors[mb], rmax=rm,
+                                             note=note,
+                                             anchor_norm=args.anchor_norm)
                 manifest.append(f"{card}\t{mi}\t{variant}\t{regime}\t{rm:g}")
     (out_dir / "manifest.txt").write_text("\n".join(manifest) + "\n")
     with open(out_dir / "anchors.json", "w") as fh:

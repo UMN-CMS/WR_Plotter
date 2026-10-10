@@ -83,6 +83,11 @@ class CardSB:
         self.lo, self.hi = float(self.edges[0]), float(self.edges[-1])
         self.m_c, self.sigma = float(m_c), float(sigma)
         self.mode = mode
+        # optional nuisance on the SR/CR transfer factor: rho multiplies the
+        # SR tt term, Gaussian-constrained to 1 +- R_err_rel (systematics on R)
+        self.R_err_rel = float((fcr or {}).get("R_err_rel", 0.0) or 0.0) \
+            if mode in ("fcr", "fcr_shape") else 0.0
+        self.has_rho = self.R_err_rel > 0.0
         if mode == "fcr":
             self.T_tt, self.T_cr = float(fcr["T_tt"]), float(fcr["T_cr"])
             self.C_other, self.b_tt = float(fcr["C_other"]), float(fcr["b_tt"])
@@ -115,18 +120,29 @@ class CardSB:
 
     def nu(self, r, pars):
         """SR expectation per bin. pars = (b, B) for float,
-        (mu_tt, b, B) for fcr, (T, b_tt, b, B) for fcr_shape."""
+        (mu_tt, b, B[, rho]) for fcr, (T, b_tt, b, B[, rho]) for fcr_shape;
+        the trailing rho is present only when R carries a systematic
+        (has_rho) and multiplies the SR tt term."""
         if self.mode == "float":
             b, B = pars
             return np.clip(r * self.S + B * self._expo_shape(b), 1e-12, None)
         if self.mode == "fcr_shape":
-            T, b_tt, b, B = pars
+            T, b_tt, b, B = pars[0], pars[1], pars[2], pars[3]
+            rho = pars[4] if self.has_rho else 1.0
             return np.clip(r * self.S
-                           + self.R * T * self._expo_shape(b_tt)
+                           + rho * self.R * T * self._expo_shape(b_tt)
                            + B * self._expo_shape(b), 1e-12, None)
-        mu_tt, b, B = pars
-        return np.clip(r * self.S + mu_tt * self.T_tt * self.t
+        mu_tt, b, B = pars[0], pars[1], pars[2]
+        rho = pars[3] if self.has_rho else 1.0
+        return np.clip(r * self.S + rho * mu_tt * self.T_tt * self.t
                        + B * self._expo_shape(b), 1e-12, None)
+
+    def rho_penalty(self, pars):
+        """-2 ln of the Gaussian constraint on the R nuisance (0 if none)."""
+        if not self.has_rho:
+            return 0.0
+        rho = pars[4] if self.mode == "fcr_shape" else pars[3]
+        return ((rho - 1.0) / self.R_err_rel) ** 2
 
     def nu_cr(self, pars):
         """Flavor-CR expectation: one number (fcr) or a per-bin vector
@@ -144,6 +160,7 @@ class CardSB:
         CR term (an SR-only likelihood of the split model -- diagnostics)."""
         v = self.nu(r, pars)
         out = 2.0 * float(np.sum(v) - np.sum(data * np.log(v)))
+        out += self.rho_penalty(pars)
         if self.mode == "fcr" and data_cr is not None:
             vc = self.nu_cr(pars)
             out += 2.0 * (vc - float(data_cr) * math.log(vc))
@@ -184,12 +201,17 @@ class CardSB:
             return ([-3.0, ntot],
                     [(-100.0, 0.0), (0.0, 10.0 * ntot + 50.0)])
         if self.mode == "fcr_shape":
-            return ([self.T_cr, self.b_tt, -3.0,
-                     max(ntot - self.R * self.T_cr, 1.0)],
-                    [(0.0, 20.0 * self.T_cr + 50.0), (-100.0, 0.0),
-                     (-100.0, 0.0), (0.0, 10.0 * ntot + 50.0)])
-        return ([1.0, -3.0, max(ntot - self.T_tt, 1.0)],
-                [(0.0, 5.0), (-100.0, 0.0), (0.0, 10.0 * ntot + 50.0)])
+            s0 = [self.T_cr, self.b_tt, -3.0,
+                  max(ntot - self.R * self.T_cr, 1.0)]
+            lim = [(0.0, 20.0 * self.T_cr + 50.0), (-100.0, 0.0),
+                   (-100.0, 0.0), (0.0, 10.0 * ntot + 50.0)]
+        else:
+            s0 = [1.0, -3.0, max(ntot - self.T_tt, 1.0)]
+            lim = [(0.0, 5.0), (-100.0, 0.0), (0.0, 10.0 * ntot + 50.0)]
+        if self.has_rho:
+            s0.append(1.0)
+            lim.append((0.2, 3.0))
+        return s0, lim
 
     def fit(self, data, data_cr=None, r_bounds=(-2000.0, 2000.0)):
         """Global S+B fit (r floating). Returns a fit_splusb-style dict:

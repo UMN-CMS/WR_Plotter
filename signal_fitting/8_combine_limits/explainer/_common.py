@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -19,9 +20,32 @@ sys.path.insert(0, str(SIGFIT / "4_background_fits"))
 sys.path.insert(0, str(SIGFIT / "shared"))
 sys.path.insert(0, str(SIGFIT / "7_limit_plots"))
 
-ERA = "RunIISummer20UL18"
-BKG_DIR = "20260714_run2_bkgs"
-SIGNAL_DIR = "20260624_signals"
+# Seminar era switch: WR_SEMINAR_ERA=2024 moves every step onto the Run-3
+# 2024 inputs (backgrounds, data, the 2 TeV signal sample) and suffixes the
+# outputs with _2024; unset (or 2018) keeps the original run2 chain.
+SEMINAR_ERA = os.environ.get("WR_SEMINAR_ERA", "2018")
+if SEMINAR_ERA == "2024":
+    ERA = "RunIII2024Summer24"
+    BKG_DIR = "20261004_full_systs"
+    SIGNAL_DIR = "20261004_full_systs"
+    SIGNAL_TAG = "WR2000_N1100"                      # the 2 TeV running example
+    SIGNAL_CFG_KEY = "WRtoNEltoElElJJ_MWR{m}_N{n}"   # flavour-specific Run-3 samples
+    OVERLAY_SIGNALS = [("WR4000_N2100", "black", "--")]
+    OUT_SUFFIX = "_2024"
+    MC_LABEL = "Run 3 2024 MC"
+    OPT_INPUTS_NAME = "inputs_2024"
+    DY_LABEL = "DY+jets (LO, inclusive)"
+else:
+    ERA = "RunIISummer20UL18"
+    BKG_DIR = "20260714_run2_bkgs"
+    SIGNAL_DIR = "20260624_signals"
+    SIGNAL_TAG = "WR2000_N1000"
+    SIGNAL_CFG_KEY = "WRtoNLtoLLJJ_MWR{m}_MN{n}"
+    OVERLAY_SIGNALS = [("WR4000_N2000", "black", "--")]
+    OUT_SUFFIX = ""
+    MC_LABEL = "RunII 2018 MC"
+    OPT_INPUTS_NAME = "inputs"
+    DY_LABEL = "DY+jets (LO HT, reshaped)"
 CHANNEL, TOPOLOGY = "ee", "resolved"
 TAG = f"{CHANNEL}_{TOPOLOGY}"
 K = 3.0                                              # window half-width [sigma]
@@ -36,10 +60,11 @@ ANCHORS = REFINED / "cards" / TAG / "anchors.json"
 
 FLOAT_MIN, FLOAT_MAX = 1400.0, 3200.0                # the 10.8 regime split
 OPT = HERE.parent / "optimization"
+OPT_INPUTS = OPT / OPT_INPUTS_NAME
 FLOAT_VAR = "k5_bw50"                                # the 10.9 winner window/binning
 SIG_ALPHA = 0.30                                     # mu/sigma prior width (x sigma0)
 BKG_SAMPLES = ["DYJets", "tt_tW", "Nonprompt", "Other"]
-BKG_LABELS = {"DYJets": "DY+jets (LO HT, reshaped)", "tt_tW": r"$t\bar{t}$+tW",
+BKG_LABELS = {"DYJets": DY_LABEL, "tt_tW": r"$t\bar{t}$+tW",
               "Nonprompt": "Nonprompt", "Other": "Other"}
 
 
@@ -52,9 +77,67 @@ def regime(mass: float) -> str:
 
 
 def load_meta():
-    """Stage-9 run2 inputs JSON: lumi + per-mass window/eff/rate."""
-    with open(INPUTS / f"{TAG}.json") as fh:
+    """Inputs JSON with lumi + per-mass window/eff/rate: the Stage-9 run2
+    file for 2018, the optimization inputs for the 2024 seminar chain."""
+    src = INPUTS if SEMINAR_ERA != "2024" else OPT_INPUTS
+    with open(src / f"{TAG}.json") as fh:
         return json.load(fh)
+
+
+def lumi_com():
+    """(lumi [fb-1], sqrt(s) [TeV]) of the active era."""
+    from wrplotter.config import load_lumi
+    info = load_lumi(ERA)
+    return float(info["lumi"]), float(info.get("com", 13))
+
+
+def cms_label(ax, fontsize=15, data=False):
+    import mplhep as hep
+    lumi, com = lumi_com()
+    hep.cms.label(loc=0, ax=ax, data=data, label="Work in Progress",
+                  lumi=f"{lumi:.1f}", com=com, fontsize=fontsize)
+
+
+def window_2000(var=FLOAT_VAR):
+    """(m_c, sigma, lo, hi) of the m_WR = 2000 window from the active
+    optimization inputs (k5_bw50): the one geometry every step shares."""
+    with open(OPT_INPUTS / f"{TAG}.json") as fh:
+        m = json.load(fh)["masses"]["2000"]
+    v = m["vars"][var]
+    return float(m["m_c"]), float(m["sigma"]), float(v["fit_lo"]), float(v["fit_hi"])
+
+
+def signal_config():
+    """{dataset: entry} of the active era's signal config."""
+    from wrplotter.config import load_lumi
+    info = load_lumi(ERA)
+    cfg = (SIGFIT.parents[1] / "data" / "configs" / str(info["run"])
+           / str(info["year"]) / ERA / f"{ERA}_signal.json")
+    return {v["dataset"]: v for v in json.load(open(cfg)).values()}
+
+
+def signal_config_entry(tag):
+    """Config entry (xsec, genEventSumw, ...) for a WR<m>_N<n> tag."""
+    m, n = tag[2:].split("_N")
+    pref = SIGNAL_CFG_KEY.format(m=m, n=n)
+    cfg = signal_config()
+    for k, v in cfg.items():
+        if k == pref or k.startswith(pref + "_"):
+            return v
+    raise KeyError(f"no signal config entry for {tag} ({pref})")
+
+
+def load_bkg_band(rebin=10):
+    """(edges, total, up, down, has_syst): summed background with the MC
+    stat (+) systematic envelope from the analyzer variations, if any."""
+    from wrplotter.paths import input_dirs_for_era, repo_root
+    from syst_band import total_syst_envelope, source_deviations
+    dirs, _ = input_dirs_for_era(ERA, repo_root(), BKG_DIR)
+    region = f"wr_{CHANNEL}_{TOPOLOGY}_sr"
+    _, _, _, devs = source_deviations(dirs, region, "mass_fourobject", BKG_SAMPLES)
+    e, nom, up, dn = total_syst_envelope(dirs, region, "mass_fourobject",
+                                         BKG_SAMPLES, rebin=rebin, with_stat=True)
+    return e, nom, up, dn, bool(devs)
 
 
 def load_bkg_components(rebin=10):
@@ -98,10 +181,11 @@ def load_bkg_total(rebin=10):
             np.sqrt(var[:n].reshape(-1, rebin).sum(axis=1)))
 
 
-def load_signal(tag="WR2000_N1000", rebin=10):
+def load_signal(tag=None, rebin=10):
     """(edges, values) raw genWeight signal shape in the ee resolved SR."""
     import uproot
     from wrplotter.paths import input_dirs_for_era, repo_root
+    tag = tag or SIGNAL_TAG
     dirs, _ = input_dirs_for_era(ERA, repo_root(), SIGNAL_DIR)
     key = f"wr_{CHANNEL}_{TOPOLOGY}_sr/mass_fourobject_wr_{CHANNEL}_{TOPOLOGY}_sr"
     edges = vals = None
@@ -133,7 +217,7 @@ def load_refined():
 
 def load_opt_inputs():
     """Stage-10.9 inputs: per-mass variant windows + efficiencies."""
-    with open(OPT / "inputs" / f"{TAG}.json") as fh:
+    with open(OPT_INPUTS / f"{TAG}.json") as fh:
         return json.load(fh)["masses"]
 
 
@@ -184,6 +268,8 @@ def savefig(fig, stem):
     """stem: full path stem (each step dir owns its figures)."""
     from pathlib import Path as _P
     stem = _P(stem)
+    if OUT_SUFFIX and not stem.name.endswith(OUT_SUFFIX):
+        stem = stem.with_name(stem.name + OUT_SUFFIX)
     stem.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(stem.with_suffix(".pdf"), bbox_inches="tight")
     fig.savefig(stem.with_suffix(".png"), bbox_inches="tight", dpi=150)

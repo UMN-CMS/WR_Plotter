@@ -41,7 +41,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from plot_bkg_composition import (ERA, BKG_DIR, SR_REGION, load,       # noqa: E402
+from plot_bkg_composition import (ERA, BKG_DIR, SR_REGION, load, OUT_DEFAULT,  # noqa: E402
                                   fit_windows)
 from wrplotter.cli_utils import setup_logging                           # noqa: E402
 from wrplotter.config import load_lumi                                  # noqa: E402
@@ -68,7 +68,7 @@ def rebin_var(edges, vals, new_edges):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--output-dir", type=Path, default=HERE / "explain_fcr")
+    p.add_argument("--output-dir", type=Path, default=OUT_DEFAULT)
     p.add_argument("--fit", action="store_true",
                    help="overlay the fcr_shape fit tt/DY per window (opt-in)")
     p.add_argument("--rest", action="store_true",
@@ -79,6 +79,8 @@ def main():
                    help="overlay every fit's per-bin prediction, coloured by m_WR")
     p.add_argument("--fit-only", action="store_true",
                    help="with --rest: fit fractions per window instead of MC")
+    p.add_argument("--shade-window", type=float, nargs=2, default=None, metavar=("LO", "HI"),
+                   help="shade this m_lljj window [GeV] on both panels (output suffix _win)")
     p.add_argument("--xmax", type=float, default=8000.0,
                    help="x-axis max [GeV]; the last MC bin edge is moved here")
     p.add_argument("--cr", choices=["mc", "data"], default="mc")
@@ -260,6 +262,9 @@ def main():
         cr_lab = "CR = EGamma data" if args.cr == "data" else "CR = MC Asimov"
         axr.text(0.98, 0.72, f"SR = MC Asimov, {cr_lab}",
                  transform=axr.transAxes, fontsize=11, ha="right", va="top")
+    if args.shade_window:
+        for a in (ax, axr):
+            a.axvspan(*args.shade_window, color="tab:red", alpha=0.12, zorder=0)
     plt.subplots_adjust(hspace=0.08)
     if args.fit_all:
         sm = ScalarMappable(norm=norm, cmap=cm)
@@ -269,7 +274,8 @@ def main():
     tag = ("_rest" if args.rest else "") + ("_fitall" if args.fit_all else "") + (
         f"_m{args.fit_mass}" if args.fit_mass else "") + (
         "" if not args.fit else ("_fit" if args.cr == "mc" else "_fit_crdata")) + (
-        "" if not args.fit_only else ("_fitonly" if args.cr == "mc" else "_fitonly_crdata"))
+        "" if not args.fit_only else ("_fitonly" if args.cr == "mc" else "_fitonly_crdata")) + (
+        "_win" if args.shade_window else "")
     out = args.output_dir / f"bkg_fractions_ee{tag}"
     args.output_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(out.with_suffix(".pdf"), bbox_inches="tight")

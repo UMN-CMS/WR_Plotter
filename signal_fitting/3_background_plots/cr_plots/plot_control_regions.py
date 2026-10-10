@@ -13,7 +13,7 @@ same, only the overlaid data differs), matching the analysis.
 
 This reuses the analysis plotting stack directly:
   wrplotter.plotting_helpers.plot_stack   (stack + data + ratio, CMS style)
-  wrplotter.histogram_cache.load_and_rebin (per-sample load, k-factors, overflow)
+  wrplotter.histogram_cache.load_and_rebin (per-sample load, overflow)
   region / variable / plot-config / sample-group loaders
 so binning (data/plot_settings), colors, ordering, and blinding all match
 bin/make_stackplots.py. The MC uncertainty band is statistical only (no
@@ -52,8 +52,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))  # repo root
 
 from wrplotter.cli_utils import setup_logging
 from wrplotter.config import (load_lumi, load_plot_settings, index_plot_settings,
-                              get_var_cfg, load_kfactors, get_kfactor)
+                              get_var_cfg)
 from wrplotter.histogram_cache import load_and_rebin
+from wrplotter.histogram_utils import add_hists, for_drawing
 from wrplotter.paths import input_dirs_for_era, repo_root
 from wrplotter.plotting_helpers import (custom_log_formatter, set_y_label,
                                         reorder_legend, _safe_sum_hists)
@@ -71,8 +72,10 @@ ERRPS = {"hatch": "////", "facecolor": "none", "lw": 0, "edgecolor": "k", "alpha
 
 
 def plot_data_mc(region, variable, *, stack_list, stack_colors, stack_labels,
-                 data_hist, xlim, ylim, ratio_ylim, lumi, com):
-    """Stacked MC + data + Data/Sim. ratio (stat-only band).
+                 data_hist, xlim, ylim, ratio_ylim, lumi, com,
+                 syst_rel_fn=None):
+    """Stacked MC + data + Data/Sim. ratio (stat-only band, or stat (+) syst
+    when `syst_rel_fn(centres) -> (rel_up, rel_down)` is given).
 
     A local, LCG_106-compatible rendering of bin/make_stackplots' plot: the
     analysis plot_stack draws its band with hep.histplot(histtype='band'),
@@ -91,25 +94,37 @@ def plot_data_mc(region, variable, *, stack_list, stack_colors, stack_labels,
         2, 1, gridspec_kw=dict(height_ratios=[3, 1], hspace=0.1), sharex=True)
 
     # main panel: stacked MC + data
-    hep.histplot(list(stack_list), stack=True, label=stack_labels,
+    hep.histplot([for_drawing(h) for h in stack_list], stack=True, label=stack_labels,
                  color=stack_colors, histtype="fill", alpha=0.7, ax=ax, flow="hint")
     if data is not None:
-        hep.histplot(data, label="Data", xerr=True, color="k",
+        hep.histplot(for_drawing(data), label="Data", xerr=True, color="k",
                      histtype="errorbar", ax=ax, flow="hint")
 
     # MC stat band (manual; empty bins blank, lower edge clamped for log axis)
     tot_vals = tot.values()
     tot_errs = np.sqrt(tot.variances())
+    err_up = err_dn = tot_errs
+    band_label = "MC stat. unc."
+    if syst_rel_fn is not None:
+        cen = 0.5 * (np.asarray(edges[:-1]) + np.asarray(edges[1:]))
+        ru, rd = syst_rel_fn(cen)
+        err_up = np.sqrt(tot_errs ** 2 + (ru * tot_vals) ** 2)
+        err_dn = np.sqrt(tot_errs ** 2 + (rd * tot_vals) ** 2)
+        band_label = "MC stat. + syst. unc."
     pos = tot_vals[tot_vals > 0]
     floor = (float(pos.min()) * 1e-3) if pos.size else 1e-9
     empty = tot_vals <= 0
-    hi = np.where(empty, np.nan, tot_vals + tot_errs)
-    lo = np.where(empty, np.nan, np.maximum(tot_vals - tot_errs, floor))
-    ax.stairs(hi, edges, baseline=lo, label="MC stat. unc.", **ERRPS)
+    hi = np.where(empty, np.nan, tot_vals + err_up)
+    lo = np.where(empty, np.nan, np.maximum(tot_vals - err_dn, floor))
+    ax.stairs(hi, edges, baseline=lo, label=band_label, **ERRPS)
 
     # ratio panel
     rel = np.divide(tot_errs, tot_vals, out=np.zeros_like(tot_vals, dtype=float),
                     where=tot_vals > 0)
+    rel_up = np.divide(err_up, tot_vals, out=np.zeros_like(tot_vals, dtype=float),
+                       where=tot_vals > 0)
+    rel_dn = np.divide(err_dn, tot_vals, out=np.zeros_like(tot_vals, dtype=float),
+                       where=tot_vals > 0)
     if data is not None:
         data_vals = data.values()
         ratio = np.divide(data_vals, tot_vals,
@@ -118,7 +133,7 @@ def plot_data_mc(region, variable, *, stack_list, stack_colors, stack_labels,
                               out=np.zeros_like(data_vals, dtype=float), where=tot_vals > 0)
         hep.histplot(ratio, edges, yerr=ratio_err, xerr=False, ax=rax,
                      histtype="errorbar", color="k", capsize=4)
-    band_low, band_high = 1 - rel, 1 + rel
+    band_low, band_high = 1 - rel_dn, 1 + rel_up
     bad = tot_vals <= 0
     band_low[bad] = np.nan
     band_high[bad] = np.nan
@@ -154,7 +169,7 @@ def cr_subdir(region) -> str:
 
 
 def build_stack(region, variable, *, rebin, xmax, input_dirs, input_lumis, era,
-                scales, sample_groups, density):
+                sample_groups, density):
     """Build (stack_list, colors, labels, data_hist) for one region/variable.
 
     Mirrors the per-(region, variable) loop of bin/make_stackplots.py: data
@@ -176,16 +191,12 @@ def build_stack(region, variable, *, rebin, xmax, input_dirs, input_lumis, era,
         for sample in sg.samples:
             hist_obj = load_and_rebin(
                 input_dirs=input_dirs, sample=sample, hist_key=hist_key,
-                n_rebin=rebin, sublumis=input_lumis,
-                era_for_scale=era, get_kfactor_fn=get_kfactor, scales=scales,
+                n_rebin=rebin,
                 density=density, xmax=xmax,
             )
             if hist_obj is None:
                 continue
-            has_ov = hist_obj.view(flow=True)["value"][-1] > 0
-            combined = hist_obj if combined is None else (combined + hist_obj)
-            if has_ov:
-                combined.view(flow=True)["value"][-1] = 1.0
+            combined = add_hists(combined, hist_obj)
         if combined is None:
             continue
 
@@ -247,7 +258,6 @@ def main():
 
     groups, order = load_sample_groups()
     sample_groups = [groups[k] for k in order if k in groups]
-    scales = load_kfactors()
     name_to_var = {v.name: v for v in build_variables()}
 
     region_cfgs, common_vars = index_plot_settings(
@@ -273,7 +283,7 @@ def main():
         stack_list, stack_colors, stack_labels, data_hist = build_stack(
             region, variable, rebin=rebin, xmax=xmax,
             input_dirs=input_dirs, input_lumis=input_lumis,
-            era=era, scales=scales, sample_groups=sample_groups, density=True,
+            era=era, sample_groups=sample_groups, density=True,
         )
         if not stack_list and not data_hist:
             logger.warning("  %s [%s] — no histograms, skipping",

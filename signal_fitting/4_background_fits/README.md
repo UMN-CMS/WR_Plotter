@@ -61,6 +61,17 @@ subsumed by `valid_minimum` (every failure they catch already fails it). The
 raw `status`/`cov_status`/`edm`/`ncalls` are still tabulated in the CSV as
 diagnostics — they say *how* a fit failed, but never change the verdict.
 
+## `smoothing/`
+
+Sep 2026: per-component smoothing of the jagged high-mass MC tail (kernel /
+hybrid / parametric / RooKeysPdf) fed into the production combine cards —
+see `smoothing/README.md`. Result: < 3 % on the expected limit; the raw
+jagged MC was not hurting the float regime, but the sparse-tail anchor
+under-predicts the background by ~2× (composition, not weight noise; 7–15 %
+on the limit there). Also documents why the `bkg_fit_lib` χ² fit is biased
+low on this weighted MC (Neyman errors) and why an effective-count
+likelihood is biased on mixed-weight samples.
+
 ## `in_window_fit/`
 
 ```bash

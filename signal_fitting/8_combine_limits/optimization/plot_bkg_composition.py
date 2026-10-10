@@ -53,7 +53,14 @@ from card_sb_fit import CardSB, rebin_snap                              # noqa: 
 ROOT.gROOT.SetBatch(True)
 logger = logging.getLogger("plot_bkg_composition")
 
-ERA, BKG_DIR, VAR = "RunIISummer20UL18", "20260714_run2_bkgs", "k5_bw50"
+import os                                                               # noqa: E402
+if os.environ.get("WR_SEMINAR_ERA", "2018") == "2024":
+    ERA, BKG_DIR = "RunIII2024Summer24", "20261004_full_systs"
+    INPUTS, OUT_DEFAULT = HERE / "inputs_2024", HERE / "explain_fcr_2024"
+else:
+    ERA, BKG_DIR = "RunIISummer20UL18", "20260714_run2_bkgs"
+    INPUTS, OUT_DEFAULT = INPUTS, HERE / "explain_fcr"
+VAR = "k5_bw50"
 SR_REGION = "wr_ee_resolved_sr"
 TT, REST = ["tt_tW"], ["DYJets", "Nonprompt", "Other"]
 C_MC, C_FIT = "#9c9ca1", "#e42536"
@@ -106,13 +113,13 @@ def mc_ratio(bkg_dirs):
 def fit_windows(bkg_dirs, cr="mc"):
     """Run the fcr_shape fit (r profiled at 0) per card mass; return per-mass
     dicts with the bin-wise fit ratio and the window-integrated numbers."""
-    with open(HERE / "inputs" / "ee_resolved.json") as fh:
+    with open(INPUTS / "ee_resolved.json") as fh:
         meta_all = json.load(fh)["masses"]
-    with open(HERE / "inputs" / "ee_resolved_fcr.json") as fh:
+    with open(INPUTS / "ee_resolved_fcr.json") as fh:
         fcr_all = json.load(fh)
     r_global = fcr_all["R_global"]
-    hsr = uproot.open(HERE / "inputs" / "ee_resolved.root")["bkg_native"]
-    hcr = uproot.open(HERE / "inputs" / "ee_resolved_fcr.root")
+    hsr = uproot.open(INPUTS / "ee_resolved.root")["bkg_native"]
+    hcr = uproot.open(INPUTS / "ee_resolved_fcr.root")
     e_tt, v_tt, _ = load(bkg_dirs, SR_REGION, TT)
     _, v_rest, _ = load(bkg_dirs, SR_REGION, REST)
 
@@ -186,7 +193,7 @@ def draw_fit(ax, wins, cmap):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--output-dir", type=Path, default=HERE / "explain_fcr")
+    p.add_argument("--output-dir", type=Path, default=OUT_DEFAULT)
     p.add_argument("--cr", choices=["mc", "data"], default="mc",
                    help="flavor-CR channel: MC Asimov (default) or EGamma data")
     p.add_argument("-v", "--verbose", action="count", default=0)

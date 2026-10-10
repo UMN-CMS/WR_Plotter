@@ -1,0 +1,90 @@
+{
+ "method": "kde",
+ "kwargs": {
+  "var_kind": "logm",
+  "mirror": "NoMirror",
+  "rho": 1.0,
+  "resample": 5
+ },
+ "era": "RunIISummer20UL18",
+ "bkg_dir": "20260714_run2_bkgs",
+ "region": "wr_ee_resolved_sr",
+ "variable": "mass_fourobject",
+ "threshold": 800.0,
+ "components": {
+  "tt_tW": {
+   "var_kind": "logm",
+   "mirror": "NoMirror",
+   "rho": 1.0,
+   "resample": 5,
+   "n_entries": 970,
+   "n_negative_dropped": 1,
+   "sum_weights": 651.0253117148952,
+   "total_raw": 650.9357622287409,
+   "total_pre_rescale": 1.0002054824795297,
+   "rescale": 650.80203381315,
+   "n_clipped": 0
+  },
+  "DYJets": {
+   "var_kind": "logm",
+   "mirror": "NoMirror",
+   "rho": 1.0,
+   "resample": 5,
+   "n_entries": 1910,
+   "n_negative_dropped": 8,
+   "sum_weights": 361.7643225911795,
+   "total_raw": 361.73660890229576,
+   "total_pre_rescale": 1.000115416419471,
+   "rescale": 361.69486337622385,
+   "n_clipped": 0
+  },
+  "Nonprompt": {
+   "var_kind": "logm",
+   "mirror": "NoMirror",
+   "rho": 1.0,
+   "resample": 5,
+   "n_entries": 900,
+   "n_negative_dropped": 1,
+   "sum_weights": 19.038465696908343,
+   "total_raw": 19.020944892772444,
+   "total_pre_rescale": 1.0000599602896088,
+   "rescale": 19.019804459788734,
+   "n_clipped": 0
+  },
+  "Other": {
+   "var_kind": "logm",
+   "mirror": "NoMirror",
+   "rho": 1.0,
+   "resample": 5,
+   "n_entries": 925,
+   "n_negative_dropped": 23,
+   "sum_weights": 41.53558992477211,
+   "total_raw": 41.434914632543375,
+   "total_pre_rescale": 1.0000990542402202,
+   "rescale": 41.430810735064306,
+   "n_clipped": 0
+  }
+ },
+ "totals": {
+  "tt_tW": {
+   "raw": 650.9357622287409,
+   "raw_err": 8.072204467661232,
+   "smooth": 650.9357622287409
+  },
+  "DYJets": {
+   "raw": 361.73660890229576,
+   "raw_err": 14.049605082141685,
+   "smooth": 361.7366089022958
+  },
+  "Nonprompt": {
+   "raw": 19.020944892772444,
+   "raw_err": 2.3929907272504547,
+   "smooth": 19.02094489277244
+  },
+  "Other": {
+   "raw": 41.434914632543375,
+   "raw_err": 7.0992164244515905,
+   "smooth": 41.43491463254337
+  }
+ }
+}

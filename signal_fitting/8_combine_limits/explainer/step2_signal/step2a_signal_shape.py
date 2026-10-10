@@ -34,11 +34,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import _common as C
 
 HERE = Path(__file__).resolve().parent
-POINT, MWR, MN = "WR2000_N1000", 2000, 1000
+POINT = C.SIGNAL_TAG
+MWR, MN = (int(x) for x in POINT[2:].split("_N"))
 
 hep.style.use("CMS")
-w = next(x for x in C.load_stage6_windows() if x["mWR"] == float(MWR))
-mu, sigma = w["m_c"], w["sigma_win"]
+mu, sigma, _, _ = C.window_2000()
 K = 5.0                                    # optimized float-card geometry
 lo, hi = mu - K * sigma, mu + K * sigma
 edges, vals = C.load_signal(POINT, rebin=5)
@@ -67,17 +67,21 @@ ax.set_xlabel(r"$m_{\ell\ell jj}$ [GeV]")
 ax.set_ylabel("Events / bin")
 ax.grid(alpha=0.3)
 hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress",
-              com=13, fontsize=16)
-info = "\n".join([
+              com=C.lumi_com()[1], fontsize=16)
+# --plain (seminar variant): drop the window and prior lines from the text box
+PLAIN = "--plain" in sys.argv
+lines = [
     "ee  Resolved SR",
     C.ERA,
     rf"$M_{{W_R}}={MWR}$, $M_N={MN}$ GeV",
     "",
     rf"$\mu={mu:.0f}$ GeV,  $\sigma={sigma:.0f}$ GeV",
-    rf"$k=5$ window $[{lo:.0f},{hi:.0f}]$ GeV",
-    rf"$\mu,\sigma$ param-constr. $(0.3\sigma_0)$",
-])
+]
+if not PLAIN:
+    lines += [rf"$k=5$ window $[{lo:.0f},{hi:.0f}]$ GeV",
+              rf"$\mu,\sigma$ param-constr. $(0.3\sigma_0)$"]
+info = "\n".join(lines)
 ax.text(0.04, 0.96, info, transform=ax.transAxes, fontsize=15,
         verticalalignment="top", horizontalalignment="left")
-C.savefig(fig, HERE / "step2a_signal_shape")
+C.savefig(fig, HERE / ("step2a_signal_shape_plain" if PLAIN else "step2a_signal_shape"))
 print("next: step2b -- the same window recipe at every mass (the map)")

@@ -1,0 +1,162 @@
+{
+ "method": "kde",
+ "kwargs": {
+  "var_kind": "m",
+  "mirror": "MirrorLeft",
+  "rho": 1.0,
+  "resample": 1
+ },
+ "era": "RunIISummer20UL18",
+ "bkg_dir": "20261001_split_bkgs",
+ "region": "wr_ee_resolved_sr",
+ "variable": "mass_fourobject",
+ "threshold": 800.0,
+ "components": {
+  "tt_tW": {
+   "var_kind": "m",
+   "mirror": "MirrorLeft",
+   "rho": 1.0,
+   "resample": 1,
+   "n_entries": 217,
+   "n_negative_dropped": 1,
+   "sum_weights": 538.7595369013883,
+   "total_raw": 538.7236993680582,
+   "total_pre_rescale": 0.9999994177552963,
+   "rescale": 538.7240130372616,
+   "n_clipped": 0
+  },
+  "DYJets": {
+   "var_kind": "m",
+   "mirror": "MirrorLeft",
+   "rho": 1.0,
+   "resample": 1,
+   "n_entries": 500,
+   "n_negative_dropped": 0,
+   "sum_weights": 264.20892700774107,
+   "total_raw": 264.2089270077411,
+   "total_pre_rescale": 1.0000025416878222,
+   "rescale": 264.2082554728357,
+   "n_clipped": 0
+  },
+  "WJets": {
+   "var_kind": "m",
+   "mirror": "MirrorLeft",
+   "rho": 1.0,
+   "resample": 1,
+   "n_entries": 113,
+   "n_negative_dropped": 0,
+   "sum_weights": 14.214611005675934,
+   "total_raw": 14.214611005675934,
+   "total_pre_rescale": 1.0000003765791827,
+   "rescale": 14.214605652751354,
+   "n_clipped": 0
+  },
+  "TTSemiLep": {
+   "var_kind": "m",
+   "mirror": "MirrorLeft",
+   "rho": 1.0,
+   "resample": 1,
+   "n_entries": 89,
+   "n_negative_dropped": 2,
+   "sum_weights": 8.502462668083012,
+   "total_raw": 8.414379506734106,
+   "total_pre_rescale": 1.0000001039892654,
+   "rescale": 8.414378631729052,
+   "n_clipped": 0
+  },
+  "SingleTop": {
+   "var_kind": "m",
+   "mirror": "MirrorLeft",
+   "rho": 1.0,
+   "resample": 1,
+   "n_entries": 12,
+   "n_negative_dropped": 1,
+   "sum_weights": 0.5302700270927506,
+   "total_raw": 0.5151207064403595,
+   "total_pre_rescale": 1.0000000133397642,
+   "rescale": 0.5151206995687708,
+   "n_clipped": 0
+  },
+  "Diboson": {
+   "var_kind": "m",
+   "mirror": "MirrorLeft",
+   "rho": 1.0,
+   "resample": 1,
+   "n_entries": 48,
+   "n_negative_dropped": 0,
+   "sum_weights": 28.94453942794333,
+   "total_raw": 28.944539427943333,
+   "total_pre_rescale": 1.000000605473467,
+   "rescale": 28.94452190280331,
+   "n_clipped": 0
+  },
+  "Triboson": {
+   "var_kind": "m",
+   "mirror": "MirrorLeft",
+   "rho": 1.0,
+   "resample": 1,
+   "n_entries": 61,
+   "n_negative_dropped": 1,
+   "sum_weights": 2.713008110040648,
+   "total_raw": 2.6704573662772013,
+   "total_pre_rescale": 0.9999999985409276,
+   "rescale": 2.670457370173592,
+   "n_clipped": 0
+  },
+  "ttV": {
+   "var_kind": "m",
+   "mirror": "MirrorLeft",
+   "rho": 1.0,
+   "resample": 1,
+   "n_entries": 213,
+   "n_negative_dropped": 0,
+   "sum_weights": 6.037678147898272,
+   "total_raw": 6.037678147898272,
+   "total_pre_rescale": 0.999999993182031,
+   "rescale": 6.037678189062975,
+   "n_clipped": 0
+  }
+ },
+ "totals": {
+  "tt_tW": {
+   "raw": 538.7236993680582,
+   "raw_err": 4.814776699565318,
+   "smooth": 538.7236993680581
+  },
+  "DYJets": {
+   "raw": 264.2089270077411,
+   "raw_err": 8.875581387622647,
+   "smooth": 264.2089270077412
+  },
+  "WJets": {
+   "raw": 14.214611005675934,
+   "raw_err": 2.060851680552434,
+   "smooth": 14.214611005675934
+  },
+  "TTSemiLep": {
+   "raw": 8.414379506734106,
+   "raw_err": 0.6116615380024372,
+   "smooth": 8.414379506734106
+  },
+  "SingleTop": {
+   "raw": 0.5151207064403595,
+   "raw_err": 0.150789712078452,
+   "smooth": 0.5151207064403596
+  },
+  "Diboson": {
+   "raw": 28.944539427943333,
+   "raw_err": 3.296776240637592,
+   "smooth": 28.944539427943337
+  },
+  "Triboson": {
+   "raw": 2.6704573662772013,
+   "raw_err": 0.3600219853990627,
+   "smooth": 2.6704573662772013
+  },
+  "ttV": {
+   "raw": 6.037678147898272,
+   "raw_err": 0.07522238800836253,
+   "smooth": 6.037678147898273
+  }
+ }
+}

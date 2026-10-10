@@ -103,13 +103,18 @@ def main():
     p.add_argument("--channel", default="ee")
     p.add_argument("--topology", default="resolved")
     p.add_argument("--results-dir", type=Path, default=None)
+    p.add_argument("--cards-dir", type=Path, default=None,
+                   help="manifest location (default cards/<tag>)")
     p.add_argument("--output-dir", type=Path, default=HERE)
+    p.add_argument("--table-suffix", default="",
+                   help="appended to the table / plot names (smoothing study)")
     p.add_argument("-v", "--verbose", action="count", default=0)
     args = p.parse_args()
     setup_logging(args.verbose)
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
     tag = f"{args.channel}_{args.topology}"
     res_dir = args.results_dir or (HERE / "results" / tag)
+    cards_dir = args.cards_dir or (HERE / "cards" / tag)
 
     with open(STAGE9 / "run2" / "inputs" / f"{tag}.json") as fh:
         meta = json.load(fh)
@@ -117,7 +122,7 @@ def main():
     masses = meta["masses"]
 
     manifest = {}
-    with open(HERE / "cards" / tag / "manifest.txt") as fh:
+    with open(cards_dir / "manifest.txt") as fh:
         for line in fh:
             card, mass, variant, regime, rmax = line.strip().split("\t")
             manifest.setdefault(int(mass), {})[variant] = regime
@@ -166,7 +171,7 @@ def main():
             "xsec_pb": float(m["xsec_pb"]),
         })
 
-    out_csv = args.output_dir / f"refined_limit_table_{tag}.csv"
+    out_csv = args.output_dir / f"refined_limit_table_{tag}{args.table_suffix}.csv"
     with open(out_csv, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
         w.writeheader()
@@ -174,7 +179,7 @@ def main():
     logger.info("wrote %s (%d rows)", out_csv, len(rows))
 
     # official-style expected band
-    plot_dir = args.output_dir / "plots" / tag
+    plot_dir = args.output_dir / "plots" / f"{tag}{args.table_suffix}"
     plot_band("refined (anchored+HybridNew)", pts, plot_dir / "refined",
               ykey="sigma", obskey="sigma_obs", theory=True, scale=1000.0,
               ylabel=(r"$\sigma(pp \to W_R)\,\mathcal{B}"
