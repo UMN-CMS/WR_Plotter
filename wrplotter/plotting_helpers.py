@@ -10,6 +10,9 @@ import matplotlib.ticker as mticker
 from matplotlib.figure import Figure
 import mplhep as hep
 
+from .histogram_utils import for_drawing, sum_hists
+from .systematics import band_error2
+
 if TYPE_CHECKING:
     from hist import Hist
     from .regions import Region
@@ -23,27 +26,14 @@ FONT_SIZE_LEGEND = 18
 
 # Colours and linestyles cycled over multiple signal overlays so they remain
 # visually distinguishable when more than one signal is shown on the same plot.
-_SIG_COLORS = ["black", "#e41a1c", "#377eb8", "#4daf4a", "#984ea3"]
-_SIG_STYLES = ["--", "-.", ":", (0, (3, 1, 1, 1)), (0, (5, 1))]
+SIGNAL_COLORS = ["black", "#e41a1c", "#377eb8", "#4daf4a", "#984ea3"]
+SIGNAL_STYLES = ["--", "-.", ":", (0, (3, 1, 1, 1)), (0, (5, 1))]
 
 # ----------------------------- formatters/labels ----------------------------- #
 
 def _safe_sum_hists(hists):
-    """
-    Sum a list of hist-like objects without letting Python's `sum()` default start=0
-    turn empty inputs into an int.
-
-    Returns:
-      - None for empty input
-      - the sole element for length-1 input
-      - the pairwise sum for length>=2
-    """
-    if not hists:
-        return None
-    total = hists[0]
-    for h in hists[1:]:
-        total = total + h
-    return total
+    """Sum of *hists* (None when empty), keeping the overflow hint (histogram_utils.sum_hists)."""
+    return sum_hists(hists)
 
 def custom_log_formatter(y: float, pos) -> str:
     """
@@ -68,10 +58,11 @@ def custom_log_formatter(y: float, pos) -> str:
 def _format_bin_width(w: float) -> str:
     return f"{int(w)}" if float(w).is_integer() else f"{w:.1f}"
 
-def set_y_label(ax, tot, variable) -> None:
+def set_y_label(ax, tot, variable, *, per_unit: bool = False) -> None:
     """
     Set y-axis label as 'Events / <binwidth> [unit]' for uniform binning.
-    For non-uniform binning, use 'Events / X [unit]'.
+    For non-uniform binning, 'Events / bin', or 'Events / [unit]' when the contents
+    were divided by the bin width (*per_unit*).
     """
     edges = np.asarray(tot.axes[0].edges)
     widths = np.diff(edges)
@@ -84,11 +75,10 @@ def set_y_label(ax, tot, variable) -> None:
             ax.set_ylabel(f"Events / {bw} {unit}")
         else:
             ax.set_ylabel(f"Events / {bw}")
+    elif per_unit:
+        ax.set_ylabel(f"Events / {unit}" if unit else "Events / unit")
     else:
-        if unit:
-            ax.set_ylabel(f"Events / X {unit}")
-        else:
-            ax.set_ylabel("Events / X")
+        ax.set_ylabel("Events / bin")
 
 # --------------------------------- legends ---------------------------------- #
 
@@ -115,6 +105,22 @@ def reorder_legend(ax, priority=("MC stat.", "Data"), fontsize=18) -> None:
 
 # --------------------------------- drawing ---------------------------------- #
 
+def data_ratio(data: Hist, tot_vals: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Data/MC ratio per bin and its statistical error (both 0 where the MC total is not positive).
+
+    The error uses the data's own variances, sqrt(N) per bin, so it stays right
+    when the contents are per GeV (``--per-gev`` divides the variances by the
+    bin width squared); sqrt of the per-GeV contents was too large by sqrt(width).
+    """
+    data_vals = data.values()
+    data_vars = data.variances()
+    data_err = np.sqrt(data_vars if data_vars is not None else data_vals)
+    ok = tot_vals > 0
+    ratio = np.divide(data_vals, tot_vals, out=np.zeros_like(data_vals, dtype=float), where=ok)
+    ratio_err = np.divide(data_err, tot_vals, out=np.zeros_like(data_vals, dtype=float), where=ok)
+    return ratio, ratio_err
+
+
 def plot_stack(
     region: Region,
     variable: Variable,
@@ -128,18 +134,22 @@ def plot_stack(
     lumi: float,
     com: float = 13.6,
     ratio_ylim: tuple[float, float] = (0.5, 2.0),
-    syst_hists: dict | None = None,
+    syst_variations: dict[str, dict[str, Hist]] | None = None,
     fontsize_title: int = FONT_SIZE_TITLE,
     fontsize_label: int = FONT_SIZE_LABEL,
     fontsize_legend: int = FONT_SIZE_LEGEND,
     show_data: bool = True,
     signal_hists: dict[str, Hist] | None = None,
     extra_label: str | None = None,
+    per_unit: bool = False,
 ) -> Figure:
     """
     Draw stacked MC + data with ratio panel.
 
     Args:
+      syst_variations: {syst: {"up": Hist, "down": Hist}} totals of the whole MC
+        stack (see wrplotter.systematics.total_variations); each source adds its
+        largest shift in quadrature to the MC stat. band.
       show_data: If False, data points are not shown and ratio panel displays "Blinded"
       signal_hists: Dict of signal sample name -> histogram to overlay (not stacked)
     """
@@ -169,26 +179,19 @@ def plot_stack(
 
     # main panel
     if bkg_stack:
-        hep.histplot(bkg_stack, stack=True, label=bkg_labels,
+        hep.histplot([for_drawing(h) for h in bkg_stack], stack=True, label=bkg_labels,
                      color=bkg_colors, histtype="fill", alpha=0.7, ax=ax,
                      flow="hint")
 
     if show_data and data is not None:
-        hep.histplot(data, label="Data", xerr=True, color="k",
+        hep.histplot(for_drawing(data), label="Data", xerr=True, color="k",
                      histtype="errorbar", ax=ax, flow="hint")
 
     # --- Signal overlays ---
     for idx, (sig_name, sig_hist) in enumerate(signal_hists.items()):
-        match = re.search(r'WR(\d+)_N(\d+)', sig_name)
-        if match:
-            m_wr, m_n = match.groups()
-            label = rf"$(m_{{W_R}}, m_N) = ({m_wr}, {m_n})$ GeV"
-        else:
-            label = sig_name
-
-        hep.histplot(sig_hist, label=label,
-                     color=_SIG_COLORS[idx % len(_SIG_COLORS)],
-                     linestyle=_SIG_STYLES[idx % len(_SIG_STYLES)],
+        hep.histplot(for_drawing(sig_hist), label=signal_label(sig_name),
+                     color=SIGNAL_COLORS[idx % len(SIGNAL_COLORS)],
+                     linestyle=SIGNAL_STYLES[idx % len(SIGNAL_STYLES)],
                      histtype="step", linewidth=2, ax=ax,
                      flow="hint")
 
@@ -198,38 +201,7 @@ def plot_stack(
     if tot is not None:
         tot_vals = tot.values()
         tot_vars = tot.variances()
-        syst_err2 = np.zeros_like(tot_vals)
-        has_syst = False
-
-        if syst_hists:
-            systs_for_region = syst_hists.get(region.name, {}).get(variable.name, {})
-            for syst, dirs in systs_for_region.items():
-                if "up" in dirs and "down" in dirs:
-                    up_arrs = [h.values(flow=False) for h in dirs["up"].values()]
-                    down_arrs = [h.values(flow=False) for h in dirs["down"].values()]
-                    if not up_arrs or not down_arrs:
-                        continue
-                    up_total = np.sum(up_arrs, axis=0)
-                    down_total = np.sum(down_arrs, axis=0)
-
-                    # Skip systematics whose varied histograms are entirely
-                    # zero — this means the systematic doesn't apply to this
-                    # channel (e.g. muscale/musmear in the ee channel).
-                    if np.allclose(up_total, 0) and np.allclose(down_total, 0):
-                        continue
-
-                    delta_up = np.abs(up_total - tot_vals)
-                    delta_down = np.abs(down_total - tot_vals)
-                    delta = np.maximum(delta_up, delta_down)
-
-                    # Use a relative tolerance to avoid false positives from
-                    # floating-point differences between sequential Hist addition
-                    # and np.sum reduction of the same histograms.
-                    rel_tol = np.maximum(np.abs(tot_vals), 1.0) * 1e-10
-                    if np.any(delta > rel_tol):
-                        has_syst = True
-                    syst_err2 += delta**2
-
+        syst_err2, has_syst = band_error2(tot_vals, syst_variations)
         mc_total_errs = np.sqrt(tot_vars + syst_err2)
 
         unc_label = "MC stat. + syst. unc." if has_syst else "MC stat. unc."
@@ -241,14 +213,7 @@ def plot_stack(
                             where=(tot_vals > 0))
 
         if show_data and data is not None:
-            data_vals = data.values()
-            ratio = np.divide(data_vals, tot_vals,
-                              out=np.zeros_like(data_vals, dtype=float),
-                              where=(tot_vals > 0))
-            ratio_err = np.divide(np.sqrt(data_vals), tot_vals,
-                                  out=np.zeros_like(data_vals, dtype=float),
-                                  where=(tot_vals > 0))
-
+            ratio, ratio_err = data_ratio(data, tot_vals)
             hep.histplot(ratio, edges, yerr=ratio_err, xerr=False, ax=rax,
                          histtype="errorbar", color="k", capsize=4, label="Data")
 
@@ -276,7 +241,7 @@ def plot_stack(
         va="top"
     )
 
-    hep.cms.label(loc=0, ax=ax, data=region.unblind_data,
+    hep.cms.label(loc=0, ax=ax, data=True,
                   label="Work in Progress", lumi=f"{lumi:.2f}",
                   com=com, fontsize=fontsize_label)
 
@@ -307,7 +272,41 @@ def plot_stack(
     rax.axhline(1.0, ls="--", color="k")
     ax.set_xlim(*xlim)
     # y label (per-bin width)
-    set_y_label(ax, tot if tot is not None else data, variable)
+    set_y_label(ax, tot if tot is not None else data, variable, per_unit=per_unit)
 
     reorder_legend(ax, fontsize=fontsize_legend)
     return fig
+
+
+# ------------------------------ shared cosmetics ----------------------------- #
+
+def cms_label(ax, lumi: float, com: float = 13.6, *, fontsize: int = FONT_SIZE_LABEL) -> None:
+    """CMS 'Work in Progress' header with luminosity and centre-of-mass energy."""
+    hep.cms.label(loc=0, ax=ax, data=True, label="Work in Progress",
+                  lumi=f"{lumi:.2f}", com=com, fontsize=fontsize)
+
+
+def region_text(ax, text: str, *, fontsize: int = FONT_SIZE_TITLE, x: float = 0.05,
+                y: float = 0.96) -> None:
+    """Multi-line region description in the top-left corner (literal '\\n' allowed)."""
+    ax.text(x, y, text.replace("\\n", "\n"), transform=ax.transAxes,
+            fontsize=fontsize, va="top")
+
+
+def signal_label(name: str) -> str:
+    """'signal_WR4000_N2100' / 'WR4000_N2100' -> '(m_WR, m_N) = (4000, 2100) GeV'."""
+    match = re.search(r"WR(\d+)_N(\d+)", name)
+    if not match:
+        return name
+    m_wr, m_n = match.groups()
+    return rf"$(m_{{W_R}}, m_N) = ({m_wr}, {m_n})$ GeV"
+
+
+def log_ylim(arrays, *, pad_low: float = 0.5, pad_high: float = 50.0,
+             floor: float = 1e-3) -> tuple[float, float]:
+    """Log-scale y range covering the positive values of *arrays*."""
+    pos = np.concatenate([np.asarray(a, dtype=float).ravel() for a in arrays]) if arrays else np.array([])
+    pos = pos[np.isfinite(pos) & (pos > 0)]
+    if pos.size == 0:
+        return floor, 1.0
+    return max(pos.min() * pad_low, floor), pos.max() * pad_high

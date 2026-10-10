@@ -1,65 +1,77 @@
-# python/regions.py
+# wrplotter/regions.py
+import re
 from dataclasses import dataclass
 from typing import List, Dict
 import logging
 from collections import defaultdict
 
-from .config import load_region_shorthands
+from .config import era_label, load_region_shorthands
+
+_SR_PATTERN = re.compile(r"_sr(_|$)")
+
 
 @dataclass(frozen=True)
 class Region:
     name: str
-    primary_dataset: str   # "egamma" or "muon"
-    unblind_data: bool = False
+    primary_dataset: str   # data stream of the region's trigger: "egamma" or "muon"
     tlatex_alias: str = ""
 
     @property
     def is_signal_region(self) -> bool:
-        return "sr" in self.name.lower()
+        """True for the SRs and the variants derived from them (e.g. ``_sr_nomass``)."""
+        return _SR_PATTERN.search(self.name) is not None
 
     @property
     def is_boosted(self) -> bool:
         return "boosted" in self.name.lower()
 
+    @property
+    def topology(self) -> str:
+        return "boosted" if self.is_boosted else "resolved"
+
     def print(self) -> None:
         logging.info(
             f"Region(name={self.name}, primary_dataset={self.primary_dataset}, "
-            f"unblind={self.unblind_data}, label={self.tlatex_alias})"
+            f"label={self.tlatex_alias})"
         )
 
 def regions_for_era(era: str) -> List[Region]:
-    """All supported regions for an era."""
+    """All supported regions for an era, each with the data stream of its trigger.
+
+    The analyzer fills every region in both data files without overlap removal
+    (WrCoffea analyzer.py): the electron trigger selects the ee regions and
+    wr_emu_boosted_flavor_cr, the muon trigger the mumu regions,
+    wr_resolved_flavor_cr (its e-mu trigger is the muon trigger) and
+    wr_mue_boosted_flavor_cr.  The other stream would add a trigger-overlap subset.
+    """
+    era = era_label(era)
     return [
         # Resolved DY CRs
-        Region("wr_mumu_resolved_dy_cr", "muon",   True, rf"$\mu\mu$\nResolved DY CR\n{era}"),
-        Region("wr_ee_resolved_dy_cr",   "egamma", True, rf"ee\nResolved DY CR\n{era}"),
+        Region("wr_mumu_resolved_dy_cr", "muon",   rf"$\mu\mu$\nResolved DY CR\n{era}"),
+        Region("wr_ee_resolved_dy_cr",   "egamma", rf"ee\nResolved DY CR\n{era}"),
 
-        # Resolved Flavor CR: SAME NAME, two datasets
-        Region("wr_resolved_flavor_cr", "muon",   True, rf"$e\mu$\nResolved Flavor CR\n{era}"),
-        Region("wr_resolved_flavor_cr", "egamma", True, rf"$e\mu$\nResolved Flavor CR\n{era}"),
+        # Resolved flavor CR (muon trigger)
+        Region("wr_resolved_flavor_cr", "muon", rf"$e\mu$\nResolved Flavor CR\n{era}"),
 
-    
         # Resolved SRs
-        Region("wr_mumu_resolved_sr", "muon",   True, rf"$\mu\mu$\nResolved SR\n{era}"),
-        Region("wr_ee_resolved_sr",   "egamma", True, rf"ee\nResolved SR\n{era}"),
+        Region("wr_mumu_resolved_sr", "muon",   rf"$\mu\mu$\nResolved SR\n{era}"),
+        Region("wr_ee_resolved_sr",   "egamma", rf"ee\nResolved SR\n{era}"),
 
-        ## boosted DY CR
-        Region("wr_mumu_boosted_dy_cr", "muon",   True, rf"$\mu\mu$\nBoosted DY CR\n{era}"),
-        Region("wr_ee_boosted_dy_cr",   "egamma", True, rf"ee\nBoosted DY CR\n{era}"),
-      
+        # Boosted DY CRs
+        Region("wr_mumu_boosted_dy_cr", "muon",   rf"$\mu\mu$\nBoosted DY CR\n{era}"),
+        Region("wr_ee_boosted_dy_cr",   "egamma", rf"ee\nBoosted DY CR\n{era}"),
+
         # Boosted SRs
-        Region("wr_mumu_boosted_sr", "muon",   True, rf"$\mu\mu$\nBoosted SR\n{era}"),
-        Region("wr_ee_boosted_sr",   "egamma", True, rf"ee\nBoosted SR\n{era}"),
-      
-        ## Flavor CR : boosted
-        Region("wr_emu_boosted_flavor_cr", "muon",   True, rf"e($\mu$-jet)\nBoosted Flavor CR\n{era}"),
-        Region("wr_emu_boosted_flavor_cr",  "egamma", True, rf"e($\mu$-jet)\nBoosted Flavor CR\n{era}"),
-        Region("wr_mue_boosted_flavor_cr", "muon",   True, rf"$\mu$ (e-jet)\nBoosted Flavor CR\n{era}"),
-        Region("wr_mue_boosted_flavor_cr",  "egamma", True, rf"$\mu$ (e-jet)\nBoosted Flavor CR\n{era}"),
+        Region("wr_mumu_boosted_sr", "muon",   rf"$\mu\mu$\nBoosted SR\n{era}"),
+        Region("wr_ee_boosted_sr",   "egamma", rf"ee\nBoosted SR\n{era}"),
+
+        # Boosted flavor CRs: leading electron (electron trigger) / leading muon (muon trigger)
+        Region("wr_emu_boosted_flavor_cr", "egamma", rf"e($\mu$-jet)\nBoosted Flavor CR\n{era}"),
+        Region("wr_mue_boosted_flavor_cr", "muon",   rf"$\mu$ (e-jet)\nBoosted Flavor CR\n{era}"),
     ]
 
 def regions_by_name(era: str) -> Dict[str, List[Region]]:
-    """Map name -> all Region variants (e.g. both muon/egamma for flavor CR)."""
+    """Map name -> Region variants (one per name since each region has one data stream)."""
     buckets = defaultdict(list)
     for r in regions_for_era(era):
         buckets[r.name].append(r)
@@ -69,14 +81,14 @@ def expand_region_requests(era: str, requested: List[str]) -> List[Region]:
     """
     Expand user requests into concrete Region objects.
     Supports:
-      - "<name>"                 → all variants of that region
-      - "<name>:muon"/":egamma"  → only that dataset
+      - "<name>"                 → that region
+      - "<name>:muon"/":egamma"  → that region, if it uses that data stream
       - Shorthand: "resolved_dy_cr" → both ee and mumu DY CRs
       - Shorthand: "resolved_sr" → both ee and mumu SRs
-      - Shorthand: "resolved_flavor_cr" → both ee and mumu flavor CRs
+      - Shorthand: "boosted_flavor_cr" → both boosted flavor CRs
     """
     shorthand_map = load_region_shorthands()
-    
+
     # Expand shorthands first
     expanded_requested = []
     for tok in requested:
@@ -84,7 +96,7 @@ def expand_region_requests(era: str, requested: List[str]) -> List[Region]:
             expanded_requested.extend(shorthand_map[tok])
         else:
             expanded_requested.append(tok)
-    
+
     buckets = regions_by_name(era)
     valid_names = set(buckets.keys())
     valid_tokens = {f"{r.name}:{r.primary_dataset}" for rs in buckets.values() for r in rs}
@@ -114,6 +126,7 @@ def expand_region_requests(era: str, requested: List[str]) -> List[Region]:
             f"Examples: {sorted(list(valid_tokens))[:2]} ..."
         )
 
-    return selected
+    # A region requested twice (e.g. by name and by shorthand) is plotted once.
+    return list(dict.fromkeys(selected))
 
 __all__ = ["Region", "regions_for_era", "regions_by_name", "expand_region_requests"]

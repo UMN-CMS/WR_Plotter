@@ -1,0 +1,59 @@
+# data/cutflows.yaml
+# Cutflow presentation.  The cut sequence itself is read from the bin labels of the
+# analyzer's cutflow histograms (cutflow_<topology>/<channel>/<kind>[_unweighted]);
+# this file only says how to show it.
+
+# Data file whose cutflow fills the Data column: the stream of the trigger the
+# channel uses (WrCoffea analyzer.py).  Both data files fill every channel without
+# overlap removal, so the other stream would add a trigger-overlap subset.
+data_stream:
+  resolved:
+    ee: egamma
+    mumu: muon
+    em: muon        # the resolved e-mu trigger is the muon trigger
+  boosted:
+    ee: egamma
+    mumu: muon
+    em: egamma      # boosted e-mu = leading electron, electron trigger
+
+# Display labels per cut key: `table` for LaTeX tables, `plot` for the x axis of the
+# cutflow plots (matplotlib mathtext).  Unknown keys fall back to the key itself.
+labels:
+  # resolved
+  no_cuts:                {table: 'No cuts (after event filters)', plot: 'No cuts'}
+  min_two_ak4_jets_pteta: {table: '$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)', plot: '$\geq$2 jets ($p_T$, $\eta$)'}
+  min_two_ak4_jets_id:    {table: '$\geq$2 AK4 jets (tight w/ lepton veto)', plot: '$\geq$2 jets (ID)'}
+  two_pteta_electrons:    {table: '$\geq$2 electrons ($p_T > 53$, $|\eta| < 2.5$)', plot: '$\geq$2 e ($p_T$, $\eta$)'}
+  two_pteta_muons:        {table: '$\geq$2 muons ($p_T > 53$, $|\eta| < 2.4$)', plot: '$\geq$2 $\mu$ ($p_T$, $\eta$)'}
+  two_pteta_em:           {table: '$\geq$1 electron + $\geq$1 muon ($p_T > 53$)', plot: '$\geq$1 e + $\geq$1 $\mu$ ($p_T$, $\eta$)'}
+  two_id_electrons:       {table: '$\geq$2 electrons (HEEP ID)', plot: '$\geq$2 e (HEEP)'}
+  two_id_muons:           {table: '$\geq$2 muons (high-$p_T$ ID)', plot: '$\geq$2 $\mu$ (high-$p_T$ ID)'}
+  two_id_em:              {table: '$\geq$1 electron + $\geq$1 muon passing ID', plot: '$\geq$1 e + $\geq$1 $\mu$ (ID)'}
+  two_tight_leptons:      {table: 'Exactly two tight leptons', plot: '2 tight $\ell$'}
+  two_tight_electrons:    {table: 'Two tight electrons', plot: '2 tight e'}
+  two_tight_muons:        {table: 'Two tight muons', plot: '2 tight $\mu$'}
+  two_tight_em:           {table: 'One tight electron + one tight muon', plot: '1 tight e + 1 tight $\mu$'}
+  lead_tight_lepton_pt60: {table: 'Leading tight lepton $p_T > 60$ GeV', plot: '$p_T^{\ell_1} > 60$'}
+  sublead_tight_pt53:     {table: 'Subleading tight lepton $p_T > 53$ GeV', plot: '$p_T^{\ell_2} > 53$'}
+  e_trigger:              {table: 'Electron trigger', plot: 'e trigger'}
+  mu_trigger:             {table: 'Muon trigger', plot: '$\mu$ trigger'}
+  emu_trigger:            {table: '$e\mu$ trigger (muon triggers)', plot: '$e\mu$ trigger'}
+  dr_all_pairs_gt0p4:     {table: '$\Delta R > 0.4$ (all pairs)', plot: '$\Delta R > 0.4$'}
+  mlljj_gt800:            {table: '$m(\ell\ell jj) > 800$ GeV', plot: '$m_{\ell\ell jj} > 800$'}
+  mll_gt200:              {table: '$m(\ell\ell) > 200$ GeV', plot: '$m_{\ell\ell} > 200$'}
+  mll_gt400:              {table: '$m(\ell\ell) > 400$ GeV', plot: '$m_{\ell\ell} > 400$'}
+  # boosted
+  boosted_tag:                    {table: 'Boosted tag', plot: 'Boosted tag'}
+  lead_is_electron:               {table: 'Leading lepton is $e$', plot: 'Leading $\ell$ = e'}
+  lead_is_muon:                   {table: 'Leading lepton is $\mu$', plot: 'Leading $\ell$ = $\mu$'}
+  lead_tight_lepton_pt60_boosted: {table: 'Leading tight lepton $p_T > 60$ GeV', plot: '$p_T^{\ell_1} > 60$'}
+  no_dy_pair:                     {table: 'No $60 < m(\ell\ell) < 150$ GeV pair', plot: 'No DY pair'}
+  ak8_jets_with_lsf:              {table: 'AK8 jet with LSF $> 0.75$, $|\Delta\phi| > 2$', plot: 'AK8 jet with LSF'}
+  no_extra_tight_sr:              {table: 'No extra tight lepton', plot: 'No extra tight $\ell$'}
+  no_extra_tight_cr:              {table: 'No extra tight lepton', plot: 'No extra tight $\ell$'}
+  sf_lepton_in_ak8:               {table: 'Loose SF lepton in AK8 jet', plot: 'SF $\ell$ in AK8'}
+  no_of_lepton_in_ak8:            {table: 'No loose OF lepton in AK8 jet', plot: 'No OF $\ell$ in AK8'}
+  no_sf_lepton_in_ak8:            {table: 'No loose SF lepton in AK8 jet', plot: 'No SF $\ell$ in AK8'}
+  of_lepton_in_ak8:               {table: 'Loose OF lepton in AK8 jet', plot: 'OF $\ell$ in AK8'}
+  mll_gt200_boosted:              {table: '$m(\ell\ell) > 200$ GeV', plot: '$m_{\ell\ell} > 200$'}
+  mlj_gt800_boosted:              {table: '$m(\ell J) > 800$ GeV', plot: '$m_{\ell J} > 800$'}

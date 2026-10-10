@@ -17,9 +17,22 @@ class TestRegionsForEra:
         assert "muon" in datasets
         assert "egamma" in datasets
 
-    def test_flavor_cr_has_both_datasets(self):
-        flavors = [r for r in regions_for_era("2022") if r.name == "wr_resolved_flavor_cr"]
-        assert {r.primary_dataset for r in flavors} == {"muon", "egamma"}
+    def test_one_data_stream_per_region(self):
+        regions = regions_for_era("2022")
+        assert len(regions) == len({r.name for r in regions}) == 11
+
+    @pytest.mark.parametrize("name, stream", [
+        ("wr_ee_resolved_dy_cr", "egamma"), ("wr_ee_resolved_sr", "egamma"),
+        ("wr_ee_boosted_dy_cr", "egamma"), ("wr_ee_boosted_sr", "egamma"),
+        ("wr_emu_boosted_flavor_cr", "egamma"),
+        ("wr_mumu_resolved_dy_cr", "muon"), ("wr_mumu_resolved_sr", "muon"),
+        ("wr_mumu_boosted_dy_cr", "muon"), ("wr_mumu_boosted_sr", "muon"),
+        ("wr_resolved_flavor_cr", "muon"), ("wr_mue_boosted_flavor_cr", "muon"),
+    ])
+    def test_data_stream_is_the_trigger_stream(self, name, stream):
+        """The analyzer fills every region in both data files; only the region's
+        trigger stream is used (the other would add a trigger-overlap subset)."""
+        assert regions_by_name("2022")[name][0].primary_dataset == stream
 
     def test_era_in_tlatex(self):
         for r in regions_for_era("TestEra"):
@@ -31,8 +44,8 @@ class TestRegionsByName:
     def test_returns_dict(self):
         assert isinstance(regions_by_name("2022"), dict)
 
-    def test_flavor_cr_two_entries(self):
-        assert len(regions_by_name("2022")["wr_resolved_flavor_cr"]) == 2
+    def test_flavor_cr_one_entry(self):
+        assert len(regions_by_name("2022")["wr_resolved_flavor_cr"]) == 1
 
     def test_mumu_sr_one_entry(self):
         assert len(regions_by_name("2022")["wr_mumu_resolved_sr"]) == 1
@@ -51,9 +64,17 @@ class TestExpandRegionRequests:
         assert len(result) == 1
         assert result[0].primary_dataset == "muon"
 
-    def test_name_without_filter_all_variants(self):
+    def test_name_without_filter_one_region(self):
         result = expand_region_requests("2022", ["wr_resolved_flavor_cr"])
-        assert len(result) == 2
+        assert [r.primary_dataset for r in result] == ["muon"]
+
+    def test_filter_on_the_other_stream_is_unknown(self):
+        with pytest.raises(ValueError, match="Unknown region"):
+            expand_region_requests("2022", ["wr_resolved_flavor_cr:egamma"])
+
+    def test_duplicate_requests_plotted_once(self):
+        result = expand_region_requests("2022", ["wr_ee_resolved_sr", "resolved_sr"])
+        assert [r.name for r in result].count("wr_ee_resolved_sr") == 1
 
     def test_shorthand_resolved_dy_cr(self):
         names = {r.name for r in expand_region_requests("2022", ["resolved_dy_cr"])}
@@ -110,3 +131,19 @@ class TestRegionProperties:
         r = Region("wr_ee_boosted_dy_cr", "egamma")
         assert r.is_boosted is True
         assert r.is_signal_region is False
+
+
+class TestRegionVariantsAndTopology:
+
+    @pytest.mark.parametrize("name, is_sr", [
+        ("wr_ee_resolved_sr", True), ("wr_mumu_boosted_sr", True),
+        ("wr_ee_resolved_sr_nomass", True), ("wr_mumu_boosted_sr_nomass", True),
+        ("wr_ee_resolved_dy_cr", False), ("wr_resolved_flavor_cr", False),
+        ("wr_emu_boosted_flavor_cr", False),
+    ])
+    def test_is_signal_region(self, name, is_sr):
+        assert Region(name, "egamma").is_signal_region is is_sr
+
+    def test_topology(self):
+        assert Region("wr_ee_boosted_sr", "egamma").topology == "boosted"
+        assert Region("wr_ee_resolved_sr", "egamma").topology == "resolved"

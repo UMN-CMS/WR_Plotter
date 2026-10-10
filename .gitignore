@@ -16,3 +16,7 @@ __pycache__/
 *.txt
 *.log
 *.out
+
+# Build metadata and EOS-fallback outputs
+wrplotter.egg-info/
+outputs/

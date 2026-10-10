@@ -116,22 +116,52 @@ def rebin_histogram(h: Hist, spec: int | list[float], *, density: bool = True,
     arr['value']    = new_counts
     arr['variance'] = new_vars
 
-    # If overflow was folded in, set a nonzero sentinel in the histogram's
-    # overflow flow bin so that mplhep's flow="hint" draws an arrow marker.
-    if has_overflow:
-        flow_arr = new_h.view(flow=True)
-        flow_arr['value'][-1] = 1.0
-
+    # Overflow is folded into the last visible bin; remember that it was, so the
+    # plot can draw the overflow arrow (see for_drawing).  The flow bins stay empty.
+    setattr(new_h, OVERFLOW_HINT, has_overflow)
     return new_h
 
 
-def extract_hist_data(h):
-    """Extract edges, bin centers, values, and errors from a hist.Hist."""
-    edges = h.axes[0].edges
-    vals  = h.values()
-    errs  = np.sqrt(h.variances()) if h.variances() is not None else np.sqrt(vals)
-    centers = 0.5 * (edges[:-1] + edges[1:])
-    return edges, centers, vals, errs
+# Attribute of a rebinned histogram: events beyond the axis were folded into its
+# last bin.  Kept as an attribute, not as a fake count in the overflow bin, so
+# sums of the histogram contents stay exact.  Copies, scaling and slicing keep
+# it; sums must go through add_hists, since ``a + b`` keeps only a's attributes.
+OVERFLOW_HINT = "overflow_hint"
+
+
+def has_overflow_hint(h) -> bool:
+    return bool(getattr(h, OVERFLOW_HINT, False))
+
+
+def add_hists(a: Hist | None, b: Hist | None) -> Hist | None:
+    """``a + b`` (either may be None) keeping the overflow hint of both."""
+    if a is None:
+        return b
+    if b is None:
+        return a
+    out = a + b
+    setattr(out, OVERFLOW_HINT, has_overflow_hint(a) or has_overflow_hint(b))
+    return out
+
+
+def sum_hists(hists) -> Hist | None:
+    """Sum of *hists* via add_hists; None for an empty sequence."""
+    total = None
+    for h in hists:
+        total = add_hists(total, h)
+    return total
+
+
+def for_drawing(h: Hist | None) -> Hist | None:
+    """*h* as mplhep should draw it with ``flow="hint"``: a copy whose overflow bin
+    holds a marker when overflow was folded into the last bin, else *h* itself."""
+    if h is None or not has_overflow_hint(h):
+        return h
+    out = h.copy()
+    view = out.view(flow=True)
+    (view["value"] if view.dtype.names else view)[-1] = 1.0
+    return out
+
 
 
 def load_histogram(path: Path, hist_key: str) -> Hist:

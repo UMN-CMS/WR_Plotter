@@ -1,0 +1,39 @@
+# data/dy_samples.yaml
+# Drell-Yan samples the analyzer can run with `--dy <tag>` (WrCoffea wrcoffea/config.yaml:
+# dy_variants, default_mc_tag).  The analyzer always writes WRAnalyzer_DYJets.root, so the
+# sample is told apart by directory only:
+#   - the base --dir holds the default sample (`default` below, the analyzer's default_mc_tag),
+#   - any other sample is looked up in <dir>_<tag>_dy (e.g. 20261008_skims_v2_lo_inc_dy).
+# Override the directory explicitly with `--dy TAG=DIR`.
+#
+# `datasets` is a regex searched in the dataset names recorded in the file's manifest
+# (WRAnalyzer_DYJets_systematics.json).  A directory whose DYJets file holds a different
+# sample than the tag claims is refused.  Patterns follow the Run 3 dataset names.
+
+default: lo_ht
+
+samples:
+  lo_ht:
+    label: "LO HT-binned"
+    color: "#3f90da"
+    datasets: "DYto2L-4Jets_Bin-HT-"
+  lo_inc:
+    label: "LO inclusive"
+    color: "#bd1f01"
+    datasets: "DYto2(E|Mu)-4Jets_Bin-MLL-"
+  nlo_inc:
+    label: "NLO inclusive"
+    color: "#ffa90e"
+    datasets: "DYto2(E|Mu)-2Jets_Bin-MLL-"
+  nlo_mll:
+    label: "NLO $m_{\\ell\\ell}$-binned"
+    color: "#832db6"
+    datasets: "DYto2(E|Mu)_Bin-MLL-"
+  nlo_njet:
+    label: "NLO jet-binned"
+    color: "#94a4a2"
+    datasets: "DYto2(E|Mu)-2Jets_Bin-[0-9]J-"
+  nlo_ptll:
+    label: "NLO $p_{T}^{\\ell\\ell}$-binned"
+    color: "#a96b59"
+    datasets: "DYto2L-2Jets_Bin-MLL-50-PTLL-"

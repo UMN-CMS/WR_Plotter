@@ -7,7 +7,7 @@ from hist import Hist
 from hist.axis import Regular
 from hist.storage import Weight
 
-from wrplotter.histogram_utils import rebin_histogram, extract_hist_data, load_histogram
+from wrplotter.histogram_utils import rebin_histogram, load_histogram
 
 
 class TestRebinInteger:
@@ -104,35 +104,6 @@ class TestRebinOverflow:
         assert result.variances()[-1] == 50 + 100
 
 
-class TestExtractHistData:
-
-    def test_returns_four_arrays(self, uniform_hist_10bins):
-        result = extract_hist_data(uniform_hist_10bins)
-        assert len(result) == 4
-
-    def test_edges_shape(self, uniform_hist_10bins):
-        edges, _, _, _ = extract_hist_data(uniform_hist_10bins)
-        assert len(edges) == 11  # 10 bins -> 11 edges
-
-    def test_centers_are_midpoints(self, uniform_hist_10bins):
-        edges, centers, _, _ = extract_hist_data(uniform_hist_10bins)
-        expected = 0.5 * (edges[:-1] + edges[1:])
-        np.testing.assert_allclose(centers, expected)
-
-    def test_values_match(self, uniform_hist_10bins):
-        _, _, vals, _ = extract_hist_data(uniform_hist_10bins)
-        np.testing.assert_allclose(vals, uniform_hist_10bins.values())
-
-    def test_errors_are_sqrt_variance(self, uniform_hist_10bins):
-        _, _, _, errs = extract_hist_data(uniform_hist_10bins)
-        np.testing.assert_allclose(errs, np.sqrt(uniform_hist_10bins.variances()))
-
-    def test_non_weight_storage_fallback(self):
-        h = Hist(Regular(5, 0, 50, name="x"))
-        h.fill([5, 15, 25, 35, 45])
-        _, _, vals, errs = extract_hist_data(h)
-        np.testing.assert_allclose(errs, np.sqrt(vals))
-
 
 class TestLoadHistogram:
     """Tests for load_histogram() via mocked _open_root cache."""
@@ -158,3 +129,36 @@ class TestLoadHistogram:
             result = load_histogram("/fake/path.root", "key")
 
         assert result is uniform_hist_10bins
+
+
+class TestOverflowHint:
+    """Folded overflow is flagged by an attribute, never by a fake overflow count."""
+
+    def test_rebin_flags_folded_overflow_without_fake_content(self, hist_with_overflow, uniform_hist_10bins):
+        from wrplotter.histogram_utils import has_overflow_hint
+        folded = rebin_histogram(hist_with_overflow, 1)
+        assert has_overflow_hint(folded)
+        assert folded.values(flow=True).sum() == folded.values().sum() == 250
+        assert not has_overflow_hint(rebin_histogram(uniform_hist_10bins, 1))
+
+    def test_add_hists_keeps_the_hint_of_either_operand(self, hist_with_overflow):
+        from wrplotter.histogram_utils import add_hists, has_overflow_hint, sum_hists
+        flagged = rebin_histogram(hist_with_overflow, 1)
+        plain = flagged.copy()
+        plain.overflow_hint = False
+        assert has_overflow_hint(add_hists(plain, flagged))
+        assert has_overflow_hint(add_hists(flagged, plain))
+        assert add_hists(None, plain) is plain and add_hists(plain, None) is plain
+        assert has_overflow_hint(sum_hists([plain, plain, flagged]))
+        assert sum_hists([]) is None
+
+    def test_for_drawing_marks_only_a_copy(self, hist_with_overflow):
+        from wrplotter.histogram_utils import for_drawing
+        folded = rebin_histogram(hist_with_overflow, 1)
+        drawn = for_drawing(folded)
+        assert drawn is not folded
+        assert drawn.view(flow=True)["value"][-1] > 0
+        assert folded.view(flow=True)["value"][-1] == 0
+        folded.overflow_hint = False
+        assert for_drawing(folded) is folded
+        assert for_drawing(None) is None

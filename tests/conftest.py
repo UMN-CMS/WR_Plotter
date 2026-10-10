@@ -11,15 +11,16 @@ def clear_lru_caches():
     """Clear @lru_cache on config/sample functions after each test."""
     yield
     from wrplotter.config import (
-        _lumi_table, load_plot_settings, load_sample_groups_raw, load_kfactors,
-        load_region_shorthands, load_systematics,
+        _lumi_table, load_plot_settings,
+        load_region_shorthands, load_systematics, load_dy_samples, load_cutflow_config,
     )
     from wrplotter.variables import build_variables
     from wrplotter.sample_groups import load_sample_groups
     from wrplotter.histogram_cache import clear_cache as clear_root_cache
     for fn in (
-        _lumi_table, load_plot_settings, load_sample_groups_raw, load_kfactors,
-        load_region_shorthands, load_systematics, build_variables, load_sample_groups,
+        _lumi_table, load_plot_settings,
+        load_region_shorthands, load_systematics, load_dy_samples, load_cutflow_config,
+        build_variables, load_sample_groups,
     ):
         fn.cache_clear()
     clear_root_cache()

@@ -1,8 +1,8 @@
 from __future__ import annotations
 import logging
 from functools import lru_cache
-from typing import Any, Dict, Mapping, MutableMapping
 from pathlib import Path
+from typing import Any, Dict, Mapping, MutableMapping
 
 from .paths import data_path, read_yaml
 
@@ -43,6 +43,10 @@ def list_eras() -> list[str]:
 def load_lumi(era: str) -> Dict[str, Any]:
     """
     Returns dict with keys: run, year, lumi, and optionally sub_eras, sub_lumis.
+
+    A combination (``sub_eras``) gets ``sub_lumis`` from its eras and ``lumi``
+    as their sum; values written in the YAML must agree with them.  Its eras
+    must be single eras with one centre-of-mass energy.
     Raises KeyError/ValueError with helpful messages if something is wrong.
     """
     table = _lumi_table()
@@ -52,91 +56,101 @@ def load_lumi(era: str) -> Dict[str, Any]:
         )
     info = dict(table[era])  # copy to avoid accidental mutation
 
-    for k in ("run", "year", "lumi"):
-        if k not in info:
-            raise ValueError(f"lumi entry for '{era}' missing required key '{k}'")
-
-    # If era is a combination, verify lengths and that each sub-era exists
-    if ("sub_eras" in info) or ("sub_lumis" in info):
-        subs = info.get("sub_eras", [])
-        lums = info.get("sub_lumis", [])
-        if len(subs) != len(lums):
-            raise ValueError(
-                f"lumi entry for '{era}' has mismatched lengths: sub_eras={len(subs)} vs sub_lumis={len(lums)}"
-            )
+    if "sub_eras" in info or "sub_lumis" in info:
+        subs = list(info.get("sub_eras") or [])
+        if not subs:
+            raise ValueError(f"lumi entry for '{era}' has sub_lumis but no sub_eras")
+        sub_infos = []
         for se in subs:
             if se not in table:
                 raise KeyError(
                     f"sub_era '{se}' referenced by '{era}' not found in lumi table. "
                     f"Known eras: {', '.join(sorted(table.keys()))}"
                 )
+            if "sub_eras" in table[se]:
+                raise ValueError(f"'{era}' lists the combination '{se}' as a sub_era; list its eras instead")
+            sub_infos.append(table[se])
+        lumis = [float(s["lumi"]) for s in sub_infos]
+        given = info.get("sub_lumis")
+        if given is not None and (len(given) != len(lumis)
+                                  or any(abs(float(g) - l) > 1e-6 * l for g, l in zip(given, lumis))):
+            raise ValueError(f"lumi entry for '{era}': sub_lumis {given} disagree with its eras {lumis}")
+        if "lumi" in info and abs(float(info["lumi"]) - sum(lumis)) > 1e-6 * sum(lumis):
+            raise ValueError(f"lumi entry for '{era}': lumi {info['lumi']} is not the sum of its eras "
+                             f"({sum(lumis):g})")
+        coms = {float(s.get("com", 13.6)) for s in sub_infos}
+        if len(coms) > 1:
+            raise ValueError(f"'{era}' combines eras with different centre-of-mass energies: {sorted(coms)}")
+        info["sub_lumis"] = lumis
+        info["lumi"] = sum(lumis)
+        info.setdefault("com", coms.pop())
+
+    for k in ("run", "year", "lumi"):
+        if k not in info:
+            raise ValueError(f"lumi entry for '{era}' missing required key '{k}'")
     return info
+
+
+def era_label(era: str) -> str:
+    """Name of an era on plots: its ``label`` in data/lumi.yaml, else the era key."""
+    entry = _lumi_table().get(era)
+    return str(entry.get("label", era)) if isinstance(entry, dict) else era
 
 
 # -----------------------------------------------------------------------------
 # Plot settings (YAML with base + era-specific overrides)
 # -----------------------------------------------------------------------------
 
+PLOT_SETTINGS_DEFAULT = "default"
+
+
 @lru_cache(maxsize=None)
 def load_plot_settings(era_or_path: str) -> Dict[str, Any]:
     """
-    Load plotting config.
+    Load plotting config: an explicit YAML path, or an era key.
 
-    Accepts either:
-      - an explicit YAML path (endswith .yaml/.yml), OR
-      - an era key (e.g., 'Run3Summer22', '2022')
+    An era reads ``data/plot_settings/<era>.yaml``; without one, the file named by
+    its ``plot_settings`` entry in data/lumi.yaml, else ``default.yaml``.  A name
+    that is neither a file nor an era gives an empty config.  A file may start
+    from another one with a top-level ``inherit: <name>`` and override any
+    (region, variable, key) of it, so an era lists only what differs.
     """
     if era_or_path.endswith((".yaml", ".yml")):
-        return read_yaml(era_or_path) or {}
-
-    era_path = data_path("plot_settings", f"{era_or_path}.yaml")
-    if not era_path.exists():
-        logger.debug("No plot settings found at %s; returning empty config.", era_path)
+        return _read_plot_settings(Path(era_or_path), ())
+    path = _plot_settings_path(era_or_path)
+    if path is None:
+        logger.debug("No plot settings for %s; returning empty config.", era_or_path)
         return {}
-
-    return read_yaml(era_path) or {}
-
-
-# -----------------------------------------------------------------------------
-# Sample groups (raw YAML; structured loading in sample_groups.py)
-# -----------------------------------------------------------------------------
-
-@lru_cache(maxsize=None)
-def load_sample_groups_raw() -> Dict[str, Any]:
-    """Raw load of data/sample_groups.yaml."""
-    path = data_path("sample_groups.yaml")
-    return read_yaml(path) if path.exists() else {}
+    return _read_plot_settings(path, ())
 
 
-# -----------------------------------------------------------------------------
-# K-factors
-# -----------------------------------------------------------------------------
+def _plot_settings_path(name: str, seen: tuple = ()) -> Path | None:
+    path = data_path("plot_settings", f"{name}.yaml")
+    if path.exists():
+        return path
+    entry = _lumi_table().get(name)
+    if not isinstance(entry, dict):
+        return None
+    alias = entry.get("plot_settings")
+    if alias and alias not in seen + (name,):
+        return _plot_settings_path(alias, seen + (name,))
+    return data_path("plot_settings", f"{PLOT_SETTINGS_DEFAULT}.yaml")
 
-@lru_cache(maxsize=None)
-def load_kfactors(path: Path | None = None) -> Dict[str, Any]:
-    """
-    Load k-factors YAML, defaulting to data/kfactors.yaml.
-    Allows override via explicit 'path' for testing.
-    """
-    cfg_path = path or data_path("kfactors.yaml")
-    if not Path(cfg_path).exists():
-        return {}
-    return read_yaml(cfg_path) or {}
 
-def get_kfactor(scales: Mapping[str, Mapping[str, Any]],
-                era: str, sample: str, default: float = 1.0) -> float:
-    """
-    Fetch a k-factor with precedence:
-      era->sample → era->_default → ALL->sample → ALL->_default → default
-    """
-    era_map = scales.get(era, {})
-    all_map = scales.get("ALL", {})
+def _read_plot_settings(path: Path, chain: tuple) -> Dict[str, Any]:
+    if path in chain:
+        raise ValueError("Plot settings inherit in a cycle: "
+                         + " -> ".join(p.name for p in chain + (path,)))
+    cfg = read_yaml(path) or {}
+    parent = cfg.pop("inherit", None)
+    if parent is None:
+        return cfg
+    parent_path = data_path("plot_settings", f"{parent}.yaml")
+    if not parent_path.exists():
+        raise FileNotFoundError(f"{path} inherits '{parent}', but {parent_path} does not exist")
+    return _deep_merge(_read_plot_settings(parent_path, chain + (path,)), cfg)
 
-    if sample in era_map:        return float(era_map[sample])
-    if "_default" in era_map:    return float(era_map["_default"])
-    if sample in all_map:        return float(all_map[sample])
-    if "_default" in all_map:    return float(all_map["_default"])
-    return float(default)
+
 
 def index_plot_settings(plot_settings: dict) -> tuple[dict, dict]:
     common = plot_settings.get("common_variables", {})
@@ -165,8 +179,17 @@ def validate_var_cfg(var_name: str, cfg: dict, region_name: str = "") -> None:
 
 def get_var_cfg(region_cfgs: dict, common_vars: dict,
                 region_name: str, var_name: str) -> dict | None:
+    """Plot settings of *var_name* in *region_name*, or None if it is not plotted there.
+
+    The region's own entry, else (resolved regions only) the ``common_variables``
+    entry: that block holds resolved-topology variables (AK4 jets, dijet, 3- and
+    4-object), which the analyzer does not fill in boosted regions; the boosted
+    blocks list every variable they plot.
+    """
     reg = region_cfgs.get(region_name, {})
-    cfg = reg.get(var_name, common_vars.get(var_name))
+    cfg = reg.get(var_name)
+    if cfg is None and "boosted" not in region_name.lower():   # same rule as Region.is_boosted
+        cfg = common_vars.get(var_name)
     if cfg is not None:
         validate_var_cfg(var_name, cfg, region_name)
     return cfg
@@ -232,3 +255,25 @@ def load_systematics() -> list[str]:
         return []
     data = read_yaml(path) or {}
     return list(data.get("systematics", []))
+
+
+# -----------------------------------------------------------------------------
+# Drell-Yan samples and cutflow presentation
+# -----------------------------------------------------------------------------
+
+@lru_cache(maxsize=None)
+def load_dy_samples() -> Dict[str, Any]:
+    """Load data/dy_samples.yaml: {"default": tag, "samples": {tag: {label, color, datasets}}}."""
+    data = read_yaml(data_path("dy_samples.yaml")) or {}
+    samples = data.get("samples") or {}
+    default = data.get("default")
+    if default not in samples:
+        raise ValueError(f"dy_samples.yaml: default {default!r} is not one of {sorted(samples)}")
+    return {"default": default, "samples": samples}
+
+
+@lru_cache(maxsize=None)
+def load_cutflow_config() -> Dict[str, Any]:
+    """Load data/cutflows.yaml: {"data_stream": {topology: {channel: stream}}, "labels": {...}}."""
+    data = read_yaml(data_path("cutflows.yaml")) or {}
+    return {"data_stream": data.get("data_stream") or {}, "labels": data.get("labels") or {}}

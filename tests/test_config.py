@@ -5,8 +5,6 @@ from wrplotter.config import (
     list_eras,
     load_lumi,
     load_plot_settings,
-    load_kfactors,
-    get_kfactor,
     index_plot_settings,
     get_var_cfg,
     validate_var_cfg,
@@ -46,38 +44,6 @@ class TestDeepMerge:
     def test_override_dict_with_scalar(self):
         assert _deep_merge({"a": {"x": 1}}, {"a": 42}) == {"a": 42}
 
-
-class TestGetKfactor:
-
-    def test_era_sample_match(self):
-        scales = {"RunII": {"DYJets": 1.5}}
-        assert get_kfactor(scales, "RunII", "DYJets") == 1.5
-
-    def test_era_default_fallback(self):
-        scales = {"RunII": {"_default": 1.2}}
-        assert get_kfactor(scales, "RunII", "Unknown") == 1.2
-
-    def test_all_sample_fallback(self):
-        scales = {"ALL": {"DYJets": 1.3}}
-        assert get_kfactor(scales, "FakeEra", "DYJets") == 1.3
-
-    def test_all_default_fallback(self):
-        scales = {"ALL": {"_default": 0.8}}
-        assert get_kfactor(scales, "FakeEra", "FakeSample") == 0.8
-
-    def test_final_default(self):
-        assert get_kfactor({}, "any", "any", default=2.5) == 2.5
-
-    def test_era_beats_all(self):
-        scales = {"RunII": {"DYJets": 1.1}, "ALL": {"DYJets": 9.9}}
-        assert get_kfactor(scales, "RunII", "DYJets") == 1.1
-
-    def test_era_default_beats_all_sample(self):
-        scales = {"RunII": {"_default": 2.0}, "ALL": {"DYJets": 9.9}}
-        assert get_kfactor(scales, "RunII", "DYJets") == 2.0
-
-    def test_returns_float(self):
-        assert isinstance(get_kfactor({"ALL": {"DY": 2}}, "ALL", "DY"), float)
 
 
 class TestLoadLumi:
@@ -141,6 +107,22 @@ class TestIndexPlotSettings:
     def test_returns_none_for_unknown(self):
         assert get_var_cfg({"reg": {}}, {}, "reg", "unknown") is None
 
+    def test_boosted_region_does_not_fall_back_to_common(self):
+        # common_variables holds resolved-topology variables (AK4 jets, 4-object mass, ...)
+        common = {"mass_fourobject": {"rebin": 2}}
+        assert get_var_cfg({}, common, "wr_ee_boosted_sr", "mass_fourobject") is None
+        assert get_var_cfg({}, common, "wr_ee_resolved_sr", "mass_fourobject")["rebin"] == 2
+
+    @pytest.mark.parametrize("era", list_eras())
+    def test_boosted_regions_plan_only_their_own_variables(self, era):
+        # The resolved-only common variables used to be planned for every boosted region:
+        # 84 plots per stack-plot run that the analyzer never fills.
+        regions, common = index_plot_settings(load_plot_settings(era))
+        for name, block in regions.items():
+            if "boosted" in name:
+                for var in set(common) - set(block):
+                    assert get_var_cfg(regions, common, name, var) is None, (name, var)
+
 
 class TestValidateVarCfg:
 
@@ -161,8 +143,108 @@ class TestValidateVarCfg:
         assert "Unknown plot-setting key" not in caplog.text
 
 
-class TestLoadKfactors:
 
-    def test_loads_without_error(self):
-        kf = load_kfactors()
-        assert isinstance(kf, dict)
+class TestCombinations:
+    """Years and Run 3 combine eras; their luminosity is derived from the eras."""
+
+    @pytest.mark.parametrize("era, sub_eras", [
+        ("2022", ["Run3Summer22", "Run3Summer22EE"]),
+        ("2023", ["Run3Summer23", "Run3Summer23BPix"]),
+        ("2024", ["RunIII2024Summer24"]),
+        ("Run3", ["Run3Summer22", "Run3Summer22EE", "Run3Summer23", "Run3Summer23BPix",
+                  "RunIII2024Summer24"]),
+    ])
+    def test_lumi_is_the_sum_of_the_eras(self, era, sub_eras):
+        info = load_lumi(era)
+        assert info["sub_eras"] == sub_eras
+        lumis = [load_lumi(e)["lumi"] for e in sub_eras]
+        assert info["sub_lumis"] == pytest.approx(lumis)
+        assert info["lumi"] == pytest.approx(sum(lumis))
+        assert info["com"] == 13.6
+
+    @pytest.mark.parametrize("entry, match", [
+        ({"lumi": 99.0}, "not the sum"),
+        ({"sub_lumis": [1.0, 2.5]}, "disagree"),
+        ({"sub_eras": ["A", "Combo"]}, "lists the combination"),
+        ({"sub_eras": ["A", "C"]}, "centre-of-mass"),
+    ])
+    def test_inconsistent_combination_refused(self, monkeypatch, entry, match):
+        import wrplotter.config as config
+        table = {
+            "A": {"run": "Run3", "year": "2022", "lumi": 1.0, "com": 13.6},
+            "B": {"run": "Run3", "year": "2022", "lumi": 2.0, "com": 13.6},
+            "C": {"run": "RunII", "year": "2018", "lumi": 3.0, "com": 13},
+            "Combo": {"run": "Run3", "year": "2022", "sub_eras": ["A", "B"]},
+        }
+        table["X"] = {"run": "Run3", "year": "x", "sub_eras": ["A", "B"], **entry}
+        monkeypatch.setattr(config, "_lumi_table", lambda: table)
+        with pytest.raises(ValueError, match=match):
+            config.load_lumi("X")
+
+    def test_combination_borrows_plot_settings(self):
+        assert load_plot_settings("Run3") == load_plot_settings("RunIII2024Summer24")
+        assert load_plot_settings("2024") == load_plot_settings("RunIII2024Summer24")
+        # 2022 and 2023 have no file and no alias: the default settings.
+        assert load_plot_settings("2022") == load_plot_settings("2023") == load_plot_settings("default")
+        # The single Run 3 eras share one override file.
+        assert load_plot_settings("Run3Summer22EE") == load_plot_settings("run3_subera")
+
+    def test_era_label(self):
+        from wrplotter.config import era_label
+        assert era_label("Run3") == "Run 3"
+        assert era_label("2022") == "2022"
+        assert era_label("NotAnEra") == "NotAnEra"
+
+
+
+class TestPlotSettingsInheritance:
+    """An era file lists only what differs from the file it inherits."""
+
+    @pytest.fixture
+    def settings_dir(self, tmp_path, monkeypatch):
+        import wrplotter.config as config
+        (tmp_path / "plot_settings").mkdir()
+        monkeypatch.setattr(config, "data_path", lambda *parts: tmp_path.joinpath(*parts))
+        monkeypatch.setattr(config, "_lumi_table", lambda: {
+            "EraA": {"run": "Run3", "year": "x", "lumi": 1.0},
+            "EraB": {"run": "Run3", "year": "x", "lumi": 1.0, "plot_settings": "shared"},
+        })
+        config.load_plot_settings.cache_clear()
+        yield tmp_path / "plot_settings"
+        config.load_plot_settings.cache_clear()
+
+    def _write(self, d, name, text):
+        (d / f"{name}.yaml").write_text(text)
+
+    def test_override_merges_per_key(self, settings_dir):
+        import wrplotter.config as config
+        self._write(settings_dir, "default", "r1:\n  v: { rebin: 2, xlim: [0, 10], ylim: [1, 100] }\n"
+                                             "r2:\n  v: { rebin: 5 }\n")
+        self._write(settings_dir, "shared", "inherit: default\nr1:\n  v: { ylim: [0.1, 10] }\n")
+        cfg = config.load_plot_settings("EraB")
+        assert cfg["r1"]["v"] == {"rebin": 2, "xlim": [0, 10], "ylim": [0.1, 10]}
+        assert cfg["r2"]["v"] == {"rebin": 5}
+        assert "inherit" not in cfg
+
+    def test_era_without_file_or_alias_uses_default(self, settings_dir):
+        import wrplotter.config as config
+        self._write(settings_dir, "default", "r1:\n  v: { rebin: 2 }\n")
+        assert config.load_plot_settings("EraA") == {"r1": {"v": {"rebin": 2}}}
+        assert config.load_plot_settings("NotAnEra") == {}
+
+    def test_own_file_wins_over_alias(self, settings_dir):
+        import wrplotter.config as config
+        self._write(settings_dir, "default", "r1:\n  v: { rebin: 2 }\n")
+        self._write(settings_dir, "shared", "inherit: default\n")
+        self._write(settings_dir, "EraB", "inherit: default\nr1:\n  v: { rebin: 7 }\n")
+        assert config.load_plot_settings("EraB")["r1"]["v"]["rebin"] == 7
+
+    def test_inherit_cycle_and_missing_parent_raise(self, settings_dir):
+        import wrplotter.config as config
+        self._write(settings_dir, "default", "inherit: shared\n")
+        self._write(settings_dir, "shared", "inherit: default\n")
+        with pytest.raises(ValueError, match="cycle"):
+            config.load_plot_settings("EraB")
+        self._write(settings_dir, "EraA", "inherit: nowhere\n")
+        with pytest.raises(FileNotFoundError, match="nowhere"):
+            config.load_plot_settings("EraA")

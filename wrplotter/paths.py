@@ -173,23 +173,6 @@ def _eos_available() -> bool:
     probe = Path(base_override) if base_override else Path("/eos")
     return probe.exists()
 
-def output_dir(run: str, year: str, era: str, subdir: Optional[str] = None,
-               *, prefer_local: bool = False) -> Path:
-    """
-    Choose an output root and ensure it exists:
-      - EOS when mounted (or FORCE_EOS=1),
-      - otherwise {repo}/outputs/...
-    NOTE: For EOS, we don't mkdir with Path().mkdir(); we use xrdfs on demand in save_figure().
-    """
-    if prefer_local or not _eos_available():
-        base = repo_root() / "outputs" / run / year / era
-        out = base / subdir if subdir else base
-        out.mkdir(parents=True, exist_ok=True)
-        return out
-    else:
-        return eos_base(run, year, era, subdir)
-
-
 # ── Save helpers ───────────────────────────────────────────────────────────────
 
 def ensure_local_dir(path: str | Path) -> None:
@@ -214,3 +197,19 @@ def save_figure(fig, dest_path: str | Path, *, force_local: bool = False, fmt: s
     else:
         ensure_local_dir(dest_path.parent)
         fig.savefig(dest_path, format=fmt)
+
+
+def plots_base(run: str, year: str, era: str, subdir: Optional[str] = None, *,
+               local: bool = False) -> Path:
+    """Root of a script's plot output, ``<root>/<run>/<year>/<era>[/<subdir>]``.
+
+    The root is ``plots/`` in the repository when *local*, else EOS when it is
+    mounted (or FORCE_EOS=1), else ``outputs/`` in the repository.  Local
+    directories are created; EOS directories are made on demand by save_figure().
+    """
+    if not local and _eos_available():
+        return eos_base(run, year, era, subdir or None)
+    base = repo_root() / ("plots" if local else "outputs") / run / year / era
+    out = base / subdir if subdir else base
+    out.mkdir(parents=True, exist_ok=True)
+    return out

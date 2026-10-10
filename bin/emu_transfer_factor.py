@@ -4,23 +4,36 @@ Compute and plot the emu transfer factor (R_emu): the bin-by-bin ratio of
 mass histograms between same-flavor signal regions (ee and mumu) and the
 emu flavor sideband control region, with constant fits and chi2/ndf.
 
-Usage:
-    # All eras, resolved + boosted (nominal SR / flavor CR, m > 800 GeV):
-    python3 bin/emu_transfer_factor.py
+Only tt+tW MC is read (WRAnalyzer_tt_tW.root, or the file given with
+--input), so there is no --dy option.  --era takes a single era, a year
+(2022, 2023, 2024) or Run3: a combination adds the histograms of its eras
+(data/lumi.yaml sub_eras), each read from rootfiles/<Run>/<Year>/<era>/<dir>.
 
-    # Single era, resolved only:
-    python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --resolved
+Outputs (<plots> is plots/ with --local-plots, else EOS, or outputs/ when EOS
+is not mounted; [_tf] in --tf-study mode, which also adds _lowzoom views):
+    <plots>/<Run>/<Year>/<Era>/<dir>/emu_transfer_factor_{resolved,boosted}[_tf]_<Era>.pdf
+    <plots>/<Run>/<Year>/<Era>/<dir>/emu_transfer_factor_boosted_{ejet,mujet}[_tf]_<Era>.pdf
+    tables/<Run>/<Year>/<Era>/<dir>/emu_transfer_factor_{resolved,boosted}[_tf].tex
+    tables/<Run>/<Year>/<Era>/<dir>/emu_transfer_factor_boosted_perchannel[_tf].tex
+    tables/<Run>/<Year>/<Era>/<dir>/preview.tex (and preview.pdf)
+
+Usage:
+    # Resolved + boosted (nominal SR / flavor CR, m > 800 GeV):
+    python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --local-plots
+
+    # A year or all of Run 3, resolved only:
+    python3 bin/emu_transfer_factor.py --era Run3 --dir 20261008_skims_v2 --resolved --local-plots
 
     # Transfer-factor study (AN-19-083 App. J closure): read the ``_nomass``
     # regions written by ``run_analysis.py --study transfer-factor
     # --split-groups tt_tW`` and fit below / above 800 GeV separately:
-    python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --tf-study --input WRAnalyzer_TTbar.root
+    python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --dir tf_study --tf-study --input WRAnalyzer_TTbar.root
 
 Study mode reads one histogram per region (SR / flavor CR without the
 reconstructed-mass cut) and slices it at MASS_SPLIT.  800 GeV must remain a
 bin edge after any rebinning; the script refuses otherwise.  Files from the
 older analyzer that only contain ``_tf_low`` regions are read by summing
-``_tf_low`` with the nominal region.
+``_tf_low`` with the nominal region (decided per era file).
 """
 
 # ── Standard library ────────────────────────────────────────────────────────────
@@ -41,10 +54,13 @@ import mplhep as hep
 # ── Local imports ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from wrplotter.paths import repo_root, save_figure
-from wrplotter.config import list_eras, load_lumi, load_plot_settings, index_plot_settings, get_var_cfg
-from wrplotter.histogram_utils import rebin_histogram, load_histogram
-from wrplotter.cli_utils import setup_logging, add_era_args
+from wrplotter.cli_utils import add_era_args, add_output_args, setup_logging
+from wrplotter.config import era_label, get_var_cfg, index_plot_settings, load_lumi, load_plot_settings
+from wrplotter.histogram_cache import load_and_rebin
+from wrplotter.histogram_utils import add_hists, sum_hists
+from wrplotter.inputs import make_inputs, root_file
+from wrplotter.paths import plots_base, repo_root, save_figure
+from wrplotter.stack import hist_key
 
 hep.style.use("CMS")
 
@@ -59,15 +75,25 @@ NOMASS_SUFFIX = "_nomass"
 LEGACY_INCLUSIVE_SUFFIX = "_tf"      # older analyzer: same mass-inclusive region under another name
 LEGACY_LOW_SUFFIX = "_tf_low"        # older analyzer: m < 800 copy, to be summed with the nominal region
 
+DEFAULT_SAMPLE = "tt_tW"
+STUDY_SAMPLE = "TTbar"               # --split-groups tt_tW output, preferred in --tf-study mode
 
-def parse_args() -> argparse.Namespace:
+# Built-in --variable-bins edges (study mode must keep MASS_SPLIT as an edge).
+DEFAULT_STUDY_EDGES = [0, 100, 200, 300, 400, 500, 600, 700, 800, 1000, 1200, 1600, 2000, 2800, 4000, 8000]
+DEFAULT_EDGES = [800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
+
+
+def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Compute emu transfer factor (R_emu): ratio of SR (ee/mumu) to flavor sideband CR (emu)"
     )
-    add_era_args(parser, required=False)
+    add_era_args(parser)
+    add_output_args(parser)
     parser.add_argument(
         "--output", "-o", dest="output", type=str, default=None,
-        help="Output file path (default: plots/<era>/ratio_<variable>_tt_tW.pdf)"
+        help="Path of the main ratio plot of each topology, instead of "
+             "<plots>/.../emu_transfer_factor_<category>[_tf]_<era>.pdf "
+             "(use with --resolved or --boosted)"
     )
     parser.add_argument(
         "--rebin", dest="rebin", type=int, default=None,
@@ -82,8 +108,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--input", dest="input_file", type=str, default=None,
-        help="Override ROOT file name (default: WRAnalyzer_tt_tW.root; in --tf-study mode "
-             "WRAnalyzer_TTbar.root is preferred when present)"
+        help="ROOT file to read in each era's --dir directory, WRAnalyzer_<sample>.root "
+             "(default: WRAnalyzer_tt_tW.root; in --tf-study mode WRAnalyzer_TTbar.root is "
+             "preferred when every era has it)"
     )
     parser.add_argument(
         "--tf-study", dest="tf_study", action="store_true",
@@ -99,46 +126,90 @@ def parse_args() -> argparse.Namespace:
         "--resolved", dest="resolved", action="store_true",
         help="Resolved only (default: both resolved and boosted)"
     )
-    return parser.parse_args()
+    args = parser.parse_args(argv)
+    name = args.input_file
+    if name is not None and ("/" in name or not (name.startswith("WRAnalyzer_")
+                                                 and name.endswith(".root"))):
+        parser.error(f"--input takes a file name WRAnalyzer_<sample>.root (read from each era's "
+                     f"--dir directory), got '{name}'")
+    return args
 
 
-def _load_hist(filepath: Path, region: str, variable: str = "mass_fourobject", *, quiet=False):
-    """Load a histogram by region/variable convention, returning None on failure."""
-    hist_key = f"{region}/{variable}_{region}"
-    try:
-        return load_histogram(filepath, hist_key)
-    except Exception as e:
-        if not quiet:
-            logger.warning("Could not load %s from %s: %s", hist_key, filepath, e)
-        return None
+def input_sample(inputs, input_file=None, tf_study=False) -> str:
+    """Sample to read: from --input, else TTbar in study mode when every era has it, else tt_tW."""
+    if input_file:
+        return input_file.removeprefix("WRAnalyzer_").removesuffix(".root")
+    if tf_study and all(root_file(d, STUDY_SAMPLE).is_file() for d in inputs.dirs_for(STUDY_SAMPLE)):
+        return STUDY_SAMPLE
+    return DEFAULT_SAMPLE
 
 
-def load_study_hist(filepath: Path, region: str, variable: str):
+def file_loader(directory: Path, sample: str, rebin):
+    """``load(hist_key)``: one histogram of one era's file, rebinned, or None if absent."""
+    def load(key):
+        return load_and_rebin([directory], sample, key, rebin)
+    return load
+
+
+def load_study_hist(load, region: str, variable: str, where=""):
     """Load the mass-inclusive histogram of *region* for the transfer-factor study.
 
-    Prefers ``<region>_nomass``.  Legacy files are supported in two forms:
-    ``<region>_tf`` (the same mass-inclusive region under its older name) and
-    ``<region>_tf_low`` (m < 800), which is summed with the nominal region
-    (m > 800) since together they cover the same events.  Returns None if
-    none of these is available.
+    *load(hist_key)* reads one file (see :func:`file_loader`); *where* names it
+    in messages.  Prefers ``<region>_nomass``.  Legacy files are supported in
+    two forms: ``<region>_tf`` (the same mass-inclusive region under its older
+    name) and ``<region>_tf_low`` (m < 800), which is summed with the nominal
+    region (m > 800) since together they cover the same events.  Returns None
+    if none of these is available.
     """
-    h = _load_hist(filepath, region + NOMASS_SUFFIX, variable, quiet=True)
+    name = Path(where).name if where else "the input"
+    h = load(hist_key(region + NOMASS_SUFFIX, variable))
     if h is not None:
         return h
-    h = _load_hist(filepath, region + LEGACY_INCLUSIVE_SUFFIX, variable, quiet=True)
+    h = load(hist_key(region + LEGACY_INCLUSIVE_SUFFIX, variable))
     if h is not None:
         logger.warning("%s%s not found in %s; using legacy mass-inclusive %s%s.",
-                       region, NOMASS_SUFFIX, filepath.name, region, LEGACY_INCLUSIVE_SUFFIX)
+                       region, NOMASS_SUFFIX, name, region, LEGACY_INCLUSIVE_SUFFIX)
         return h
-    low = _load_hist(filepath, region + LEGACY_LOW_SUFFIX, variable, quiet=True)
-    high = _load_hist(filepath, region, variable, quiet=True)
+    low = load(hist_key(region + LEGACY_LOW_SUFFIX, variable))
+    high = load(hist_key(region, variable))
     if low is None or high is None:
         logger.warning("Could not load %s%s (nor legacy %s%s + %s) from %s",
-                       region, NOMASS_SUFFIX, region, LEGACY_LOW_SUFFIX, region, filepath)
+                       region, NOMASS_SUFFIX, region, LEGACY_LOW_SUFFIX, region, where or name)
         return None
     logger.warning("%s%s not found in %s; using legacy %s%s + nominal region.",
-                   region, NOMASS_SUFFIX, filepath.name, region, LEGACY_LOW_SUFFIX)
-    return low + high
+                   region, NOMASS_SUFFIX, name, region, LEGACY_LOW_SUFFIX)
+    return add_hists(low, high)
+
+
+def load_hists(inputs, sample: str, regions, variable: str, rebin, *, study=False):
+    """``{region: histogram}`` of *sample*, rebinned and summed over the era files.
+
+    Every era file must provide every region (in study mode possibly through
+    a legacy form, chosen per file).  Returns None, with a warning, otherwise
+    or when no era has the file.
+    """
+    files = inputs.files_for(sample)
+    if not files:
+        logger.warning("%s not found in %s", root_file("", sample).name,
+                       ", ".join(str(d) for d in inputs.dirs_for(sample)))
+        return None
+    per_file = []
+    for path in files:
+        logger.info("Loading histograms from: %s", path)
+        load = file_loader(path.parent, sample, rebin)
+        hists = {}
+        for region in regions:
+            if study:
+                h = load_study_hist(load, region, variable, path)
+            else:
+                h = load(hist_key(region, variable))
+                if h is None:
+                    logger.warning("Could not load %s from %s", hist_key(region, variable), path)
+            if h is None:
+                return None
+            hists[region] = h
+        per_file.append(hists)
+    return {r: sum_hists(h[r] for h in per_file) for r in regions}
 
 
 def require_edge(edges, value=MASS_SPLIT):
@@ -549,27 +620,23 @@ def compile_preview_pdf(table_dir, table_files):
             logger.error("  %s", line)
 
 
-def _rebin_all(hists, args, era, ee_region, variable):
-    """Rebin every histogram in *hists* (dict) consistently; return the new dict."""
+def rebin_spec(args, era, ee_region, variable):
+    """Rebinning of every histogram: --variable-bins edges, --rebin, or the era's plot settings."""
     if args.variable_bins is not None:
         if args.variable_bins == "default":
-            if args.tf_study:
-                edges = [0, 100, 200, 300, 400, 500, 600, 700, 800, 1000, 1200, 1600, 2000, 2800, 4000, 8000]
-            else:
-                edges = [800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000]
+            edges = DEFAULT_STUDY_EDGES if args.tf_study else DEFAULT_EDGES
         else:
             edges = [float(x) for x in args.variable_bins.split(",")]
         logger.info("Rebinning with variable edges: %s", edges)
-        return {k: rebin_histogram(h, edges) for k, h in hists.items()}
+        return edges
     if args.rebin:
         logger.info("Rebinning with factor: %d", args.rebin)
-        return {k: rebin_histogram(h, args.rebin) for k, h in hists.items()}
-    plot_settings = load_plot_settings(era)
-    region_cfgs, common_vars = index_plot_settings(plot_settings)
+        return args.rebin
+    region_cfgs, common_vars = index_plot_settings(load_plot_settings(era))
     num_vcfg = get_var_cfg(region_cfgs, common_vars, ee_region, variable)
     rebin_factor = num_vcfg.get('rebin', 1) if num_vcfg else 1
     logger.info("Rebinning from YAML config: %s", rebin_factor)
-    return {k: rebin_histogram(h, rebin_factor) for k, h in hists.items()}
+    return rebin_factor
 
 
 def _log_ratio(label, ratio, errors, edges):
@@ -578,39 +645,23 @@ def _log_ratio(label, ratio, errors, edges):
         logger.info("  [%.0f, %.0f): %.4f +/- %.4f", low, high, ratio[i], errors[i])
 
 
-def process_topology(args, era, boosted):
-    """Process a single era + topology (resolved or boosted).
+def process_topology(args, inputs, sample, boosted, plot_dir, table_dir):
+    """Process one era (or combination) + topology (resolved or boosted).
+
+    Plots go to *plot_dir*, LaTeX tables to *table_dir*.
 
     Returns:
-        (table_dir, list[Path]): table output directory and paths of written .tex files,
-        or (None, []) if the topology was skipped.
+        list[Path]: the written .tex files, empty if the topology was skipped.
     """
+    era = inputs.era
     info = load_lumi(era)
-    run = info["run"]
     year = info["year"]
     lumi = info["lumi"]
     com = info.get("com", 13.6)
+    label = era_label(era)
 
     category = "boosted" if boosted else "resolved"
     suffix = "_tf" if args.tf_study else ""
-
-    # Build input path
-    input_dir = repo_root() / "rootfiles" / run / str(year) / era
-    if args.dir:
-        input_dir = input_dir / args.dir
-
-    if args.input_file:
-        filepath = input_dir / args.input_file
-    elif args.tf_study and (input_dir / "WRAnalyzer_TTbar.root").exists():
-        filepath = input_dir / "WRAnalyzer_TTbar.root"
-    else:
-        filepath = input_dir / "WRAnalyzer_tt_tW.root"
-
-    if not filepath.exists():
-        logger.warning("ROOT file not found: %s — skipping %s %s", filepath, era, category)
-        return None, []
-
-    logger.info("Loading histograms from: %s (%s)", filepath, category)
 
     # Region names and variable
     if boosted:
@@ -624,25 +675,21 @@ def process_topology(args, era, boosted):
         den_regions = ["wr_resolved_flavor_cr"]
         variable = "mass_fourobject"
 
-    loader = (lambda r: load_study_hist(filepath, r, variable)) if args.tf_study \
-        else (lambda r: _load_hist(filepath, r, variable))
-    hists = {r: loader(r) for r in [ee_region, mumu_region] + den_regions}
-    missing = [r for r, h in hists.items() if h is None]
-    if missing:
-        logger.warning("Could not load %s — skipping %s %s", missing, era, category)
-        return None, []
+    rebin = rebin_spec(args, era, ee_region, variable)
+    hists = load_hists(inputs, sample, [ee_region, mumu_region] + den_regions, variable, rebin,
+                       study=args.tf_study)
+    if hists is None:
+        logger.warning("Skipping %s %s", era, category)
+        return []
     for r in hists:
         logger.info("Loaded %s/%s%s", r, variable, NOMASS_SUFFIX if args.tf_study else "")
 
-    hists = _rebin_all(hists, args, era, ee_region, variable)
     ee_num_hist = hists[ee_region]
     mumu_num_hist = hists[mumu_region]
     den_hists = [hists[r] for r in den_regions]
 
     # Sum denominator histograms (boosted has separate emu and mue regions)
-    den_hist = den_hists[0]
-    for h in den_hists[1:]:
-        den_hist = den_hist + h
+    den_hist = sum_hists(den_hists)
 
     # Ratios
     ratio_ee, ratio_ee_errors, edges = compute_ratio(ee_num_hist, den_hist)
@@ -659,16 +706,6 @@ def process_topology(args, era, boosted):
     fits_ee = compute_fits(ratio_ee, ratio_ee_errors, edges, fit_ranges, range_labels, "ee")
     fits_mumu = compute_fits(ratio_mumu, ratio_mumu_errors, edges, fit_ranges, range_labels, "mumu")
 
-    # Output paths
-    output_dir = repo_root() / "plots" / run / str(year) / era
-    if args.dir:
-        output_dir = output_dir / args.dir
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    table_dir = repo_root() / "tables" / run / str(year) / era
-    if args.dir:
-        table_dir = table_dir / args.dir
-
     table_files = []
 
     # Plots: full range, plus a low-mass zoom in study mode.
@@ -679,11 +716,11 @@ def process_topology(args, era, boosted):
         if args.output and view_suffix == "":
             output_path = Path(args.output)
         else:
-            output_path = output_dir / f"emu_transfer_factor_{category}{suffix}{view_suffix}_{era}.pdf"
+            output_path = plot_dir / f"emu_transfer_factor_{category}{suffix}{view_suffix}_{era}.pdf"
         plot_ratio(
             ratio_ee, ratio_ee_errors,
             ratio_mumu, ratio_mumu_errors,
-            edges, era, lumi,
+            edges, label, lumi,
             output_path, fits_ee, fits_mumu,
             fit_ranges, range_labels, com=com,
             boosted=boosted, xlim=xlim,
@@ -707,15 +744,15 @@ def process_topology(args, era, boosted):
             ("mujet", r"$\mu$J", mumu_num_hist, emu_cr_hist, r"Boosted\ SR\ (\mu\mu)", r"Boosted\ Flavor\ CR\ (e\mu)", COLOR_MUMU, 's'),
         ]
         channel_fits = {}
-        for key, label, num, den, num_label, den_label, color, marker in channels:
+        for key, ch_label, num, den, num_label, den_label, color, marker in channels:
             ratio, ratio_err, _ = compute_ratio(num, den)
             channel_fits[key] = compute_fits(ratio, ratio_err, edges, fit_ranges, range_labels, key)
             for view_suffix, xlim in views:
-                path = output_dir / f"emu_transfer_factor_boosted_{key}{suffix}{view_suffix}_{era}.pdf"
+                path = plot_dir / f"emu_transfer_factor_boosted_{key}{suffix}{view_suffix}_{era}.pdf"
                 plot_channel_ratio(
-                    ratio, ratio_err, edges, era, lumi,
+                    ratio, ratio_err, edges, label, lumi,
                     path, channel_fits[key], fit_ranges, range_labels,
-                    channel_label=label, num_label=num_label, den_label=den_label,
+                    channel_label=ch_label, num_label=num_label, den_label=den_label,
                     color=color, marker=marker, com=com, xlim=xlim,
                 )
 
@@ -726,15 +763,26 @@ def process_topology(args, era, boosted):
         )
         table_files.append(ch_table_path)
 
-    return table_dir, table_files
+    return table_files
 
 
-def main():
-    args = parse_args()
+def main(argv=None):
+    args = parse_args(argv)
     setup_logging(args.verbose)
 
-    # Determine eras
-    eras = [args.era] if args.era else _ERA_CHOICES
+    try:
+        (inputs,) = make_inputs(args.era, args.dir, None, with_dy=False)
+    except (FileNotFoundError, ValueError) as exc:
+        logger.error(str(exc))
+        sys.exit(2)
+    sample = input_sample(inputs, args.input_file, args.tf_study)
+    logger.info("Era %s, sample %s, from %s", args.era, sample,
+                ", ".join(str(d) for d in inputs.dirs_for(sample)))
+
+    info = load_lumi(args.era)
+    run, year = info["run"], str(info["year"])
+    plot_dir = plots_base(run, year, args.era, args.dir or None, local=args.local_plots)
+    table_dir = repo_root() / "tables" / run / year / args.era / args.dir
 
     # Determine topologies
     if args.boosted and not args.resolved:
@@ -744,17 +792,12 @@ def main():
     else:
         topologies = [False, True]  # both (default)
 
-    for era in eras:
-        table_dir = None
-        all_table_files = []
-        for boosted in topologies:
-            tdir, tfiles = process_topology(args, era, boosted)
-            if tdir is not None:
-                table_dir = tdir
-            all_table_files.extend(tfiles)
+    table_files = []
+    for boosted in topologies:
+        table_files += process_topology(args, inputs, sample, boosted, plot_dir, table_dir)
 
-        if table_dir and all_table_files:
-            compile_preview_pdf(table_dir, all_table_files)
+    if table_files:
+        compile_preview_pdf(table_dir, table_files)
 
 
 if __name__ == '__main__':

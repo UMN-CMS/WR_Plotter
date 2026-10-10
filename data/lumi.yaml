@@ -3,6 +3,13 @@
 #
 # YAML anchors (*run3_signals) eliminate the repetition of signal mass-point
 # defaults across all Run3 eras; only RunII overrides them.
+#
+# A combination (a year, or all of Run 3) lists its eras under `sub_eras`; its
+# luminosity is the sum of theirs (derived, not repeated here).  The plotter reads
+# each era's histograms from its own directory and adds them; MC is already
+# normalized to each era's luminosity by the analyzer.  `plot_settings` names the
+# data/plot_settings file to use when the entry has none of its own (default:
+# default.yaml), and `label` is the name shown on plots.
 
 _run3_signals: &run3_signals
   default_signal_resolved: signal_WR4000_N2100
@@ -25,6 +32,7 @@ Run3Summer22:
   year: "2022"
   lumi: 8.08     # processed luminosity of the skims_v2 data, 2022B + C + D (see WrCoffea wrcoffea/config.yaml)
   com: 13.6
+  plot_settings: run3_subera
   <<: *run3_signals
 
 Run3Summer22EE:
@@ -32,15 +40,14 @@ Run3Summer22EE:
   year: "2022"
   lumi: 26.64    # processed luminosity of the skims_v2 data, 2022E + F + G
   com: 13.6
+  plot_settings: run3_subera
   <<: *run3_signals
 
 "2022":
   run: Run3
   year: "2022"
-  lumi: 34.72
   com: 13.6
-  sub_eras:  [Run3Summer22, Run3Summer22EE]
-  sub_lumis: [8.08, 26.64]
+  sub_eras: [Run3Summer22, Run3Summer22EE]
   <<: *run3_signals
 
 Run3Summer23:
@@ -48,6 +55,7 @@ Run3Summer23:
   year: "2023"
   lumi: 18.59    # processed luminosity of the skims_v2 data, 2023B + 2023C (see WrCoffea wrcoffea/config.yaml)
   com: 13.6
+  plot_settings: run3_subera
   <<: *run3_signals
 
 Run3Summer23BPix:
@@ -55,15 +63,14 @@ Run3Summer23BPix:
   year: "2023"
   lumi: 9.675    # processed luminosity of the skims_v2 data, 2023D
   com: 13.6
+  plot_settings: run3_subera
   <<: *run3_signals
 
 "2023":
   run: Run3
   year: "2023"
-  lumi: 28.265
   com: 13.6
-  sub_eras:  [Run3Summer23, Run3Summer23BPix]
-  sub_lumis: [18.59, 9.675]
+  sub_eras: [Run3Summer23, Run3Summer23BPix]
   <<: *run3_signals
 
 RunIII2024Summer24:
@@ -71,4 +78,21 @@ RunIII2024Summer24:
   year: "2024"
   lumi: 109.70   # processed luminosity of the skims_v2 data (see WrCoffea wrcoffea/config.yaml)
   com: 13.6
+  <<: *run3_signals
+
+"2024":
+  run: Run3
+  year: "2024"
+  com: 13.6
+  sub_eras: [RunIII2024Summer24]
+  plot_settings: RunIII2024Summer24
+  <<: *run3_signals
+
+Run3:
+  run: Run3
+  year: "2022-2024"
+  com: 13.6
+  label: "Run 3"
+  sub_eras: [Run3Summer22, Run3Summer22EE, Run3Summer23, Run3Summer23BPix, RunIII2024Summer24]
+  plot_settings: RunIII2024Summer24
   <<: *run3_signals
