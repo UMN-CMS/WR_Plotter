@@ -10,13 +10,18 @@ Plotting tools for the WR analysis. Takes ROOT histogram files produced by the W
   - [Filtering by Region](#filtering-by-region)
   - [Filtering by Variable](#filtering-by-variable)
   - [Signal Overlays](#signal-overlays)
-  - [Unblinding](#unblinding)
+  - [Eras, Years and Run 3](#eras-years-and-run-3)
+  - [Drell-Yan Samples](#drell-yan-samples)
+  - [Blinding](#blinding)
 - [Command Reference](#command-reference)
 - [Other Scripts](#other-scripts)
+  - [make_cutflows.py](#make_cutflowspy)
+  - [make_signal_cutflows.py](#make_signal_cutflowspy)
+  - [compare_signal_eras.py](#compare_signal_eraspy)
   - [compare_dy.py](#compare_dypy)
-  - [make_cutflow_table.py](#make_cutflow_tablepy)
-  - [signal_closure.py](#signal_closurepy)
+  - [plot_event_weights.py](#plot_event_weightspy)
   - [emu_transfer_factor.py](#emu_transfer_factorpy)
+- [Removed Options](#removed-options)
 - [Repository Structure](#repository-structure)
 - [Configuration](#configuration)
   - [EOS / CERNBox Setup](#eos--cernbox-setup)
@@ -28,17 +33,20 @@ Plotting tools for the WR analysis. Takes ROOT histogram files produced by the W
 ## Quick Start
 
 ### Prerequisites
-Run at least `RunIII2024Summer24` in the WrCoffea analyzer. The following files should exist:
+Run at least `RunIII2024Summer24` in the WrCoffea analyzer. An analysis set is one `--dir` of the
+analyzer; the following files should exist in it:
 ```
-rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_DYJets.root
-rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_tt_tW.root
-rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_Nonprompt.root
-rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_Other.root
-rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_EGamma.root
-rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_Muon.root
-rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_signal_WR4000_N2100.root
-rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_signal_WR4000_N100.root
+rootfiles/Run3/2024/RunIII2024Summer24/<dir>/WRAnalyzer_DYJets.root
+rootfiles/Run3/2024/RunIII2024Summer24/<dir>/WRAnalyzer_tt_tW.root
+rootfiles/Run3/2024/RunIII2024Summer24/<dir>/WRAnalyzer_Nonprompt.root
+rootfiles/Run3/2024/RunIII2024Summer24/<dir>/WRAnalyzer_Other.root
+rootfiles/Run3/2024/RunIII2024Summer24/<dir>/WRAnalyzer_EGamma.root
+rootfiles/Run3/2024/RunIII2024Summer24/<dir>/WRAnalyzer_Muon.root
+rootfiles/Run3/2024/RunIII2024Summer24/<dir>/WRAnalyzer_signal_WR4000_N2100.root
+rootfiles/Run3/2024/RunIII2024Summer24/<dir>/WRAnalyzer_signal_WR4000_N100.root
 ```
+Each file has a manifest next to it, `WRAnalyzer_<sample>_systematics.json`. The plotter reads
+the dataset names (to check the Drell-Yan sample) and the blinding record from it.
 
 ---
 
@@ -46,35 +54,43 @@ rootfiles/Run3/2024/RunIII2024Summer24/WRAnalyzer_signal_WR4000_N100.root
 
 Plot all variables in all analysis regions:
 ```bash
-python3 bin/make_stackplots.py --era RunIII2024Summer24 --local-plots
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --local-plots
 ```
-This produces resolved and boosted plots for all control and signal regions. Signal regions are blinded by default with a signal overlay shown instead of data.
+This produces resolved and boosted plots for all control and signal regions. Signal regions
+show the background stack with a signal overlay; their data is blinded by the analyzer (see
+[Blinding](#blinding)).
 
 List available eras:
 ```bash
 python3 bin/make_stackplots.py --list-eras
 ```
-Currently `RunIISummer20UL18` and `RunIII2024Summer24` are confirmed to work.
 
-If you used `--dir` in the analyzer, pass the same subdirectory here:
-```bash
-python3 bin/make_stackplots.py --era RunIISummer20UL18 --dir my_directory --local-plots
-```
+Pass the same `--dir` that was given to the analyzer. Without `--dir` the files are read from the
+era directory itself.
+
+The uncertainty band includes every systematic variation the files carry (`data/systematics.yaml`
+lists the sources; `scale` is the envelope of the three QCD-scale variations). A nominal-only
+production gives a statistical band only, without warnings. When only some samples carry variations,
+the others contribute their nominal and are reported with a warning, since the band then leaves
+their systematic uncertainties out. `--no-syst` forces a statistical band.
 
 ---
 
 ### Output Locations
 
-With `--local-plots`, plots are saved locally:
+With `--local-plots`, plots are saved locally, one set per Drell-Yan sample:
 ```
-plots/<Run>/<Year>/<Era>/<Region>_<Dataset>/<Variable>_<Region>.pdf
+plots/<Run>/<Year>/<Era>/<dir>/stack_dy_<tag>/<region>/<variable>_<region>.pdf
 ```
 Example:
 ```
-plots/Run3/2024/RunIII2024Summer24/resolved_dy_cr_EGamma/pt_leading_jet_resolved_dy_cr.pdf
+plots/Run3/2024/RunIII2024Summer24/20261008_skims_v2/stack_dy_lo_ht/wr_mumu_resolved_dy_cr/mass_fourobject_wr_mumu_resolved_dy_cr.pdf
 ```
 
 Without `--local-plots`, plots are uploaded to EOS/CERNBox. See [EOS / CERNBox Setup](#eos--cernbox-setup) for configuration.
+
+Tables (cutflows, event-weight summaries) are always written locally, under
+`tables/<Run>/<Year>/<Era>/<dir>/`.
 
 ---
 
@@ -82,12 +98,16 @@ Without `--local-plots`, plots are uploaded to EOS/CERNBox. See [EOS / CERNBox S
 
 Plot a specific region with `-r`:
 ```bash
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr --local-plots
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -r resolved_dy_cr --local-plots
 ```
-List available regions:
+List available regions and the data stream each one uses:
 ```bash
 python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-regions
 ```
+Both data files fill every region (the analyzer does no overlap removal), so each region takes its
+data from the stream of its trigger only: EGamma for the ee regions and `wr_emu_boosted_flavor_cr`;
+Muon for the μμ regions, `wr_resolved_flavor_cr` (the eμ trigger is the muon trigger) and
+`wr_mue_boosted_flavor_cr`.
 
 ---
 
@@ -95,11 +115,11 @@ python3 bin/make_stackplots.py --era RunIII2024Summer24 --list-regions
 
 Plot a specific variable with `-v`:
 ```bash
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet --local-plots
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -r resolved_dy_cr -v pt_leading_jet --local-plots
 ```
 Comma-separated lists work too:
 ```bash
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -v pt_leading_jet,pt_leading_lepton --local-plots
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -v pt_leading_jet,pt_leading_lepton --local-plots
 ```
 List available variables:
 ```bash
@@ -113,22 +133,69 @@ python3 bin/make_stackplots.py --list-variables
 In signal regions, a default signal sample is overlaid automatically (depends on era and region topology). Override with `-s`:
 ```bash
 # Single signal sample
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -s signal_WR6000_N3100 --local-plots
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -s signal_WR6000_N3100 --local-plots
 
 # Multiple signal samples (all overlaid on every SR)
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -s signal_WR4000_N2100,signal_WR4000_N100 --local-plots
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -s signal_WR4000_N2100,signal_WR4000_N100 --local-plots
 ```
 Samples that don't have histograms for a given region are silently skipped.
 
 ---
 
-### Unblinding
+### Eras, Years and Run 3
 
-Signal regions are blinded by default. Unblind with `--unblind` (safe for RunII):
+`--era` (every script) takes a single era, a year, or all of Run 3:
+
+| `--era` | Combines | Output under |
+|---|---|---|
+| `Run3Summer22`, `Run3Summer22EE`, `Run3Summer23`, `Run3Summer23BPix`, `RunIII2024Summer24` | one era | `plots/Run3/<year>/<era>/` |
+| `2022`, `2023`, `2024` | the eras of that year | `plots/Run3/<year>/<year>/` |
+| `Run3` | all five eras | `plots/Run3/2022-2024/Run3/` |
+
+A combination reads each era's files from its own directory, `rootfiles/Run3/<year>/<era>/<dir>`, and adds the
+histograms; MC is already normalized to each era's luminosity, and the combined luminosity is the sum of the eras'
+(`data/lumi.yaml`, where a combination lists only its `sub_eras`). So every era needs the same `--dir`. A sample
+missing in some of the eras is reported with a warning, because the combination would undercount it; so is a
+histogram missing from some eras' files. Systematic variations are summed era by era: an era without a variation
+adds its own nominal (the source does not affect it, or that era was produced without it, which is reported). A
+combination without its own `data/plot_settings` file uses the one named by `plot_settings` in `data/lumi.yaml`.
+
+All of them in one go:
 ```bash
-python3 bin/make_stackplots.py --era RunIISummer20UL18 --unblind --local-plots
+for era in Run3Summer22 Run3Summer22EE Run3Summer23 Run3Summer23BPix RunIII2024Summer24 2022 2023 2024 Run3; do
+    python3 bin/make_stackplots.py --era "$era" --dir 20261008_skims_v2 --local-plots
+done
 ```
-Run3 unblinding is blocked.
+
+---
+
+### Drell-Yan Samples
+
+The analyzer always writes the Drell-Yan prediction as `WRAnalyzer_DYJets.root`, so a DY sample is
+identified by its directory. `--dy TAG` (`make_stackplots.py`, `compare_dy.py`, `make_cutflows.py`,
+`plot_event_weights.py`) picks one by its analyzer `--dy` tag (`data/dy_samples.yaml`):
+
+- the default sample (`lo_ht`) is read from `--dir` itself;
+- any other sample is read from `<dir>_<tag>_dy`, e.g. `20261008_skims_v2_lo_inc_dy`;
+- `--dy TAG=DIR` reads it from another directory.
+
+Every other sample always comes from `--dir`. A directory whose DYJets manifest lists the datasets
+of a different DY sample is refused. Repeat `--dy` (or comma-separate) to make one set per sample:
+```bash
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc --local-plots
+```
+
+---
+
+### Blinding
+
+Blinding is done by the analyzer, not the plotter. By default the analyzer never writes
+signal-region histograms for data, and stops the data ee/μμ cutflows before the m(ll) > 200 GeV cut;
+its manifest records this under `blinding`. Run 3 cannot be unblinded; Run 2 data made with the
+analyzer's `--unblind` (manifest `blinding.applied: false`) is shown in the signal regions.
+
+Data files made before analyzer-side blinding have no `blinding` record. Their signal-region data is
+never read, and the cutflows show no data column for them (with a note) until the data is rerun.
 
 ---
 
@@ -139,15 +206,18 @@ Run3 unblinding is blocked.
 | Flag | Short | Arguments | Description |
 |------|-------|-----------|-------------|
 | `--era` | | `<era_name>` | **Required.** Era to process (e.g., `RunIII2024Summer24`) |
+| `--dir` | | `<subdir>` | Analysis set: subdirectory under the input/output paths |
+| `--dy` | | `<tag>[=<dir>]` | Drell-Yan sample(s); one plot set each. Repeat or comma-separate |
 | `--region` | `-r` | `<name>` | Region(s) to plot. Repeat or comma-separate |
 | `--variable` | `-v` | `<name>` | Variable(s) to plot. Repeat or comma-separate |
 | `--signal` | `-s` | `<sample>` | Signal sample(s) to overlay on SR plots. Repeat or comma-separate |
 | `--local-plots` | | | Save to `plots/` instead of EOS |
-| `--unblind` | | | Show data in signal regions |
-| `--dir` | | `<subdir>` | Subdirectory under input/output paths |
-| `--name` | | `<suffix>` | Append suffix to filenames |
 | `--plot-config` | `-c` | `<yaml>` | Custom plot settings YAML |
-| `--variable-rebin` | | | Use variable-width bins from YAML |
+| `--uniform-rebin` | | | Uniform rebin factor instead of the variable-width m(W_R) bins (the Run 2 binning, the default) |
+| `--per-gev` | | | With variable-width bins, events per GeV instead of per bin (Run 2 drew events per bin) |
+| `--no-syst` | | | Statistical band only, even if the files carry variations |
+| `--extra-label` | | `<text>` | Extra line under the region label |
+| `--dry-run` | | | List the plots that would be made and exit |
 | `--list-eras` | | | List eras and exit |
 | `--list-regions` | | | List regions for era and exit |
 | `--list-variables` | | | List variables and exit |
@@ -155,70 +225,211 @@ Run3 unblinding is blocked.
 ### Examples
 ```bash
 # All regions and variables
-python3 bin/make_stackplots.py --era RunIII2024Summer24 --local-plots
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --local-plots
 
 # Single region, single variable
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr -v pt_leading_jet --local-plots
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -r resolved_dy_cr -v pt_leading_jet --local-plots
 
 # Multiple regions and variables
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -r resolved_dy_cr,boosted_sr -v pt_leading_jet,mass_dilepton --local-plots
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -r resolved_dy_cr,boosted_sr -v pt_leading_jet,mass_dilepton --local-plots
+
+# One set per DY sample
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc --local-plots
 
 # Custom signal overlay
-python3 bin/make_stackplots.py --era RunIII2024Summer24 -s signal_WR4000_N2100,signal_WR4000_N100 --local-plots
-
-# Unblind RunII with custom directory
-python3 bin/make_stackplots.py --era RunIISummer20UL18 --unblind --dir my_analysis --local-plots
+python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -s signal_WR4000_N2100,signal_WR4000_N100 --local-plots
 ```
 
 ---
 
 ## Other Scripts
 
+### make_cutflows.py
+
+Cutflow tables and plots from the analyzer's cutflow histograms, for every topology (resolved,
+boosted) and channel (ee, μμ, eμ):
+
+- yields: {cumulative, one cut alone} × {weighted, unweighted};
+- efficiencies (weighted only): running and relative-to-previous for cumulative, single-cut for
+  one-cut.
+
+```bash
+python3 bin/make_cutflows.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --local-plots
+python3 bin/make_cutflows.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --topology resolved --channel mumu --signal WR4000_N2100 --no-plots
+```
+Outputs:
+```
+tables/<Run>/<Year>/<Era>/<dir>/cutflows_dy_<tag>/cutflow_<variant>_<topology>_<channel>.tex
+tables/<Run>/<Year>/<Era>/<dir>/cutflows_dy_<tag>/cutflows.txt     # every table as text
+tables/<Run>/<Year>/<Era>/<dir>/cutflows_dy_<tag>/preview.pdf      # when pdflatex is available
+plots/<Run>/<Year>/<Era>/<dir>/cutflows_dy_<tag>/<topology>_<channel>/<variant>.pdf
+```
+The cut sequence is read from the files. The data column comes from the channel's trigger stream
+(`data/cutflows.yaml`; cut labels live there too); rows the analyzer blinded are marked as such.
+Weighted MC rows use the base event weight without lepton scale factors, so the last row sits a few
+percent above the signal-region histograms.
+
+### make_signal_cutflows.py
+
+Signal-only cutflow tables: yields plus running and relative efficiencies (single-cut with `--onecut`)
+for every `WRAnalyzer_signal_WR<m>_N<m>.root` in `--dir`. A signal-only directory works too, and a year
+or `--era Run3` sums the eras. One topology per run (resolved, or `--boosted`):
+
+| `--mode` | Tables |
+|---|---|
+| `fixed-wr` | one per WR mass, one column per N mass |
+| `fixed-n` | one per N mass, one column per WR mass |
+| `wr-compare` | one, one column per WR mass at its highest N |
+| `channel-compare` | one per WR mass, ee and μμ side by side |
+
+```bash
+# LaTeX for ee and μμ (fixed-wr + wr-compare), with preview.pdf
+python3 bin/make_signal_cutflows.py --era RunIII2024Summer24 --dir 20261008_skims_v2
+# One channel, printed
+python3 bin/make_signal_cutflows.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --channel mumu --wr-mass 4000
+python3 bin/make_signal_cutflows.py --era Run3 --dir 20261008_skims_v2 --channel ee --boosted --mode fixed-n --efficiency running
+```
+Outputs (LaTeX; `-o` overrides the directory):
+```
+tables/<Run>/<Year>/<Era>/<dir>/signal_cutflows/signal_<table>_<topology>_<channel>_<variant>.tex
+tables/<Run>/<Year>/<Era>/<dir>/signal_cutflows/signal_cutflows.txt     # every table as text
+tables/<Run>/<Year>/<Era>/<dir>/signal_cutflows/preview.pdf             # when pdflatex is available
+```
+`--mode` and `--format` (`terminal`, `latex`) override the defaults above; `--efficiency running|relative`
+keeps only that efficiency. As in `make_cutflows.py`, the cut sequence and its labels come from the files
+and `data/cutflows.yaml`; every mass point must have the same sequence, or the script stops with an error.
+
+### compare_signal_eras.py
+
+Compare the signal samples of several eras (Run 2 vs Run 3, or the Run 3 years): acceptance × efficiency
+and the shape of the signal-region mass. Each `--era ERA[=DIR]` is an era or a combination (`2022`,
+`Run3`, ...) read from `DIR`, else from `--dir`; the first is the reference of every ratio. Only the signal
+files and their manifests are read, so signal-only directories work:
+```bash
+python3 bin/compare_signal_eras.py --era RunIII2024Summer24 --era 2022 --era 2023 --dir 20261008_signals --local-plots
+python3 bin/compare_signal_eras.py --era RunIISummer20UL18=<dir> --era 2022 --era 2023 --era 2024 --dir 20261008_signals --local-plots
+```
+- Efficiency = signal-region yield (every analyzer weight) / (σ × L of the channel's lepton flavour). σ is
+  the cross section of the datasets in the file's manifest, read from the analyzer's
+  `data/configs/<Run>/<Year>/<Era>/<Era>_signal.json` (`--analyzer-root` for another checkout, or
+  `--fileset ERA=PATH` for the fileset a run used); a flavour-mixed `WRtoNLtoLLJJ` sample counts half for
+  ee and half for μμ. σ must be the one the analyzer normalized with: when the weighted `no_cuts` / σL
+  differs from skim × filters (unweighted counts) by more than 10 %, the summary warns (`norm_check`
+  column), e.g. after the configs' cross sections change.
+- Cutflow efficiencies use the base weight. The rows ee and μμ share (`no_cuts`, the jet cuts) are divided
+  by σ × L of all flavours, the rest by that of the channel's flavour, so `no_cuts` shows what the skim and
+  the event filters (jet veto map included) keep and the last row is the efficiency before lepton SFs.
+- Each efficiency is split into `no_cuts` × selection × scale factors; `no_cuts` into skim × filters (with
+  the analyzer's skimmed signal filesets), and the scale factors into reco/ID/isolation/trigger/pileup
+  (the analyzer's `event_weights/<region>/components`).
+- Mass peak: median, 16/84 % quantiles and σ_eff (half the narrowest interval holding 68.3 %).
+
+Outputs under `<plots>/<Run>/<Year>/<Era>/<dir>/signal_compare/<era>_vs_<era>.../` of the reference
+(`-o DIR` writes plots and tables there instead):
+
+| Folder / file | Content |
+|---|---|
+| `efficiency/<topology>_<channel>_WR<m>.pdf` | A × ε vs m_N per m_WR, resolved, boosted and `combined` (their sum), ratio to the reference |
+| `resolution/<topology>_<channel>_WR<m>.pdf` | median / m_WR and σ_eff / median of the SR mass vs m_N |
+| `mass/<region>/<point>.pdf` | SR mass of every point common to all sets, unit area |
+| `cutflow/<topology>_<channel>_<point>.pdf` | Efficiency after each cut (`--points`) |
+| `kinematics/<region>/<variable>_<point>.pdf` | The other SR variables, unit area (`--points`; `--no-kinematics` skips) |
+| `tables/.../signal_compare/<...>/efficiency.csv`, `scale_factors.csv`, `cutflow.csv`, `summary.txt` | The numbers; the summary averages each set's ratios (and those of the efficiency's factors) to the reference over the shared points, and lists the mean scale factors of every set |
+| `tables/.../efficiency_tables.txt`, `latex/` | A × ε of every set and the ratios to the reference at the shared points: text with stat. errors, and CMS-style LaTeX tables per topology, channel and m_WR with `preview.pdf` (`--no-pdf` skips the compilation) |
+
+`--label` (once per `--era`) sets the legend labels and `--name` the output folder; two sets of one era (e.g.
+the UL18 official and pre-legacy samples, run into different directories) are given as `--era ERA=DIR` twice.
+
+`--points` defaults to the `cutflow_signals` of `data/lumi.yaml` that every set has (`all` = every common point).
+
 ### compare_dy.py
 
-Compare DYJets histograms in three modes:
-
+Compare Drell-Yan samples (at least two `--dy`; the first is the reference), on their own and inside
+the total background:
 ```bash
-# LO vs NLO within one era
-python3 bin/compare_dy.py --mode lo-nlo --era RunIII2024Summer24
-
-# 2024 NLO mll-binned vs 2022 LO HT-binned
-python3 bin/compare_dy.py --mode mll-vs-ht --era 2022
-
-# Compare DYJets between two eras
-python3 bin/compare_dy.py --mode cross-era --era RunIII2024Summer24 --ref-era RunIISummer20UL18
+python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc --local-plots
+python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc -r resolved_dy_cr -v mass_fourobject --local-plots
 ```
+Outputs under `<plots>/<Run>/<Year>/<Era>/<dir>/dy_compare/`:
 
-### make_cutflow_tables.py
+| Folder | Content |
+|---|---|
+| `abs/<region>/` | DYJets of each sample, with the ratio to the reference |
+| `shape/<region>/` | The same, each sample scaled to unit yield |
+| `total/<region>/` | Total background built with each DY sample; data and Data/Bkg. per sample in control regions, totals compared to the reference in signal regions |
+| `total_scaled/<region>/` | Control regions only: as `total`, each prediction scaled to the data yield (factor in the legend) |
 
-Generate a LaTeX cutflow table from analyzer output:
+### plot_event_weights.py
+
+MC event-weight distributions per region, from the analyzer's `event_weights/` histograms (MC only):
 ```bash
-python3 bin/make_cutflow_tables.py --era RunIII2024Summer24
+python3 bin/plot_event_weights.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --local-plots
+python3 bin/plot_event_weights.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc -r resolved_sr --local-plots
 ```
-
-### signal_closure.py
-
-Run2 vs Run3 signal closure study:
-```bash
-python3 bin/signal_closure.py
+Outputs:
 ```
+<plots>/<Run>/<Year>/<Era>/<dir>/event_weights/<region>.pdf
+<plots>/.../event_weights/components/<region>/<component>.pdf
+tables/<Run>/<Year>/<Era>/<dir>/event_weights/<region>.txt
+```
+- `<region>.pdf`: log₁₀|w| of the region's nominal weight per MC group (signals too in signal
+  regions); w > 0 solid, w < 0 dashed; the legend gives N, N_eff and the fraction of negative weights.
+- `components/`: each factor of that weight, unit-normalized per group: the generator weight and the
+  σ·L/Σw normalization (log₁₀), then pileup, the lepton scale factors, DY reshaping etc., and
+  `corrections`, their product (weight = generator weight × normalization × corrections).
+- `<region>.txt`: the same numbers as text (N, N_eff, Σw, negative fraction; mean, RMS and
+  fraction outside the axis of every component).
+
+With two or more `--dy` samples the DY samples are also overlaid on their own under
+`event_weights/dy_samples/`. Files made before the analyzer wrote these histograms need an analyzer
+rerun; the script says so and exits.
 
 ### emu_transfer_factor.py
 
-Compute SR / flavor-CR transfer factors for tt+tW (resolved and boosted):
+Compute SR / flavor-CR transfer factors for tt+tW (resolved and boosted; `--resolved` or
+`--boosted` for one of them):
 ```bash
-python3 bin/emu_transfer_factor.py --era RunIII2024Summer24
+python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --local-plots
+python3 bin/emu_transfer_factor.py --era Run3 --dir 20261008_skims_v2 --local-plots
 ```
+`--era` is required and takes a single era, a year (`2022`, `2023`, `2024`) or `Run3` (see
+[Eras, Years and Run 3](#eras-years-and-run-3)); a combination adds the histograms of its eras, each
+read from `rootfiles/<Run>/<Year>/<era>/<dir>`, before the ratio is formed and fitted. Only tt+tW MC
+is read (`WRAnalyzer_tt_tW.root`), so there is no `--dy` option and no DYJets file is needed.
+
+Outputs (`[_tf]` in study mode, which also adds `_lowzoom` views of each plot):
+```
+<plots>/<Run>/<Year>/<Era>/<dir>/emu_transfer_factor_{resolved,boosted}[_tf]_<Era>.pdf
+<plots>/<Run>/<Year>/<Era>/<dir>/emu_transfer_factor_boosted_{ejet,mujet}[_tf]_<Era>.pdf
+tables/<Run>/<Year>/<Era>/<dir>/emu_transfer_factor_{resolved,boosted}[_tf].tex
+tables/<Run>/<Year>/<Era>/<dir>/emu_transfer_factor_boosted_perchannel[_tf].tex
+tables/<Run>/<Year>/<Era>/<dir>/preview.pdf
+```
+`<plots>` is `plots/` with `--local-plots`, otherwise EOS (`outputs/` when EOS is not mounted).
 
 Transfer-factor study (fit below and above 800 GeV separately). Requires
 analyzer output produced with `--study transfer-factor --split-groups tt_tW`,
 which writes `<region>_nomass` histograms and a separate `WRAnalyzer_TTbar.root`:
 ```bash
-python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --dir tf_study --tf-study --input WRAnalyzer_TTbar.root
+python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --dir tf_study --tf-study --input WRAnalyzer_TTbar.root --local-plots
 ```
+`--input` names a `WRAnalyzer_<sample>.root` file in each era's `--dir` directory; without it, study
+mode reads `WRAnalyzer_TTbar.root` when every era has it, else `WRAnalyzer_tt_tW.root`.
 800 GeV must stay a bin edge after rebinning (the default `--variable-bins`
 edges do); the script refuses otherwise. Older files that only contain
-`_tf_low` regions are still read by summing them with the nominal region.
+`_tf_low` regions are still read by summing them with the nominal region
+(decided per era file in a combination).
+
+---
+
+## Removed Options
+
+- `make_stackplots.py --unblind`: the analyzer decides (see [Blinding](#blinding)).
+- `make_stackplots.py --name`: it was unused.
+- `compare_dy.py --mode lo-nlo|mll-vs-ht|cross-era|three-way`: these read files that no longer exist;
+  use `--dy` with the samples to compare.
+- `make_cutflow_tables.py`: replaced by `make_cutflows.py`.
+- `compare_dy_cr_data.py`: replaced by `compare_dy.py` (`total/` and `total_scaled/`).
 
 ---
 
@@ -227,40 +438,46 @@ edges do); the script refuses otherwise. Older files that only contain
 ```
 WR_Plotter/
 ├── bin/                              # CLI scripts
-│   ├── make_stackplots.py            #   Stacked MC + data plots
-│   ├── make_cutflow_tables.py        #   Cutflow LaTeX table generator
-│   ├── emu_transfer_factor.py        #   tt+tW SR/CR transfer factors (resolved + boosted)
-│   ├── compare_dy.py                 #   DY comparison overlays (LO/NLO, cross-era)
-│   └── signal_closure.py             #   Run2 vs Run3 signal closure
+│   ├── make_stackplots.py            #   Stacked MC + data plots, one set per DY sample
+│   ├── make_cutflows.py              #   Cutflow tables and plots (yields, efficiencies)
+│   ├── compare_dy.py                 #   Drell-Yan sample comparisons
+│   ├── plot_event_weights.py         #   MC event-weight distributions and components
+│   ├── make_signal_cutflows.py       #   Signal cutflow tables per (WR, N) mass point
+│   └── emu_transfer_factor.py        #   tt+tW SR/CR transfer factors (resolved + boosted)
 ├── scripts/                          # Utility scripts
-│   └── validate_skims.py             #   Skim validation
+│   └── plot_jet_veto_maps.py         #   Jet veto map figure
 ├── wrplotter/                        # Core library
-│   ├── config.py                     #   Load lumi, kfactors, plot settings
-│   ├── paths.py                      #   File I/O, EOS upload, repo_root()
-│   ├── regions.py                    #   Analysis region definitions
+│   ├── config.py                     #   Load lumi, plot settings, DY samples, cutflow config
+│   ├── paths.py                      #   File I/O, EOS upload, repo_root(), plots_base()
+│   ├── inputs.py                     #   Analysis-set file locations, DY samples, manifests (blinding)
+│   ├── regions.py                    #   Analysis region definitions and data streams
 │   ├── variables.py                  #   Physics variable definitions
 │   ├── sample_groups.py              #   Sample grouping and styling
-│   ├── histogram_cache.py            #   ROOT file caching and load-and-rebin
+│   ├── stack.py                      #   Histograms of one stack plot (MC, data, signals, systematics)
+│   ├── systematics.py                #   Systematic variations and the uncertainty band
+│   ├── cutflow.py                    #   Cutflow tables (reading, data alignment, text/LaTeX)
+│   ├── cutflow_plots.py              #   Cutflow yield and efficiency plots
+│   ├── dy_compare.py                 #   DY overlay and total-background comparison plots
+│   ├── event_weights.py              #   Event-weight distributions and components
+│   ├── histogram_cache.py            #   Cached ROOT files and key lists, read_hist, load-and-rebin
 │   ├── histogram_utils.py            #   Histogram rebinning and manipulation
 │   ├── plotting_helpers.py           #   Matplotlib/mplhep CMS plot formatting
-│   └── cli_utils.py                  #   CLI helpers (parse_multi, setup_logging)
+│   └── cli_utils.py                  #   CLI helpers (parse_multi, --dy, region selection)
 ├── data/                             # Configuration files
 │   ├── lumi.yaml                     #   Luminosity, run, year, CoM per era
-│   ├── kfactors.yaml                 #   MC scale factors
 │   ├── sample_groups.yaml            #   Sample grouping and colors
+│   ├── dy_samples.yaml               #   Drell-Yan samples: label, colour, dataset pattern
+│   ├── cutflows.yaml                 #   Cutflow data stream per channel and cut labels
 │   ├── variables.yaml                #   Histogram axis definitions
 │   ├── region_shorthands.yaml        #   Shorthand aliases for regions
 │   ├── systematics.yaml              #   Systematic uncertainty names
-│   └── plot_settings/                #   Per-era rebin/xlim/ylim YAML configs
-│       ├── RunIII2024Summer24.yaml
-│       ├── RunIISummer20UL18.yaml
-│       └── ...
+│   └── plot_settings/                #   rebin/xlim/ylim: default.yaml + per-era overrides
 ├── tests/                            # Unit tests (pytest)
 ├── rootfiles/                        # Input ROOT histograms (from analyzer)
-│   └── <Run>/<Year>/<Era>/           #   e.g., Run3/2024/RunIII2024Summer24/
+│   └── <Run>/<Year>/<Era>/<dir>/     #   e.g., Run3/2024/RunIII2024Summer24/20261008_skims_v2/
 ├── plots/                            # Output plots (created by --local-plots)
+├── tables/                           # Output tables
 ├── pyproject.toml
-├── pytest.ini
 └── README.md
 ```
 
@@ -293,17 +510,37 @@ Additional environment variables:
 
 ### Plot Settings YAML
 
-Each era has a YAML file in `data/plot_settings/` controlling rebinning and axis ranges per region and variable. Example:
+`data/plot_settings/` sets the rebinning and axis ranges per region and variable:
+
+| File | Used by |
+|---|---|
+| `default.yaml` | every era; 2022 and 2023 use it as is |
+| `run3_subera.yaml` | Run3Summer22, Run3Summer22EE, Run3Summer23, Run3Summer23BPix |
+| `RunIII2024Summer24.yaml` | RunIII2024Summer24, and the 2024 and Run3 combinations |
+| `RunIISummer20UL18.yaml` | RunIISummer20UL18 |
+
+Every file except `default.yaml` starts with `inherit: default` and lists only the values that differ, so a
+change made in `default.yaml` reaches every era that does not override that value. An era uses its own file
+if one exists, else the one named by `plot_settings` in `data/lumi.yaml`, else `default.yaml`. Example override:
 
 ```yaml
+inherit: default
+
 wr_resolved_flavor_cr:
-  pt_leading_jet:
-    rebin: 4
-    xlim: [0, 600]
-    ylim: [1, 1e6]
+  pt_leading_jet: { rebin: 4, xlim: [0, 600], ylim: [1, 1e6] }
 ```
 
-Override with `--plot-config <path>`.
+Override the whole file with `--plot-config <path>` (it may use `inherit:` too).
+
+The binning follows the Run 2 analysis (AN-19-083; its plotter `git@github.com:UMN-CMS/HNWR_Plotter.git`,
+branch `Run2Legacy_v4__MK` = `Run2Legacy_v4__Default` plus plot selection: `data/Run2Legacy_v4__Default/<year>/{CR,SR}_rebins.txt`
+and `python/mylib.py: RebinWRMass`, identical for 2016-2018):
+
+- m(W_R): resolved m(ℓℓjj) edges 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000 GeV; boosted m(ℓJ)
+  edges 800, 1000, 1200, 1500, 1800, 8000 GeV (`rebin_variable`, used by default; `--uniform-rebin` turns it off).
+  Drawn as events per bin, as in Run 2; `--per-gev` divides by the bin width.
+- Every other variable with a Run 2 counterpart has the Run 2 bin width in each region, e.g. η 0.5, m(ℓℓ) 1 GeV in
+  the DY CRs, 10 GeV in the flavour CRs and 50 GeV in the SRs, leading-jet pT 20 GeV in the CRs and 100 GeV in the SRs.
 
 ---
 

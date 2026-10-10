@@ -26,12 +26,17 @@ directory works.  Definitions: wrplotter/signal_compare.py.
         scale_factors.csv  mean of each weight factor (lepton SFs, pileup) in each signal region;
         cutflow.csv        cutflow efficiencies per set, point, topology, channel and cut;
         summary.txt        each set against the reference over the points both have, and the mean
-                           weight factors of every set.
+                           weight factors of every set;
+        efficiency_tables.txt  acceptance x efficiency of every set (stat. errors) and the ratios to the
+                           reference, at the points all sets have;
+        latex/             the same as CMS-style tables, one per topology, channel and m_WR, with
+                           preview.tex (compiled to preview.pdf unless --no-pdf).
 
 A set read from another directory than the reference's appears as <era>-<dir>
-in the folder name.  --points picks the points of the cutflow and kinematics
-plots (default: the cutflow_signals of data/lumi.yaml that every set has; "all"
-= every common point).  -o DIR writes the plots and tables there instead.
+in the folder name (--name sets it); --label (once per set) sets the legend
+labels.  --points picks the points of the cutflow and kinematics plots
+(default: the cutflow_signals of data/lumi.yaml that every set has; "all" =
+every common point).  -o DIR writes the plots and tables there instead.
 
 Examples:
     python bin/compare_signal_eras.py --era RunIII2024Summer24 --era 2022 --era 2023 --dir 20261008_signals --local-plots
@@ -41,8 +46,10 @@ Examples:
 
 import argparse
 import csv
+import dataclasses
 import logging
 import math
+import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -55,12 +62,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from wrplotter.cli_utils import add_output_args, parse_multi, setup_logging
 from wrplotter.config import default_signals, list_eras, load_lumi
+from wrplotter.cutflow import CHANNEL_LATEX, compile_preview, format_percent, write_preview
 from wrplotter.inputs import mass_point
 from wrplotter.paths import plots_base, repo_root, save_figure
 from wrplotter.signal_compare import (CHANNEL_LABELS, CHANNELS, COMBINED, MASS_LABELS, MASS_VARIABLES,
                                       NAN, TOPOLOGIES, TOPOLOGY_LABELS, EraSet, Factors, Produced, Shape,
                                       Value, common_points, cutflow_efficiency, efficiency,
-                                      efficiency_factors, load_point_hist, make_era_sets,
+                                      efficiency_factors, interpolate_in_mn, load_point_hist, make_era_sets,
                                       no_cuts_breakdown, plot_cutflow_efficiency, plot_resolution,
                                       plot_shape_overlay, plot_vs_mn, produced_events, region_variables,
                                       set_points, shape_summary, sr_region, weight_factor_means)
@@ -79,6 +87,12 @@ class SetResults:
     shapes: dict[tuple, Shape] = field(default_factory=dict)
     skim_filters: dict[str, tuple[float, float]] = field(default_factory=dict)
     weight_factors: dict[tuple, dict[str, float]] = field(default_factory=dict)
+    # weighted no_cuts / sigma L over skim x filters (unweighted counts): ~1 when sigma and L here are
+    # the ones the analyzer normalized with (the pileup weights average to about 1)
+    normalization: dict[str, float] = field(default_factory=dict)
+
+
+NORMALIZATION_TOLERANCE = 0.10
 
 
 def parse_args() -> argparse.Namespace:
@@ -105,6 +119,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-o", "--output-dir", type=Path, default=None,
                         help="Write the plots and tables here instead (tables at the top, plots in "
                              "their subdirectories).")
+    parser.add_argument("--label", dest="labels", action="append", default=None,
+                        help="Legend label of each set, in --era order (repeat once per set).")
+    parser.add_argument("--name", default=None,
+                        help="Name of the output folder (default: <era>_vs_<era>...).")
+    parser.add_argument("--no-pdf", action="store_true",
+                        help="Do not compile the LaTeX preview of the efficiency tables.")
     add_output_args(parser)
     parser.add_argument("--verbose", action="store_true", help="DEBUG-level logging.")
     args = parser.parse_args()
@@ -122,6 +142,8 @@ def parse_args() -> argparse.Namespace:
     if len(set(specs)) < len(specs):
         parser.error("an (era, directory) pair is given twice")
     args.specs = specs
+    if args.labels is not None and len(args.labels) != len(specs):
+        parser.error(f"give one --label per --era ({len(specs)}), not {len(args.labels)}")
     args.points = parse_multi(args.points)
     filesets = {}
     for item in args.filesets or []:
@@ -208,9 +230,19 @@ def collect(era_set: EraSet, analyzer_root, filesets: dict[str, Path]) -> SetRes
                                                              MASS_VARIABLES[topology]))
                 if h is not None and h.values(flow=True).sum() > 0:
                     out.shapes[(point, topology, channel)] = shape_summary(h)
+        fa = next((out.factors[k] for k in out.factors if k[0] == point and k[1] == "resolved"), None)
+        if fa is not None and split is not None and split[0] * split[1] > 0:
+            out.normalization[point] = fa.no_cuts / (split[0] * split[1])
     if out.produced and not out.skim_filters:
         logging.warning("%s: no skimmed signal fileset counts, so no skim / filter split of no_cuts.",
                         era_set.label)
+    if out.normalization:
+        ratio = sorted(out.normalization.values())[len(out.normalization) // 2]
+        if abs(ratio - 1) > NORMALIZATION_TOLERANCE:
+            logging.warning("%s: weighted no_cuts / sigma L is %.3f of skim x filters (median over %d points): "
+                            "the cross sections read here are not the ones the analyzer normalized with. "
+                            "Its efficiencies are wrong by that factor; rerun the analyzer or pass --fileset "
+                            "with the cross sections it used.", era_set.label, ratio, len(out.normalization))
     logging.info("%s: %d point(s) from %s", era_set.label, len(out.produced), era_set.dir_name)
     return out
 
@@ -220,7 +252,7 @@ def write_efficiency_csv(path: Path, sets: list[EraSet], results: list[SetResult
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["set", "era", "dir", "point", "m_wr", "m_n", "topology", "channel", "produced_events",
-                    "efficiency", "efficiency_err", "ratio_to_ref", "ratio_err", "skim", "filters", "no_cuts",
+                    "efficiency", "efficiency_err", "ratio_to_ref", "ratio_err", "skim", "filters", "norm_check", "no_cuts",
                     "selection", "scale_factors", "n_eff", "median", "median_err", "q16", "q84", "sigma_eff",
                     "sigma_eff_err", "median_over_mwr", "sigma_eff_over_median", "width_ratio_to_ref"])
         for s, res in zip(sets, results):
@@ -232,7 +264,8 @@ def write_efficiency_csv(path: Path, sets: list[EraSet], results: list[SetResult
                 fa = res.factors.get(key)
                 row = [s.label, s.era, s.dir_name, point, wr, n, topology, channel,
                        fmt(res.produced[point].channels[channel], 6), fmt(value.value, 6), fmt(value.error, 3),
-                       fmt(ratio.value), fmt(ratio.error, 3), fmt(skim), fmt(filters)]
+                       fmt(ratio.value), fmt(ratio.error, 3), fmt(skim), fmt(filters),
+                       fmt(res.normalization.get(point))]
                 row += [fmt(fa.no_cuts), fmt(fa.selection), fmt(fa.scale_factors)] if fa else [""] * 3
                 shape = res.shapes.get(key)
                 if shape is None:
@@ -293,6 +326,15 @@ def summary_text(sets: list[EraSet], results: list[SetResults], common: list[str
     and width ratio."""
     ref, ref_res = sets[0], results[0]
     lines = [f"Reference: {ref.label} ({ref.dir_name})", ""]
+    for s, res in zip(sets, results):
+        if not res.normalization:
+            continue
+        ratio = sorted(res.normalization.values())[len(res.normalization) // 2]
+        if abs(ratio - 1) > NORMALIZATION_TOLERANCE:
+            lines += [f"WARNING {s.label} ({s.dir_name}): weighted no_cuts / sigma L = {ratio:.3f} x skim x "
+                      "filters (median over its points, expected ~1).",
+                      "  The cross sections used here are not the ones the analyzer normalized with: its "
+                      "efficiencies are off by that factor.", ""]
     if common and any(r.skim_filters for r in results):
         lines.append(f"Events kept before the selection, mean over the {len(common)} common point(s):")
         lines.append(f"  {'set':<48} {'skim':>6} {'filters':>8}")
@@ -334,6 +376,7 @@ def summary_text(sets: list[EraSet], results: list[SetResults], common: list[str
                     line += f" {shift:+9.2f}% {width:6.3f}"
                 lines.append(line)
         lines.append("")
+    lines += interpolated_summary(sets, results)
     lines += weight_factor_lines(sets, results, common)
     lines += ["eff.: acceptance x efficiency over the reference's (mean, min, max over the points).",
               "no_cuts, select., SFs: the same ratio for each factor of the efficiency (per point, their product",
@@ -344,6 +387,182 @@ def summary_text(sets: list[EraSet], results: list[SetResults], common: list[str
     return "\n".join(lines)
 
 
+def efficiency_rows(results: list[SetResults], topology: str, channel: str) -> list[tuple[str, list[Value]]]:
+    """(point, efficiency of each set) at the points every set has, by m_WR then m_N."""
+    points = {k[0] for r in results for k in r.efficiency if k[1:] == (topology, channel)}
+    keep = [p for p in sorted(points, key=mass_point)
+            if all((p, topology, channel) in r.efficiency for r in results)]
+    return [(p, [r.efficiency[(p, topology, channel)] for r in results]) for p in keep]
+
+
+def interpolated_rows(results: list[SetResults], index: int, topology: str,
+                      channel: str) -> list[tuple[str, Value, Value]]:
+    """(point, efficiency of set *index*, reference efficiency interpolated in m_N) at the set's points
+    whose m_N the reference lacks at that m_WR (another m_N grid); see interpolate_in_mn."""
+    grids: dict[int, list] = {}
+    for (p, t, c), v in results[0].efficiency.items():
+        if (t, c) == (topology, channel):
+            grids.setdefault(mass_point(p)[0], []).append((mass_point(p)[1], v))
+    rows = []
+    for (p, t, c), v in sorted(results[index].efficiency.items(), key=lambda kv: mass_point(kv[0][0])):
+        wr, n = mass_point(p)
+        if (t, c) != (topology, channel) or wr not in grids or n in dict(grids[wr]):
+            continue
+        ref = interpolate_in_mn(grids[wr], n)
+        if ref is not None:
+            rows.append((p, v, ref))
+    return rows
+
+
+def interpolated_summary(sets: list[EraSet], results: list[SetResults]) -> list[str]:
+    lines = []
+    for i, s in enumerate(sets[1:], 1):
+        block = []
+        for topology in EFFICIENCY_TOPOLOGIES:
+            for channel in CHANNELS:
+                ratios = [(v / r).value for _, v, r in interpolated_rows(results, i, topology, channel)]
+                ratios = [x for x in ratios if math.isfinite(x)]
+                if ratios:
+                    block.append(f"  {topology:<9} {channel:<7} {len(ratios):>6}  {mean(ratios):6.3f} "
+                                 f"{min(ratios):6.3f} {max(ratios):6.3f}")
+        if block:
+            lines += [f"{s.label} ({s.dir_name}) / reference interpolated in m_N, at its points off the "
+                      "reference's m_N grid:",
+                      f"  {'topology':<9} {'channel':<7} {'points':>6}  {'eff.':>6} {'min':>6} {'max':>6}", *block,
+                      "  (PCHIP interpolation of the reference efficiency at the same m_WR; the first and last "
+                      "m_N interval of its grid are left out.)", ""]
+    return lines
+
+
+def interpolated_tables_text(sets: list[EraSet], results: list[SetResults]) -> str:
+    lines = []
+    for i, s in enumerate(sets[1:], 1):
+        for topology in EFFICIENCY_TOPOLOGIES:
+            for channel in CHANNELS:
+                rows = interpolated_rows(results, i, topology, channel)
+                if not rows:
+                    continue
+                head = ["m_WR", "m_N", s.label, f"{sets[0].label} (interp.)", "ratio"]
+                body = [[str(mass_point(p)[0]), str(mass_point(p)[1]), f"{100 * v.value:.2f} +- {100 * v.error:.2f}",
+                         f"{100 * r.value:.2f}", f"{(v / r).value:.3f}"] for p, v, r in rows]
+                widths = [max(len(x[j]) for x in [head, *body]) for j in range(len(head))]
+                lines.append(f"{TOPOLOGY_LABELS[topology]}, {channel}: {s.label} at its own points, {sets[0].label} "
+                             "interpolated in m_N [%]")
+                lines.append("  ".join(h.rjust(w) for h, w in zip(head, widths)))
+                for j, cells in enumerate(body):
+                    if j and cells[0] != body[j - 1][0]:
+                        lines.append("")
+                    lines.append("  ".join(c.rjust(w) for c, w in zip(cells, widths)))
+                lines.append("")
+    return "\n".join(lines)
+
+
+def interpolated_tables_latex(sets: list[EraSet], results: list[SetResults], out_dir: Path,
+                              name: str) -> list[tuple[str, list[str]]]:
+    """Per non-reference set on another m_N grid: one table per (topology, channel, m_WR) of its points,
+    with the reference interpolated in m_N.  Returns the preview sections."""
+    topo_words = {"resolved": "resolved", "boosted": "boosted", COMBINED: "resolved plus boosted"}
+    sections = []
+    for i, s in enumerate(sets[1:], 1):
+        for topology in EFFICIENCY_TOPOLOGIES:
+            for channel in CHANNELS:
+                rows = interpolated_rows(results, i, topology, channel)
+                files = []
+                for wr in sorted({mass_point(p)[0] for p, _, _ in rows}):
+                    caption = (f"Signal acceptance $\\times$ efficiency (\\%) of {tex(s.label)} in the "
+                               f"{topo_words[topology]} {CHANNEL_LATEX[channel]} signal region"
+                               f"{'s' if topology == COMBINED else ''} for $m_{{W_R}} = {wr}$ GeV at its own $m_N$ "
+                               f"values, against {tex(sets[0].label)} interpolated in $m_N$ (monotone cubic, same "
+                               "$m_{W_R}$).")
+                    lines = [r"\begin{table}[htp]", f"  \\topcaption{{{caption}}}",
+                             f"  \\label{{tab:signal_eff_{name}_interp{i}_{topology}_{channel}_WR{wr}}}", r"  \centering",
+                             r"  \cmsTable{", r"    \begin{tabular}{r|cc|c}", r"      \hline",
+                             f"      $m_N$ [GeV] & {tex(s.label)} & {tex(sets[0].label)} (interp.) & ratio \\\\",
+                             r"      \hline"]
+                    for p, v, r in rows:
+                        if mass_point(p)[0] == wr:
+                            lines.append(f"      {mass_point(p)[1]} & {format_percent(v.value)} & "
+                                         f"{format_percent(r.value)} & {(v / r).value:.3f} \\\\")
+                    lines += [r"      \hline", r"    \end{tabular}", r"  }", r"\end{table}"]
+                    file_name = f"interp{i}_{topology}_{channel}_WR{wr}.tex"
+                    (out_dir / file_name).write_text("\n".join(lines) + "\n")
+                    files.append(file_name)
+                if files:
+                    sections.append((f"{tex(s.label)} vs.\\ {tex(sets[0].label)} (interpolated), "
+                                     f"{TOPOLOGY_LABELS[topology]}, {CHANNEL_LATEX[channel]}", files))
+    return sections
+
+
+def efficiency_tables_text(sets: list[EraSet], results: list[SetResults]) -> str:
+    """Acceptance x efficiency [%] with its statistical error for every set, and the ratio to the reference,
+    per topology and channel, at the points every set has."""
+    lines = []
+    for topology in EFFICIENCY_TOPOLOGIES:
+        for channel in CHANNELS:
+            rows = efficiency_rows(results, topology, channel)
+            if not rows:
+                continue
+            head = ["m_WR", "m_N"] + [s.label for s in sets] + [f"{s.label} / ref." for s in sets[1:]]
+            body = [[str(mass_point(p)[0]), str(mass_point(p)[1])]
+                    + [f"{100 * e.value:.2f} +- {100 * e.error:.2f}" for e in effs]
+                    + [f"{(e / effs[0]).value:.3f}" for e in effs[1:]] for p, effs in rows]
+            widths = [max(len(r[i]) for r in [head, *body]) for i in range(len(head))]
+            lines.append(f"{TOPOLOGY_LABELS[topology]}, {channel}: acceptance x efficiency [%] (stat.), "
+                         f"ratio to {sets[0].label}")
+            lines.append("  ".join(h.rjust(w) for h, w in zip(head, widths)))
+            for i, cells in enumerate(body):
+                if i and cells[0] != body[i - 1][0]:
+                    lines.append("")
+                lines.append("  ".join(c.rjust(w) for c, w in zip(cells, widths)))
+            lines.append("")
+    return "\n".join(lines)
+
+
+def tex(text: str) -> str:
+    """Plain text (labels, directory names) for LaTeX."""
+    for char in ("&", "%", "$", "#", "_"):
+        text = text.replace(char, "\\" + char)
+    return text
+
+
+def efficiency_tables_latex(sets: list[EraSet], results: list[SetResults], out_dir: Path,
+                            name: str) -> list[tuple[str, list[str]]]:
+    """One CMS-style LaTeX table per (topology, channel, m_WR) of the common points: the acceptance x
+    efficiency [%] of every set and its ratio to the reference.  Returns the preview sections."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    topo_words = {"resolved": "resolved", "boosted": "boosted", COMBINED: "resolved plus boosted"}
+    sections = []
+    for topology in EFFICIENCY_TOPOLOGIES:
+        for channel in CHANNELS:
+            rows = efficiency_rows(results, topology, channel)
+            files = []
+            for wr in sorted({mass_point(p)[0] for p, _ in rows}):
+                header = ([r"$m_N$ [GeV]"] + [tex(s.label) for s in sets]
+                          + [f"{tex(s.label)} / {tex(sets[0].label)}" for s in sets[1:]])
+                caption = (f"Signal acceptance $\\times$ efficiency (\\%) in the {topo_words[topology]} "
+                           f"{CHANNEL_LATEX[channel]} signal region{'s' if topology == COMBINED else ''} for "
+                           f"$m_{{W_R}} = {wr}$ GeV, and the ratio of each sample to {tex(sets[0].label)}: the "
+                           "signal-region yield, with every analyzer weight, over $\\sigma \\times L$ of the "
+                           "channel's lepton flavour.")
+                lines = [r"\begin{table}[htp]", f"  \\topcaption{{{caption}}}",
+                         f"  \\label{{tab:signal_eff_{name}_{topology}_{channel}_WR{wr}}}", r"  \centering",
+                         r"  \cmsTable{", f"    \\begin{{tabular}}{{r|{'c' * len(sets)}|{'c' * (len(sets) - 1)}}}",
+                         r"      \hline", "      " + " & ".join(header) + r" \\", r"      \hline"]
+                for p, effs in rows:
+                    if mass_point(p)[0] != wr:
+                        continue
+                    cells = ([str(mass_point(p)[1])] + [format_percent(e.value) for e in effs]
+                             + [f"{(e / effs[0]).value:.3f}" for e in effs[1:]])
+                    lines.append("      " + " & ".join(cells) + r" \\")
+                lines += [r"      \hline", r"    \end{tabular}", r"  }", r"\end{table}"]
+                file_name = f"eff_{topology}_{channel}_WR{wr}.tex"
+                (out_dir / file_name).write_text("\n".join(lines) + "\n")
+                files.append(file_name)
+            if files:
+                sections.append((f"{TOPOLOGY_LABELS[topology]}, {CHANNEL_LATEX[channel]}", files))
+    return sections
+
+
 def main():
     args = parse_args()
     setup_logging(args.verbose)
@@ -352,11 +571,14 @@ def main():
     except (FileNotFoundError, KeyError, ValueError) as exc:
         logging.error(str(exc))
         sys.exit(2)
+    if args.labels:
+        sets = [dataclasses.replace(s, label=label) for s, label in zip(sets, args.labels)]
 
     ref = sets[0]
     info = load_lumi(ref.era)
     # <era>_vs_<era>...; a set read from another directory than the reference's names it too
-    tag = "_vs_".join(s.era if s.dir_name == ref.dir_name else f"{s.era}-{s.dir_name}" for s in sets)
+    tag = args.name or "_vs_".join(s.era if s.dir_name == ref.dir_name else f"{s.era}-{s.dir_name}"
+                                   for s in sets)
     if args.output_dir:
         base = tables = args.output_dir
     else:
@@ -469,6 +691,17 @@ def main():
         w.writerow(["set", "era", "dir", "point", "topology", "channel", "cut", "efficiency", "efficiency_err"])
         for s, point, topology, channel, cut, v, e in cutflow_rows:
             w.writerow([s.label, s.era, s.dir_name, point, topology, channel, cut, fmt(v, 6), fmt(e, 3)])
+    interp_text = interpolated_tables_text(sets, results)
+    (tables / "efficiency_tables.txt").write_text(efficiency_tables_text(sets, results) + "\n"
+                                                  + (f"\n{interp_text}\n" if interp_text else ""))
+    sections = efficiency_tables_latex(sets, results, tables / "latex", tag)
+    sections += interpolated_tables_latex(sets, results, tables / "latex", tag)
+    if sections:
+        preview = write_preview(tables / "latex", sections,
+                                title=tex(" vs. ".join(s.label for s in sets)) + ": signal acceptance $\\times$ efficiency",
+                                notes=[f"Reference: {tex(ref.label)}. Points every sample has."])
+        if not args.no_pdf and shutil.which("pdflatex"):
+            compile_preview(preview)
     summary = summary_text(sets, results, common)
     (tables / "summary.txt").write_text(summary + "\n")
     print(summary)

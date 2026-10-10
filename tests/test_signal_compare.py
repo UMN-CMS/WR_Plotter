@@ -184,6 +184,15 @@ def test_overflow_fraction():
     assert sc.overflow_fraction(h, 80) == pytest.approx(4.5 / 12.5)
 
 
+def test_interpolate_in_mn():
+    line = [(m, sc.Value(0.1 + m / 10000, 0.01)) for m in (100, 300, 500, 700, 900)]
+    assert sc.interpolate_in_mn(line, 500) is line[2][1]                       # a grid point itself
+    assert sc.interpolate_in_mn(line, 400).value == pytest.approx(0.14)         # PCHIP is exact on a line
+    assert sc.interpolate_in_mn(line, 400).error == pytest.approx(0.01)
+    assert sc.interpolate_in_mn(line, 200) is None and sc.interpolate_in_mn(line, 800) is None  # end intervals
+    assert sc.interpolate_in_mn(line[:3], 400) is None                          # too few points
+
+
 def test_display_range_covers_the_peak():
     factor, (lo, hi) = sc.display_range([_gauss(4000, 200, 1.0), _gauss(4100, 200, 1.0)])
     assert lo <= 4000 - 2.85 * 200 and hi >= 4100 + 2.85 * 200    # 0.2 % / 99.8 % quantiles: 2.88 sigma
@@ -354,6 +363,61 @@ def test_main_writes_tables_and_plots(script, sets, analyzer, tmp_path, monkeypa
                  "cutflow/resolved_ee_WR4000_N2100.pdf",
                  "kinematics/wr_ee_resolved_sr/pt_leading_lepton_WR2000_N1100.pdf"):
         assert (out / name).is_file(), name
+
+
+def test_normalization_check_flags_cross_sections_changed_after_the_run(script, tmp_path, analyzer, monkeypatch):
+    """no_cuts / sigma L must equal skim x filters (0.8 x 0.9 here); a cross section changed after the
+    analyzer ran (x1.43, like an LO -> LO x k(NLO) update) is flagged."""
+    row0 = 0.72 * 2 * XSEC * LUMI["RunIII2024Summer24"] * 1000      # consistent with XSEC in the configs
+    for point in POINTS:
+        for dir_name in (DIR, DIR + "_b"):
+            _write(tmp_path, "RunIII2024Summer24", point, no_cuts=row0, dir_name=dir_name)
+    monkeypatch.setitem(script["main"].__globals__, "make_era_sets",
+                        functools.partial(sc.make_era_sets, working_dir=tmp_path))
+    argv = ["compare_signal_eras.py", "--era", f"RunIII2024Summer24={DIR}", "--era", f"RunIII2024Summer24={DIR}_b",
+            "--analyzer-root", str(analyzer), "--no-kinematics", "-o", str(tmp_path / "out")]
+    monkeypatch.setattr(sys, "argv", argv)
+    script["main"]()
+    assert "WARNING" not in (tmp_path / "out" / "summary.txt").read_text()
+    with open(tmp_path / "out" / "efficiency.csv", newline="") as f:
+        assert {round(float(r["norm_check"]), 3) for r in csv.DictReader(f)} == {1.0}
+
+    changed = tmp_path / "changed_xsec.json"
+    changed.write_text(json.dumps({
+        name: {"files": {}, "metadata": {"sample": name, "xsec": 1.43 * XSEC, "nevts": NEVTS, "genEventCount": GENERATED}}
+        for point in POINTS for name in (EL.format(*mass_point(point)), MU.format(*mass_point(point)))}))
+    monkeypatch.setattr(sys, "argv", argv + ["--fileset", f"RunIII2024Summer24={changed}", "-o", str(tmp_path / "out2")])
+    script["main"]()
+    summary = (tmp_path / "out2" / "summary.txt").read_text()
+    assert summary.count("WARNING") == 2 and "no_cuts / sigma L = 0.699" in summary
+
+
+def test_labels_name_and_efficiency_tables(script, sets, analyzer, tmp_path, monkeypatch):
+    monkeypatch.setitem(script["main"].__globals__, "make_era_sets",
+                        functools.partial(sc.make_era_sets, working_dir=tmp_path))
+    monkeypatch.setattr(sys, "argv", ["compare_signal_eras.py", "--era", f"RunIII2024Summer24={DIR}", "--era", "2022",
+                                      "--dir", DIR, "--analyzer-root", str(analyzer), "--label", "2024 private",
+                                      "--label", "2022 (both eras)", "--name", "my_comparison", "--no-kinematics",
+                                      "--no-pdf", "--local-plots"])
+    monkeypatch.setitem(script["main"].__globals__, "repo_root", lambda: tmp_path)
+    monkeypatch.setitem(script["main"].__globals__, "plots_base",
+                        lambda run, year, era, subdir, local: tmp_path / "plots")
+    script["main"]()
+    tables = tmp_path / "tables" / "Run3" / "2024" / "RunIII2024Summer24" / DIR / "signal_compare" / "my_comparison"
+    text = (tables / "efficiency_tables.txt").read_text()
+    assert "2024 private" in text and "2022 (both eras) / ref." in text
+    # 2022 has twice the 2024 efficiency at every point (see the sets fixture)
+    assert text.count("2.000") == 2 * 3 * 2          # points x topologies (incl. combined) x channels
+    latex = tables / "latex"
+    assert sorted(p.name for p in latex.glob("eff_*.tex"))[:2] == ["eff_boosted_ee_WR2000.tex", "eff_boosted_ee_WR4000.tex"]
+    table = (latex / "eff_resolved_mumu_WR4000.tex").read_text()
+    assert r"\label{tab:signal_eff_my_comparison_resolved_mumu_WR4000}" in table
+    assert "2024 private / 2024 private" not in table and "2022 (both eras) / 2024 private" in table
+    assert r"\input{eff_resolved_ee_WR2000.tex}" in (latex / "preview.tex").read_text()
+    assert "2024 private" in (tables / "summary.txt").read_text()
+    with pytest.raises(SystemExit):
+        monkeypatch.setattr(sys, "argv", ["compare_signal_eras.py", "--era", "2022", "--era", "2023", "--label", "one"])
+        script["main"]()
 
 
 def test_main_refuses_a_single_era(script, monkeypatch):

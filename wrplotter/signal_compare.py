@@ -560,6 +560,25 @@ def shape_summary(h: Hist) -> Shape:
     )
 
 
+def interpolate_in_mn(points: Sequence[tuple[int, Value]], m_n: int) -> Value | None:
+    """A quantity known at the m_N values of *points* (one m_WR), at *m_n*.
+
+    The value itself at a grid point; else a monotone cubic (PCHIP) interpolation in m_N, with the
+    error interpolated linearly.  None in the grid's first and last interval, where the efficiency
+    curves are too steep to interpolate (light N, and N near m_WR), and for fewer than four points.
+    For comparing samples made on different m_N grids (UL18 official vs the pre-legacy scan).
+    """
+    pts = sorted(points, key=lambda x: x[0])
+    xs = [m for m, _ in pts]
+    if m_n in xs:
+        return pts[xs.index(m_n)][1]
+    if len(pts) < 4 or not xs[1] < m_n < xs[-2]:
+        return None
+    from scipy.interpolate import PchipInterpolator
+    value = float(PchipInterpolator(xs, [v.value for _, v in pts])(m_n))
+    return Value(value, float(np.interp(m_n, xs, [v.error for _, v in pts])))
+
+
 def display_range(hists: Sequence[Hist], *, target_bins: int = 40,
                   coverage: tuple[float, float] = (0.002, 0.998)) -> tuple[int, tuple[float, float]]:
     """(rebin factor, x range) that shows the bulk of every histogram in about *target_bins* bins.
@@ -676,12 +695,14 @@ def plot_shape_overlay(entries: Sequence[tuple[EraSet, Hist]], *, xlabel: str, t
 def plot_vs_mn(series: Sequence[tuple[EraSet, list[tuple[int, Value]]]], *, ylabel: str, text: str,
                percent: bool = False, ratio_ylim: tuple[float, float] = (0.7, 1.3),
                ylim: tuple[float, float] | None = None) -> Figure:
-    """A quantity vs m_N for each set (points with errors, joined), with the ratio to the first set
-    at the m_N values both have."""
+    """A quantity vs m_N for each set (points with errors, joined), with the ratio to the first set:
+    filled at the m_N values both have, open where the first set is interpolated in m_N
+    (:func:`interpolate_in_mn`, sets on another m_N grid)."""
     fig, (ax, rax) = _figure()
     scale = 100.0 if percent else 1.0
     ref = dict(series[0][1])
     shift = 0.0
+    interpolated = False
     for i, (era_set, points) in enumerate(series):
         if not points:
             continue
@@ -692,13 +713,23 @@ def plot_vs_mn(series: Sequence[tuple[EraSet, list[tuple[int, Value]]]], *, ylab
         ax.errorbar(mn, val, yerr=err, color=st["color"], marker=st["marker"], markersize=6, lw=1.5,
                     capsize=2, label=era_set.label)
         if i:
+            spread = (max(ref) - min(ref)) if len(ref) > 1 else 1.0
+            shift = 0.004 * spread * (i - (len(series) - 1) / 2)
             pairs = [(m, v / ref[m]) for m, v in points if m in ref]
             if pairs:
-                spread = (max(ref) - min(ref)) if len(ref) > 1 else 1.0
-                shift = 0.004 * spread * (i - (len(series) - 1) / 2)
                 rax.errorbar(np.array([m for m, _ in pairs]) + shift, [r.value for _, r in pairs],
                              yerr=[r.error for _, r in pairs], color=st["color"], marker=st["marker"],
                              markersize=5, lw=0, elinewidth=1.5, capsize=2)
+            between = [(m, v / r) for m, v in points if m not in ref
+                       and (r := interpolate_in_mn(series[0][1], m)) is not None]
+            if between:
+                interpolated = True
+                rax.errorbar(np.array([m for m, _ in between]) + shift, [r.value for _, r in between],
+                             yerr=[r.error for _, r in between], color=st["color"], marker=st["marker"],
+                             mfc="white", markersize=5, lw=0, elinewidth=1.0, capsize=2)
+    if interpolated:
+        rax.text(0.98, 0.06, "open: reference interpolated in $m_N$", transform=rax.transAxes, ha="right",
+                 fontsize=11)
     if ylim is not None:
         ax.set_ylim(*ylim)
     else:
