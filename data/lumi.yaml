@@ -17,10 +17,20 @@ _run3_signals: &run3_signals
   cutflow_signals_resolved: [WR2000_N1100, WR4000_N2100, WR6000_N3100]
   cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
 
+RunIISummer20UL17:
+  run: RunII
+  year: "2017"
+  lumi: 42.04    # processed luminosity of the skims_v2 data (brilcalc normtag_PHYSICS; e 42.063 / mu 42.016; see WrCoffea wrcoffea/config.yaml)
+  com: 13
+  default_signal_resolved: signal_WR4000_N2100
+  default_signal_boosted: signal_WR4000_N100
+  cutflow_signals_resolved: [WR2000_N1100, WR4000_N2100, WR6000_N3100]
+  cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
+
 RunIISummer20UL18:
   run: RunII
   year: "2018"
-  lumi: 59.832422397
+  lumi: 59.52    # processed luminosity of the skims_v2 data (brilcalc normtag_PHYSICS; e 59.500 / mu 59.544; was the published 59.83 before 2026-10-10)
   com: 13
   default_signal_resolved: signal_WR4000_N2100
   default_signal_boosted: signal_WR4000_N100
