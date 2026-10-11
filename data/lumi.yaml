@@ -17,6 +17,26 @@ _run3_signals: &run3_signals
   cutflow_signals_resolved: [WR2000_N1100, WR4000_N2100, WR6000_N3100]
   cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
 
+RunIISummer20UL16APV:
+  run: RunII
+  year: "2016"
+  lumi: 19.50    # processed luminosity of the skims_v2 data (brilcalc normtag_PHYSICS; e 19.497 / mu 19.495)
+  com: 13
+  default_signal_resolved: signal_WR4000_N2100
+  default_signal_boosted: signal_WR4000_N100
+  cutflow_signals_resolved: [WR2000_N1100, WR4000_N2100, WR6000_N3100]
+  cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
+
+RunIISummer20UL16:
+  run: RunII
+  year: "2016"
+  lumi: 16.81    # processed luminosity of the skims_v2 data (brilcalc normtag_PHYSICS; e 16.811 / mu 16.811)
+  com: 13
+  default_signal_resolved: signal_WR4000_N2100
+  default_signal_boosted: signal_WR4000_N100
+  cutflow_signals_resolved: [WR2000_N1100, WR4000_N2100, WR6000_N3100]
+  cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
+
 RunIISummer20UL17:
   run: RunII
   year: "2017"
