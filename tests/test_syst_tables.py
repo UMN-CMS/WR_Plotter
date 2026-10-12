@@ -88,8 +88,10 @@ def test_yield_changes_per_process_and_total(inputs):
     table = _table(inputs)
     by_key = {p.key: p for p in table.processes}
     assert [p.key for p in table.processes] == ["dy", "ttbar", TOTAL_KEY, "signal_WR4000_N2100"]
-    # pdf: no members anywhere; muonidsf: equal to the nominal everywhere (no effect in this region)
-    assert table.sources == ["lumi", "jes", "scale", "dyzptew1"]
+    # pdf: no members anywhere (absent); muonidsf: carried by ttbar's file but equal to the nominal
+    # everywhere (a dash row)
+    assert table.sources == ["lumi", "muonidsf", "jes", "scale", "dyzptew1"]
+    assert table.absent == ["pdf"]
     assert by_key["ttbar"].effective("muonidsf") is None and "muonidsf" in by_key["ttbar"].variations
     np.testing.assert_allclose(by_key["dy"].yield_change("jes"), (10.0, -10.0))
     np.testing.assert_allclose(by_key["ttbar"].yield_change("jes"), (5.0, -5.0))
@@ -109,9 +111,21 @@ def test_max_bin_change_and_missing(inputs):
     np.testing.assert_allclose(dy.max_bin_change("scale"), 30.0)         # last bin, muf down 10 -> 7
     np.testing.assert_allclose(dy.max_bin_change("dyzptew1"), 20.0)
     assert dy.max_bin_change("lumi") is None
-    assert table.missing(dy) == ["lumi"]
+    assert table.missing(dy) == ["lumi", "muonidsf"]
     tt = next(p for p in table.processes if p.key == "ttbar")
-    assert table.missing(tt) == ["lumi", "scale", "dyzptew1"]
+    assert table.missing(tt) == ["lumi", "muonidsf", "scale", "dyzptew1"]
+
+
+def test_formats_keep_dash_rows_and_name_the_absent_sources(inputs):
+    table = _table(inputs)
+    text, md = format_text(table), format_markdown(table)
+    tex = format_latex(table, era=ERA, lumi=109.7, year="2024")
+    for out in (text, md, tex):
+        assert f"Not in these files: {source_label('pdf')}." in out
+    # the ttbar muon ID row is all dashes
+    row = next(l for l in text.splitlines() if l.startswith(source_label("muonidsf")))
+    assert row.split()[-1] == "-" and "/" not in row
+    assert source_label("pdf") not in text.split("Yield")[1]
 
 
 def test_rebinning_applies_before_the_changes(inputs):

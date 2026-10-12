@@ -9,8 +9,10 @@ binning the plots (and the datacards) use.  The variations come from
 source missing from a file leaves that file's nominal in place, composite
 sources are envelopes, and ``pdf`` / ``alphas`` are formed from the PDF
 members at the table's binning.  A source whose variations equal the nominal
-(the analyzer produced it for other regions or samples only) does not affect
-the process and is shown as a dash.
+(the analyzer produced it for other regions or samples only, or as a
+placeholder) does not affect the process and is shown as a dash; a source the
+files carry stays in the table even as a row of dashes, and the sources no
+file of the table carries are named below the legend.
 
 Outputs: plain text, Markdown, CMS-style LaTeX and a long-format CSV
 (``bin/make_systematics_tables.py``).
@@ -38,6 +40,13 @@ logger = logging.getLogger(__name__)
 TOTAL_KEY = "total_bkg"
 NO_EFFECT = "-"
 LEGEND = f"{NO_EFFECT}: the source does not affect that process here (no variation, or one equal to the nominal)."
+
+
+def absent_note(table: "SystTable") -> str:
+    """The sources no file of the table carries (not produced for this era or sample set), or ''."""
+    if not table.absent:
+        return ""
+    return "Not in these files: " + ", ".join(source_label(s) for s in table.absent) + "."
 
 # readable names of the analyzer's sources (lower-cased labels), for the tables
 SOURCE_LABELS = {
@@ -96,6 +105,10 @@ class ProcessSysts:
     def yield_(self) -> float:
         return hist_yield(self.nominal, self.binning)
 
+    def present(self, source: str) -> bool:
+        """True when the files carry up/down variations of *source* for this process."""
+        return bool(self.variations.get(source))
+
     def effective(self, source: str) -> dict[str, Hist] | None:
         """The up/down pair of *source* when it moves this process, else None."""
         dirs = self.variations.get(source)
@@ -136,7 +149,8 @@ class SystTable:
     variable: str
     binning: Binning
     processes: list[ProcessSysts]
-    sources: list[str]            # sources that move at least one process, in table order
+    sources: list[str]            # sources the files carry for at least one process, in table order
+    absent: list[str] = field(default_factory=list)   # requested sources no file of the table carries
 
     @property
     def backgrounds(self) -> list[ProcessSysts]:
@@ -211,8 +225,11 @@ def build_table(region: Region, variable: str, *, inputs: Inputs, groups: Sequen
             continue
         point = sample.removeprefix("signal_")
         processes.append(ProcessSysts(sample, point, _signal_tex(point), nominal, variations, binning))
-    sources = [s for s in systematics if any(p.effective(s) is not None for p in processes)]
-    return SystTable(region, variable, binning, processes, sources)
+    # a source the files carry stays in the table even where it moves nothing (a dash row shows a
+    # produced variation equal to the nominal, such as a placeholder); one no file carries is named apart
+    sources = [s for s in systematics if any(p.present(s) for p in processes)]
+    absent = [s for s in systematics if s not in sources]
+    return SystTable(region, variable, binning, processes, sources, absent)
 
 
 def _signal_tex(point: str) -> str:
@@ -248,7 +265,7 @@ def format_text(table: SystTable) -> str:
     """Fixed-width table: rows = sources, columns = processes (up / down in percent)."""
     w0 = max(len(source_label(s)) for s in table.sources) + 2 if table.sources else 10
     w = max(16, max(len(p.label) for p in table.processes) + 2)
-    lines = [_title(table), LEGEND, ""]
+    lines = [_title(table), LEGEND] + ([absent_note(table)] if table.absent else []) + [""]
     header = f"{'Source':<{w0}}" + "".join(f"{p.label:>{w}}" for p in table.processes)
     lines += [f"{'Yield':<{w0}}" + "".join(f"{p.yield_:>{w}.2f}" for p in table.processes), header,
               "-" * len(header)]
@@ -263,7 +280,7 @@ def format_text(table: SystTable) -> str:
 
 def format_markdown(table: SystTable) -> str:
     lines = [f"### {table.region.name} / {table.variable}", "",
-             f"Relative change of the yield (%) under each variation, up / down. {LEGEND}", "",
+             f"Relative change of the yield (%) under each variation, up / down. {LEGEND} {absent_note(table)}".rstrip(), "",
              "| Source | " + " | ".join(p.label for p in table.processes) + " |",
              "|---|" + "---:|" * len(table.processes),
              "| Yield | " + " | ".join(f"{p.yield_:.2f}" for p in table.processes) + " |"]
@@ -299,7 +316,8 @@ def format_latex(table: SystTable, *, era: str, lumi: float, year: str) -> str:
                f"under each systematic variation, up\\,/\\,down, at the fit binning of "
                f"{_tex_escape(table.variable)}. Signal columns show $(m_{{W_R}},\\,m_{{N}})$ in GeV. "
                f"Normalized to ${lumi:.1f}\\,\\mathrm{{fb}}^{{-1}}$ ({year}). A dash: the source does not "
-               "affect that process.")
+               "affect that process." + (f" Not in these files: {_tex_escape(absent_note(table)[len('Not in these files: '):])}"
+                                         if table.absent else ""))
     lines = [r"\begin{table}[htp]", f"  \\topcaption{{{caption}}}",
              f"  \\label{{tab:syst_{table.region.name}_{year}}}", r"  \centering", r"  \cmsTable{",
              f"    \\begin{{tabular}}{{{col_spec}}}", r"      \hline",
