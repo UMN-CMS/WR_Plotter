@@ -116,7 +116,11 @@ def _dy_datasets(manifest: dict) -> list[str]:
 
 
 def detect_dy_tag(root_path: str | Path) -> str | None:
-    """The DY sample whose dataset pattern matches every dataset in the file, if unique."""
+    """The DY sample whose dataset pattern matches every dataset in the file, if unique.
+
+    Samples sharing a pattern (lo_ht and lo_ht_noreweight) count as one; the
+    first listed is returned.
+    """
     datasets = _dy_datasets(read_manifest(root_path) or {})
     if not datasets:
         return None
@@ -124,7 +128,8 @@ def detect_dy_tag(root_path: str | Path) -> str | None:
     matches = [tag for tag, info in samples.items()
                if info.get("datasets")
                and all(re.search(info["datasets"], d) for d in datasets)]
-    return matches[0] if len(matches) == 1 else None
+    patterns = {samples[tag]["datasets"] for tag in matches}
+    return matches[0] if len(patterns) == 1 else None
 
 
 def resolve_dy(era: str, dir_name: str, spec: str | None = None,
@@ -142,24 +147,25 @@ def resolve_dy(era: str, dir_name: str, spec: str | None = None,
         raise ValueError(f"Unknown DY sample '{tag}'. Known: {', '.join(sorted(samples))} "
                          "(data/dy_samples.yaml).")
 
+    info = samples[tag]
     sub_dir = explicit or dy_dir_name(dir_name, tag)
     dirs, _ = input_dirs_for_era(era, working_dir or repo_root(), sub_dir)
     missing = [str(d) for d in dirs if not root_file(d, DY_SAMPLE).is_file()]
     if missing:
+        run = info.get("analyzer_args") or f"--dy {tag}"
         raise FileNotFoundError(
             f"No WRAnalyzer_{DY_SAMPLE}.root for DY sample '{tag}' in {missing}. "
-            f"Run the analyzer with --dy {tag} --dir {sub_dir}, or point to it with "
+            f"Run the analyzer with {run} --dir {sub_dir}, or point to it with "
             f"--dy {tag}=<dir>."
         )
     for d in dirs:
         found = detect_dy_tag(root_file(d, DY_SAMPLE))
-        if found is not None and found != tag:
+        if found is not None and samples[found]["datasets"] != info.get("datasets"):
             raise ValueError(
                 f"{root_file(d, DY_SAMPLE)} holds the '{found}' DY sample, not '{tag}' "
                 "(dataset names in its manifest)."
             )
 
-    info = samples[tag]
     return DYSample(tag=tag, label=str(info.get("label", tag)),
                     color=str(info.get("color", "#000000")), dirs=tuple(dirs))
 

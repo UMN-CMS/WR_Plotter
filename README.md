@@ -181,6 +181,9 @@ identified by its directory. `--dy TAG` (`make_stackplots.py`, `compare_dy.py`, 
 - any other sample is read from `<dir>_<tag>_dy`, e.g. `20261008_skims_v2_lo_inc_dy`;
 - `--dy TAG=DIR` reads it from another directory.
 
+`lo_ht_noreweight` is not an analyzer tag: it is `lo_ht` run with `--no-dy-zpt-reweight` (no Z-pT
+reweight, no jet-pT reshape) into `<dir>_lo_ht_noreweight_dy`.
+
 Every other sample always comes from `--dir`. A directory whose DYJets manifest lists the datasets
 of a different DY sample is refused. Repeat `--dy` (or comma-separate) to make one set per sample:
 ```bash

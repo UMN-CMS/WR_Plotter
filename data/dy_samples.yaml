@@ -9,6 +9,10 @@
 # `datasets` is a regex searched in the dataset names recorded in the file's manifest
 # (WRAnalyzer_DYJets_systematics.json).  A directory whose DYJets file holds a different
 # sample than the tag claims is refused.  Patterns follow the Run 3 dataset names.
+#
+# An entry with `analyzer_args` is not an analyzer --dy tag: it is a sample's datasets made
+# with other analyzer options (it shares that sample's pattern).  The manifest does not record
+# those options, so the plotter cannot check them; the directory name is the only record.
 
 default: lo_ht
 
@@ -37,3 +41,9 @@ samples:
     label: "NLO $p_{T}^{\\ell\\ell}$-binned"
     color: "#a96b59"
     datasets: "DYto2L-2Jets_Bin-MLL-50-PTLL-"
+  lo_ht_noreweight:
+    # lo_ht without the DY Z-pT reweight and the jet-pT reshape (the flag turns off both)
+    label: "LO HT-binned, not reweighted"
+    color: "#717581"
+    datasets: "DYto2L-4Jets_Bin-HT-"
+    analyzer_args: "--no-dy-zpt-reweight"

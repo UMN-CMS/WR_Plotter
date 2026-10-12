@@ -43,6 +43,10 @@ cd WR_Plotter
   same `--dir`. `RunIII2025Summer25` is not in `data/lumi.yaml` yet, so the plotter does not take it.
 - **DY sample.** The default is the analyzer's default DY sample (LO HT-binned). `--dy TAG` reads
   another variant from `<dir>_<TAG>_dy`, or `--dy TAG=DIR` from an explicit directory.
+  `lo_ht_noreweight` is the default sample without the DY Z-pT reweight and jet-pT reshape; make it
+  with `bin/run_analysis.py <era> DYJets --no-dy-zpt-reweight --dir <dir>_lo_ht_noreweight_dy`
+  (same analyzer version as `<dir>`), then `--dy lo_ht,lo_ht_noreweight`. Nothing checks that the
+  flag was set: the directory name is the only record.
 - **Binning.** The plot settings (`data/plot_settings/`) follow the Run 2 analysis: the m(W_R)
   observables use the variable fit-bin edges and are drawn as events per bin. The systematics
   tables use the same binning, so their numbers are the ones the datacards see.

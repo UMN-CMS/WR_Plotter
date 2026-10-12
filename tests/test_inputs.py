@@ -81,6 +81,23 @@ class TestDYResolution:
         with pytest.raises(ValueError, match="holds the 'lo_inc' DY sample"):
             make_inputs(ERA, DIR, [f"lo_ht={DIR}_lo_inc_dy"], working_dir=analysis_set)
 
+    def test_sample_sharing_datasets(self, analysis_set):
+        """lo_ht_noreweight: the lo_ht datasets made with other analyzer options."""
+        noreweight_dir = _era_dir(analysis_set, f"{DIR}_lo_ht_noreweight_dy")
+        _write_sample(noreweight_dir, "DYJets", datasets=LO_HT)
+        lo_ht, noreweight = make_inputs(ERA, DIR, ["lo_ht", "lo_ht_noreweight"],
+                                        working_dir=analysis_set)
+        assert noreweight.files_for("DYJets") == [root_file(noreweight_dir, "DYJets")]
+        assert noreweight.files_for("tt_tW") == lo_ht.files_for("tt_tW")
+        # Another sample's datasets are still refused.
+        with pytest.raises(ValueError, match="holds the 'lo_inc' DY sample"):
+            make_inputs(ERA, DIR, [f"lo_ht_noreweight={DIR}_lo_inc_dy"], working_dir=analysis_set)
+
+    def test_missing_dy_file_names_the_analyzer_options(self, analysis_set):
+        with pytest.raises(FileNotFoundError,
+                           match=f"--no-dy-zpt-reweight --dir {DIR}_lo_ht_noreweight_dy"):
+            make_inputs(ERA, DIR, ["lo_ht_noreweight"], working_dir=analysis_set)
+
     def test_unknown_tag(self, analysis_set):
         with pytest.raises(ValueError, match="Unknown DY sample"):
             make_inputs(ERA, DIR, ["nnlo"], working_dir=analysis_set)
