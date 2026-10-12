@@ -3,9 +3,7 @@
 What this page answers: which WR_Plotter command makes which plot or table from the analyzer's
 output, and where the results go. The plotter is the `WR_Plotter/` submodule (branch `billyDev`);
 its own [README](../README.md) has the options of every script except
-`make_systematics_tables.py`, which only this page documents, and
-[signal_fitting/README.md](../signal_fitting/README.md) and
-[LIMITS.md](../signal_fitting/LIMITS.md) cover the fits and the limits.
+`make_systematics_tables.py`, which only this page documents.
 Verified on 2026-10-12.
 
 Every command runs from `WR_Plotter/` with the analyzer's virtual environment and takes `--era`

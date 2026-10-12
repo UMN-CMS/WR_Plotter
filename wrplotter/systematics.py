@@ -40,7 +40,7 @@ from .pdf import PDF_SOURCES, pdf_variations
 logger = logging.getLogger(__name__)
 
 # composite systematic sources: one band from the envelope of several
-# correlated analyzer variations (kept in step with signal_fitting/shared/syst_band.ENVELOPES)
+# correlated analyzer variations
 SYST_ENVELOPES = {"scale": ("scalemur", "scalemuf", "scalemurf")}
 
 DIRECTIONS = ("up", "down")
