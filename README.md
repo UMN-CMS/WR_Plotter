@@ -2,6 +2,8 @@
 
 Plotting tools for the WR analysis. Takes ROOT histogram files produced by the WrCoffea analyzer and generates stacked MC + data plots, DY comparison overlays, signal closure studies, and transfer factor plots.
 
+[docs/plotting.md](docs/plotting.md) is the one-page overview: which command makes which plot or table, where the outputs go, and the systematics tables (`make_systematics_tables.py`), which this README does not cover.
+
 ## Table of Contents
 - [Quick Start](#quick-start)
   - [Prerequisites](#prerequisites)
