@@ -1,11 +1,17 @@
-# Systematic uncertainty names used for up/down envelope plots.
-# Each entry corresponds to a pair of histogram keys:
+# Systematic uncertainty sources used for the band of the stack plots and the
+# systematics tables (bin/make_systematics_tables.py).  Each name is the
+# analyzer's source label lower-cased (wrcoffea/systematics.py), i.e. the pair
+# of histogram folders
 #   syst_{name}up_{region}/...  and  syst_{name}down_{region}/...
-#
-# Weight-based systematics:
+# A source without a folder in a file does not affect that sample or region
+# (the manifest says so); its nominal stands in.  The order here is the row
+# order of the tables.
 systematics:
+  # Normalization and event weights
   - lumi
   - pileup
+  - l1prefiring            # Run 2 UL only (NanoAOD L1PreFiringWeight)
+  # Lepton scale factors (tight leptons; "loose" = the boosted partner)
   - muonrecosf
   - muonidsf
   - muonisosf
@@ -16,13 +22,24 @@ systematics:
   - electronidsf
   - electrontrigsf
   - looseelectronrecosf
-  # Shape systematics (re-run selections with shifted kinematics):
+  - lsfsf                  # lepton-subjet-fraction SF (boosted SR / flavour CRs)
+  # Shape systematics (re-run selections with shifted kinematics)
   - jer
   - jes
   - elescale
   - elesmear
   - muscale
   - musmear
+  # Drell-Yan modelling (DY sample only): the Z-pT reweight's QCD and EW
+  # nuisances and the jet-pT reshape
+  - dyzptqcdscale
+  - dyzptqcdpdf
+  - dyzptqcdalphas
+  - dyzptew1
+  - dyzptew2
+  - dyzptew3
+  - dyreshapestat
+  - dyreshapechannel
   # Theory (weight-based, normalized per dataset so only acceptance/shape move):
   # "scale" is a composite: envelope of scalemur / scalemuf / scalemurf
   - scale
