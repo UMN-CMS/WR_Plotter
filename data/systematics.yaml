@@ -26,6 +26,8 @@ systematics:
   # Shape systematics (re-run selections with shifted kinematics)
   - jer
   - jes
+  - jms                    # soft-drop mass scale (boosted regions)
+  - jmr                    # soft-drop mass resolution (boosted regions)
   - elescale
   - elesmear
   - muscale
