@@ -38,6 +38,8 @@ samples:
     color: "#94a4a2"
     datasets: "DYto2(E|Mu)-2Jets_Bin-[0-9]J-"
   nlo_ptll:
+    # not a DY prediction: the analyzer adds the pT(ll) slices unstitched (Run 3: open-ended,
+    # pT(ll) > 200 GeV counted 2-4 times, nothing below 100 GeV); see run_analysis.py
     label: "NLO $p_{T}^{\\ell\\ell}$-binned"
     color: "#a96b59"
     datasets: "DYto2L-2Jets_Bin-MLL-50-PTLL-"
@@ -47,3 +49,9 @@ samples:
     color: "#717581"
     datasets: "DYto2L-4Jets_Bin-HT-"
     analyzer_args: "--no-dy-zpt-reweight"
+  lo_ht_zptonly:
+    # lo_ht with the DY Z-pT reweight but without the jet-pT reshape
+    label: "LO HT-binned, Z $p_{T}$ reweight only"
+    color: "#b9ac70"
+    datasets: "DYto2L-4Jets_Bin-HT-"
+    analyzer_args: "--no-dy-reshape"

@@ -118,8 +118,8 @@ def _dy_datasets(manifest: dict) -> list[str]:
 def detect_dy_tag(root_path: str | Path) -> str | None:
     """The DY sample whose dataset pattern matches every dataset in the file, if unique.
 
-    Samples sharing a pattern (lo_ht and lo_ht_noreweight) count as one; the
-    first listed is returned.
+    Samples sharing a pattern (lo_ht, lo_ht_noreweight, lo_ht_zptonly) count as
+    one; the first listed is returned.
     """
     datasets = _dy_datasets(read_manifest(root_path) or {})
     if not datasets:
