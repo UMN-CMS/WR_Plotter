@@ -9,14 +9,18 @@ The variations are read exactly as for the stack-plot band and the systematics t
 dataset by the analyzer, so only the acceptance moves; the PDF and alpha_s shifts are formed
 from the stored members at the analysis binning.
 
-    <plots>/<Run>/<Year>/<Era>/<dir>/signal_theory/<topology>_<channel>_<line>.pdf
+--theory-dir is the analyzer set with the variations; --dir is the production whose signal_outputs folder
+receives the plots (default: the --theory-dir itself), so they sit next to that production's other signal plots.
+
+    <plots>/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_theory/<topology>_<channel>_<line>.pdf
         up / down change (%) of the SR yield vs m_WR for the points of one m_N line:
         ``mN100`` (the lightest m_N at each m_WR) and ``mNhalf`` (m_N closest to m_WR / 2)
-    tables/<Run>/<Year>/<Era>/<dir>/signal_theory/theory_uncertainties.csv
+    tables/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_theory/theory_uncertainties.csv
         every point, region and source: nominal yield, up and down change (%)
 
 Example:
-    python bin/plot_signal_theory_uncertainties.py --era RunIII2024Summer24 --dir 20261012_signal_theory --local-plots
+    python bin/plot_signal_theory_uncertainties.py --era RunIII2024Summer24 --dir 20261013_skims_v2 \
+        --theory-dir 20261013_signal_theory --local-plots
 """
 from __future__ import annotations
 
@@ -37,7 +41,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from wrplotter.cli_utils import add_era_args, add_output_args, setup_logging  # noqa: E402
 from wrplotter.config import load_lumi  # noqa: E402
 from wrplotter.inputs import make_inputs, mass_point  # noqa: E402
-from wrplotter.paths import plots_base, repo_root, save_figure  # noqa: E402
+from wrplotter.paths import SIGNAL_OUTPUTS, plots_base, repo_root, save_figure  # noqa: E402
 from wrplotter.plotting_helpers import FONT_SIZE_LEGEND, cms_label, fit_header  # noqa: E402
 from wrplotter.regions import regions_for_era  # noqa: E402
 from wrplotter.signal_compare import CHANNEL_LABELS, CHANNELS, COLORS, MARKERS, MASS_VARIABLES, TOPOLOGIES, TOPOLOGY_LABELS  # noqa: E402
@@ -52,6 +56,8 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     add_era_args(parser)
     add_output_args(parser)
+    parser.add_argument("--theory-dir", default=None,
+                        help="Analyzer set with the scale/pdf/ps variations (default: --dir).")
     parser.add_argument("-o", "--out", default=None, help="Write plots and the table under this directory instead.")
     return parser.parse_args(argv)
 
@@ -74,7 +80,7 @@ def main(argv=None) -> int:
     setup_logging(args.verbose)
     info = load_lumi(args.era)
     try:
-        (inputs,) = make_inputs(args.era, args.dir, with_dy=False)
+        (inputs,) = make_inputs(args.era, args.theory_dir or args.dir, with_dy=False)
     except (FileNotFoundError, ValueError) as exc:
         logging.error(str(exc))
         return 2
@@ -112,8 +118,10 @@ def main(argv=None) -> int:
     if args.out:
         plots, tables = Path(args.out) / "plots", Path(args.out) / "tables"
     else:
-        plots = plots_base(info["run"], info["year"], args.era, args.dir or None, local=args.local_plots) / "signal_theory"
-        tables = repo_root() / "tables" / info["run"] / info["year"] / args.era / (args.dir or "") / "signal_theory"
+        plots = (plots_base(info["run"], info["year"], args.era, args.dir or None, local=args.local_plots)
+                 / SIGNAL_OUTPUTS / "signal_theory")
+        tables = (repo_root() / "tables" / info["run"] / info["year"] / args.era / (args.dir or "")
+                  / SIGNAL_OUTPUTS / "signal_theory")
     tables.mkdir(parents=True, exist_ok=True)
     with open(tables / "theory_uncertainties.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=["point", "topology", "channel", "source", "nominal", "up_pct", "down_pct"])

@@ -41,6 +41,7 @@ from hist import Hist
 from .config import load_lumi
 from .cutflow import cut_label
 from .inputs import mass_point, read_manifest
+from .paths import SIGNAL_OUTPUTS, plots_base, repo_root
 from .plotting_helpers import FONT_SIZE_LEGEND, cms_label, fit_header
 from .signal_compare import (
     CHANNEL_LABELS, CHANNELS, COLORS, COMBINED, MARKERS, MASS_LABELS, MASS_VARIABLES, TOPOLOGIES,
@@ -91,8 +92,20 @@ VARIABLE_LABELS = {
 
 
 # ---------------------------------------------------------------------------
-# Inputs
+# Inputs and output folders
 # ---------------------------------------------------------------------------
+
+def signal_output_dirs(era: str, dir_name: str, part: str, *, local_plots: bool = False) -> tuple[Path, Path]:
+    """(plots, tables) folders of one part of a production's signal outputs:
+    ``<plots>/<Run>/<Year>/<Era>/<dir>/signal_outputs/<part>`` (EOS, ``plots/`` or ``outputs/``, as
+    :func:`wrplotter.paths.plots_base`) and ``tables/<Run>/<Year>/<Era>/<dir>/signal_outputs/<part>``."""
+    info = load_lumi(era)
+    plots = plots_base(info["run"], info["year"], era, dir_name or None, local=local_plots) / SIGNAL_OUTPUTS / part
+    tables = repo_root() / "tables" / info["run"] / info["year"] / era
+    tables = (tables / dir_name if dir_name else tables) / SIGNAL_OUTPUTS / part
+    return plots, tables
+
+
 
 def load_set(era: str, dir_name: str, working_dir: str | Path | None = None) -> EraSet:
     (era_set,) = make_era_sets([(era, dir_name)], working_dir)

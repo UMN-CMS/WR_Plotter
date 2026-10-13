@@ -21,7 +21,7 @@ Without --channel, the fixed-wr and wr-compare tables of ee and mumu are written
 as LaTeX, with all of them as text in signal_cutflows.txt and a preview.tex
 (compiled to preview.pdf when pdflatex is available):
 
-    tables/<Run>/<Year>/<Era>/<dir>/signal_cutflows/signal_<table>_<topology>_<channel>_<variant>.tex
+    tables/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_cutflows/signal_<table>_<topology>_<channel>_<variant>.tex
 
 With --channel, the fixed-wr tables of that channel are printed instead
 (--format and --mode override both defaults).
@@ -48,7 +48,7 @@ from wrplotter.cutflow import (CHANNEL_LATEX, CHANNEL_WORDS, EFFICIENCIES, Cutfl
                                cut_label, efficiency, format_count, format_percent, latex_count,
                                signal_cutflows, table_variant, write_preview)
 from wrplotter.inputs import Inputs, make_inputs, mass_point
-from wrplotter.paths import repo_root
+from wrplotter.paths import SIGNAL_OUTPUTS, repo_root
 
 MODES = ("fixed-wr", "fixed-n", "wr-compare", "channel-compare")
 CHANNELS = ("ee", "mumu")
@@ -251,7 +251,7 @@ def main():
         print("\n\n".join(format_text(t, eff, args.era) for t in tables for eff in variants))
     else:
         out_dir = (Path(args.output_dir) if args.output_dir else
-                   repo_root() / "tables" / run / year / args.era / args.dir / "signal_cutflows")
+                   repo_root() / "tables" / run / year / args.era / args.dir / SIGNAL_OUTPUTS / "signal_cutflows")
         out_dir.mkdir(parents=True, exist_ok=True)
         sections: dict[tuple[str, str], list[str]] = {}
         for table in tables:

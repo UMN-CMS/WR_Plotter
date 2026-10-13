@@ -18,6 +18,7 @@ Plotting tools for the WR analysis. Takes ROOT histogram files produced by the W
 - [Command Reference](#command-reference)
 - [Other Scripts](#other-scripts)
   - [make_cutflows.py](#make_cutflowspy)
+  - [Signal outputs](#signal-outputs)
   - [make_signal_cutflows.py](#make_signal_cutflowspy)
   - [compare_signal_eras.py](#compare_signal_eraspy)
   - [make_signal_plots.py](#make_signal_plotspy)
@@ -279,6 +280,19 @@ The cut sequence is read from the files. The data column comes from the channel'
 Weighted MC rows use the base event weight without lepton scale factors, so the last row sits a few
 percent above the signal-region histograms.
 
+### Signal outputs
+
+Every signal output of a production lives in one folder, `<plots>/<Run>/<Year>/<Era>/<dir>/signal_outputs/`, with
+the tables under `tables/<Run>/<Year>/<Era>/<dir>/signal_outputs/` (tables never go to EOS):
+
+| Subfolder | Made by |
+|---|---|
+| `signal_plots/` | `make_signal_plots.py` (efficiencies, cross sections, mass shapes, kinematics, cutflow plots) |
+| `signal_theory/` | `plot_signal_theory_uncertainties.py` (scale, PDF, α_S, PS vs m_WR) |
+| `event_level/` | WrCoffea `scripts/signal_event_plots.py plot --era <era> --dir <dir>` (generator-level and object-level plots) |
+| `signal_cutflows/` | `make_signal_cutflows.py` (tables only) |
+| `signal_compare/<era>_vs_<era>.../` | `compare_signal_eras.py` (under the reference era's production) |
+
 ### make_signal_cutflows.py
 
 Signal-only cutflow tables: yields plus running and relative efficiencies (single-cut with `--onecut`)
@@ -301,9 +315,9 @@ python3 bin/make_signal_cutflows.py --era Run3 --dir 20261008_skims_v2 --channel
 ```
 Outputs (LaTeX; `-o` overrides the directory):
 ```
-tables/<Run>/<Year>/<Era>/<dir>/signal_cutflows/signal_<table>_<topology>_<channel>_<variant>.tex
-tables/<Run>/<Year>/<Era>/<dir>/signal_cutflows/signal_cutflows.txt     # every table as text
-tables/<Run>/<Year>/<Era>/<dir>/signal_cutflows/preview.pdf             # when pdflatex is available
+tables/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_cutflows/signal_<table>_<topology>_<channel>_<variant>.tex
+tables/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_cutflows/signal_cutflows.txt     # every table as text
+tables/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_cutflows/preview.pdf             # when pdflatex is available
 ```
 `--mode` and `--format` (`terminal`, `latex`) override the defaults above; `--efficiency running|relative`
 keeps only that efficiency. As in `make_cutflows.py`, the cut sequence and its labels come from the files
@@ -334,7 +348,7 @@ python3 bin/compare_signal_eras.py --era RunIISummer20UL18=<dir> --era 2022 --er
   (the analyzer's `event_weights/<region>/components`).
 - Mass peak: median, 16/84 % quantiles and σ_eff (half the narrowest interval holding 68.3 %).
 
-Outputs under `<plots>/<Run>/<Year>/<Era>/<dir>/signal_compare/<era>_vs_<era>.../` of the reference
+Outputs under `<plots>/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_compare/<era>_vs_<era>.../` of the reference
 (`-o DIR` writes plots and tables there instead):
 
 | Folder / file | Content |
@@ -344,7 +358,7 @@ Outputs under `<plots>/<Run>/<Year>/<Era>/<dir>/signal_compare/<era>_vs_<era>...
 | `mass/<region>/<point>.pdf` | SR mass of every point common to all sets, unit area |
 | `cutflow/<topology>_<channel>_<point>.pdf` | Efficiency after each cut (`--points`) |
 | `kinematics/<region>/<variable>_<point>.pdf` | The other SR variables, unit area (`--points`; `--no-kinematics` skips) |
-| `tables/.../signal_compare/<...>/efficiency.csv`, `scale_factors.csv`, `cutflow.csv`, `summary.txt` | The numbers; the summary averages each set's ratios (and those of the efficiency's factors) to the reference over the shared points, and lists the mean scale factors of every set |
+| `tables/.../signal_outputs/signal_compare/<...>/efficiency.csv`, `scale_factors.csv`, `cutflow.csv`, `summary.txt` | The numbers; the summary averages each set's ratios (and those of the efficiency's factors) to the reference over the shared points, and lists the mean scale factors of every set |
 | `tables/.../efficiency_tables.txt`, `latex/` | A × ε of every set and the ratios to the reference at the shared points: text with stat. errors, and CMS-style LaTeX tables per topology, channel and m_WR with `preview.pdf` (`--no-pdf` skips the compilation) |
 
 `--label` (once per `--era`) sets the legend labels and `--name` the output folder; two sets of one era (e.g.
@@ -360,7 +374,7 @@ Signal plots of one era from its signal files alone (the single-era counterpart 
 python3 bin/make_signal_plots.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --local-plots
 python3 bin/make_signal_plots.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --points WR4000_N2100 WR6000_N100 --local-plots
 ```
-Under `<plots>/<Run>/<Year>/<Era>/<dir>/signal_plots/`:
+Under `<plots>/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_plots/`:
 
 | Folder | Content |
 |---|---|
@@ -372,7 +386,7 @@ Under `<plots>/<Run>/<Year>/<Era>/<dir>/signal_plots/`:
 | `resolution/` | median / m_WR and σ_eff / median of the SR mass peak vs m_N |
 | `kinematics/<region>/`, `cutflow/` | the other SR variables (unit area) and the cumulative cutflow efficiency of `--points` (default: the `cutflow_signals` of `data/lumi.yaml`) |
 
-Tables under `tables/<...>/<dir>/signal_plots/`: `efficiency.csv` (per point and channel: A × ε, the CR fractions,
+Tables under `tables/<...>/<dir>/signal_outputs/signal_plots/`: `efficiency.csv` (per point and channel: A × ε, the CR fractions,
 the peak median and σ_eff) and `latex/signal_eff_<channel>_WR<m>.tex` with `preview.tex`. `-o DIR` writes everything
 under `DIR`; `--max-shapes N` limits the curves per mass plot; `--no-kinematics` skips the per-point plots.
 
@@ -382,10 +396,12 @@ The change of each signal region's yield under the QCD scale (envelope), PDF, α
 variations against m_WR (AN-19-083 Fig. 129), from a signal set made with `run_analysis.py ... Signal --systs scale
 pdf ps`. The weights are normalized per sample by the analyzer, so these are acceptance effects only:
 ```bash
-python3 bin/plot_signal_theory_uncertainties.py --era RunIII2024Summer24 --dir 20261012_signal_theory --local-plots
+python3 bin/plot_signal_theory_uncertainties.py --era RunIII2024Summer24 --dir 20261013_skims_v2 \
+    --theory-dir 20261013_signal_theory --local-plots
 ```
-Plots `<plots>/<...>/<dir>/signal_theory/<topology>_<channel>_<mN100|mNhalf>.pdf` (the lightest m_N at each m_WR,
-and m_N ≈ m_WR / 2); the table `tables/<...>/<dir>/signal_theory/theory_uncertainties.csv` holds every point, region
+`--theory-dir` is the set with the variations and `--dir` the production whose signal outputs get the plots
+(default: the `--theory-dir`). Plots `<plots>/<...>/<dir>/signal_outputs/signal_theory/<topology>_<channel>_<mN100|mNhalf>.pdf` (the lightest m_N at each m_WR,
+and m_N ≈ m_WR / 2); the table `tables/<...>/<dir>/signal_outputs/signal_theory/theory_uncertainties.csv` holds every point, region
 and source.
 
 ### compare_dy.py

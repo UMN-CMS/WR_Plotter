@@ -5,6 +5,10 @@ import tempfile
 from pathlib import Path
 from typing import Any, Optional
 
+# Every signal output of a production (signal plots, theory uncertainties, event-level plots, signal cutflow
+# tables, era comparisons) lives in <plots or tables>/<Run>/<Year>/<Era>/<dir>/signal_outputs/<part>/.
+SIGNAL_OUTPUTS = "signal_outputs"
+
 try:
     import yaml
 except ImportError:

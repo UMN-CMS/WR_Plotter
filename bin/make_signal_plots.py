@@ -4,7 +4,7 @@ kinematics and cutflows of every (m_WR, m_N) point the analysis set holds.  The 
 counterpart of compare_signal_eras.py (definitions in wrplotter/signal_compare.py and
 wrplotter/signal_plots.py).  Only the signal files are read, so a signal-only directory works.
 
-    <plots>/<Run>/<Year>/<Era>/<dir>/signal_plots/
+    <plots>/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_plots/
         efficiency/<channel>_WR<m>.pdf            A x eps vs m_N per m_WR: resolved SR, boosted SR, combined
                                                   (AN-19-083 App. B)
         efficiency_map/<topology>_<channel>.pdf   A x eps over the (m_WR, m_N) grid
@@ -16,7 +16,7 @@ wrplotter/signal_plots.py).  Only the signal files are read, so a signal-only di
         kinematics/<region>/<variable>.pdf        the other SR variables of the --points, unit area
         cutflow/<topology>_<channel>_WR<m>.pdf    cumulative efficiency after each cut of several m_N at one m_WR
         cutflow/<topology>_<channel>.pdf          the same for the --points
-    tables/<Run>/<Year>/<Era>/<dir>/signal_plots/
+    tables/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_plots/
         efficiency.csv                            per point and channel: A x eps (resolved, boosted, combined),
                                                   the CR fractions, the peak median and sigma_eff
         latex/signal_eff_<channel>_WR<m>.tex      A x eps tables per m_WR, with preview.tex
@@ -46,7 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from wrplotter.cli_utils import add_era_args, add_output_args, parse_multi, setup_logging  # noqa: E402
 from wrplotter.config import default_signals, load_lumi  # noqa: E402
 from wrplotter.inputs import mass_point  # noqa: E402
-from wrplotter.paths import repo_root, save_figure, plots_base  # noqa: E402
+from wrplotter.paths import SIGNAL_OUTPUTS, repo_root, save_figure, plots_base  # noqa: E402
 from wrplotter.signal_compare import (  # noqa: E402
     CHANNELS, MASS_VARIABLES, TOPOLOGIES, cutflow_efficiency, load_point_hist, set_points, signal_config_path,
 )
@@ -111,8 +111,10 @@ def main(argv=None) -> int:
         plots = Path(args.out) / "plots"
         tables = Path(args.out) / "tables"
     else:
-        plots = plots_base(info["run"], info["year"], args.era, args.dir or None, local=args.local_plots) / "signal_plots"
-        tables = repo_root() / "tables" / info["run"] / info["year"] / args.era / (args.dir or "") / "signal_plots"
+        plots = (plots_base(info["run"], info["year"], args.era, args.dir or None, local=args.local_plots)
+                 / SIGNAL_OUTPUTS / "signal_plots")
+        tables = (repo_root() / "tables" / info["run"] / info["year"] / args.era / (args.dir or "")
+                  / SIGNAL_OUTPUTS / "signal_plots")
     tables.mkdir(parents=True, exist_ok=True)
     n_saved = 0
 

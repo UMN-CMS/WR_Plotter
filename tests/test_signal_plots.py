@@ -133,3 +133,13 @@ def test_main_without_signal_files(script, tmp_path, monkeypatch):
     _era_dir(tmp_path, ERA).mkdir(parents=True)
     monkeypatch.setitem(script["main"].__globals__, "load_set", functools.partial(sp.load_set, working_dir=tmp_path))
     assert script["main"](["--era", ERA, "--dir", DIR, "-o", str(tmp_path / "out")]) == 2
+
+
+def test_signal_output_dirs(tmp_path, monkeypatch):
+    """Every signal output of a production goes under <dir>/signal_outputs/<part>, for plots and tables alike."""
+    monkeypatch.setattr(sp, "repo_root", lambda: tmp_path)
+    monkeypatch.setattr(sp, "plots_base",
+                        lambda run, year, era, subdir, local=False: tmp_path / "plots" / run / year / era / (subdir or ""))
+    plots, tables = sp.signal_output_dirs(ERA, "prod", "event_level")
+    assert plots == tmp_path / "plots" / "Run3" / "2024" / ERA / "prod" / "signal_outputs" / "event_level"
+    assert tables == tmp_path / "tables" / "Run3" / "2024" / ERA / "prod" / "signal_outputs" / "event_level"

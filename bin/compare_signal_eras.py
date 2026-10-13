@@ -7,7 +7,7 @@ The first is the reference of every ratio.  Only the signal files are read
 (WRAnalyzer_signal_WR<m>_N<m>.root with their manifests), so a signal-only
 directory works.  Definitions: wrplotter/signal_compare.py.
 
-    <plots>/<Run>/<Year>/<Era>/<dir>/signal_compare/<era>_vs_<era>.../   (reference era and dir)
+    <plots>/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_compare/<era>_vs_<era>.../   (reference era and dir)
         efficiency/<topology>_<channel>_WR<m>.pdf
             acceptance x efficiency vs m_N at each m_WR, for the resolved and
             boosted SRs and their sum (combined), with the ratio to the reference;
@@ -20,7 +20,7 @@ directory works.  Definitions: wrplotter/signal_compare.py.
             cumulative efficiency of the channel's flavour after each cut (base weight);
         kinematics/<region>/<variable>_<point>.pdf    (--points)
             the other signal-region variables, unit area.
-    tables/<Run>/<Year>/<Era>/<dir>/signal_compare/<era>_vs_<era>.../
+    tables/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_compare/<era>_vs_<era>.../
         efficiency.csv     per set, point, topology and channel: efficiency, its factors
                            (no_cuts, selection, scale factors; skim and filters) and the mass peak;
         scale_factors.csv  mean of each weight factor (lepton SFs, pileup) in each signal region;
@@ -64,7 +64,7 @@ from wrplotter.cli_utils import add_output_args, parse_multi, setup_logging
 from wrplotter.config import default_signals, list_eras, load_lumi
 from wrplotter.cutflow import CHANNEL_LATEX, compile_preview, format_percent, write_preview
 from wrplotter.inputs import mass_point
-from wrplotter.paths import plots_base, repo_root, save_figure
+from wrplotter.paths import SIGNAL_OUTPUTS, plots_base, repo_root, save_figure
 from wrplotter.signal_compare import (CHANNEL_LABELS, CHANNELS, COMBINED, MASS_LABELS, MASS_VARIABLES,
                                       NAN, TOPOLOGIES, TOPOLOGY_LABELS, EraSet, Factors, Produced, Shape,
                                       Value, common_points, cutflow_efficiency, efficiency,
@@ -583,9 +583,9 @@ def main():
         base = tables = args.output_dir
     else:
         base = plots_base(info["run"], info["year"], ref.era, ref.dir_name or None,
-                          local=args.local_plots) / "signal_compare" / tag
+                          local=args.local_plots) / SIGNAL_OUTPUTS / "signal_compare" / tag
         tables = repo_root() / "tables" / info["run"] / info["year"] / ref.era
-        tables = (tables / ref.dir_name if ref.dir_name else tables) / "signal_compare" / tag
+        tables = (tables / ref.dir_name if ref.dir_name else tables) / SIGNAL_OUTPUTS / "signal_compare" / tag
     tables.mkdir(parents=True, exist_ok=True)
 
     results = [collect(s, args.analyzer_root, args.filesets) for s in sets]

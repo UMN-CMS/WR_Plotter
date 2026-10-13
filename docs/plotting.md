@@ -32,14 +32,19 @@ cd WR_Plotter
 | --- | --- | --- |
 | `make_stackplots.py` | Data over the stacked backgrounds for every region and variable, signal overlays in the signal regions, the systematic band from every variation the files carry (`data/systematics.yaml`) | `plots/<...>/<dir>/stack_dy_<tag>/<region>/<variable>_<region>.pdf` |
 | `make_cutflows.py` | Cutflow tables (LaTeX, text) and plots per topology and channel, weighted and raw, with efficiencies | `tables/<...>/<dir>/cutflows_dy_<tag>/`, `plots/.../cutflows_dy_<tag>/` |
-| `make_signal_cutflows.py` | Yields and efficiencies per (m_WR, m_N) point | `tables/<...>/<dir>/signal_cutflows/` |
+| `make_signal_cutflows.py` | Yields and efficiencies per (m_WR, m_N) point | `tables/<...>/<dir>/signal_outputs/signal_cutflows/` |
+| `make_signal_plots.py` | Signal plots of one era: A × ε vs m_N and over the grid, signal in the CRs, σ and k, mass shapes and resolution, kinematics, cutflow plots per m_WR | `plots/<...>/<dir>/signal_outputs/signal_plots/`, `tables/<...>/<dir>/signal_outputs/signal_plots/` |
+| `plot_signal_theory_uncertainties.py` | Scale, PDF, α_S and PS changes of the signal-region yields vs m_WR, from a `--systs scale pdf ps` signal set (`--theory-dir`) | `plots/<...>/<dir>/signal_outputs/signal_theory/` |
 | `make_systematics_tables.py` | Per region, at the fit binning of the mass observable: the up/down change of each process's yield under every systematic source (backgrounds, their total, signal points), the largest per-bin change, a dash where a source does not move a process (a produced variation equal to the nominal, such as a placeholder, is a row of dashes), the sources absent from the files named under the legend; `--per-bin` adds bin-by-bin tables | `tables/<...>/<dir>/systematics_dy_<tag>/systematics_<variable>_<region>.{txt,md,tex}` and the combined `systematics.{txt,md,csv}` |
 | `compare_dy.py` | DY samples alone and inside the total background: a named comparison of `data/dy_comparisons.yaml` (`--comparison lo,nlo,lo_vs_nlo_inclusive,lo_ht_vs_nlo` or `all`) or a `--dy` list; the `core` plot set by default (`--plots all`: every pair); uniform bins (`--run2-binning`: the Run 2 m(W_R) fit bins) | `plots/.../dy_compare/[<comparison>/]` (`dy_compare_run2_binning/`) |
 | `plot_event_weights.py` | The MC event-weight distributions per region, total and each factor | `plots/.../event_weights/` |
 | `plot_dy_zpt_reweight.py` | The DY Z-pT reweighting payload (QCD NLO/LO with its variations and the Run 2 ratio, the EW factor, their product, the generator spectra) and, with `--dir`, the reweighted over the unreweighted DY in the DY CRs' pT(ll) | `plots/.../dy_zpt_reweight/` |
 | `emu_transfer_factor.py` | The eμ transfer factor SR / flavour CR on tt̄ and its closure below 800 GeV (`--tf-study` with a `--study transfer-factor` production) | `plots/<...>/<dir>/emu_transfer_factor_*.pdf` (no subfolder), `tables/<...>/<dir>/emu_transfer_factor_*.tex` |
-| `compare_signal_eras.py` | Signal efficiencies and shapes across eras | see `--help` |
+| `compare_signal_eras.py` | Signal efficiencies and shapes across eras | `plots/<...>/<ref dir>/signal_outputs/signal_compare/` (see `--help`) |
 
+- **Signal outputs.** Every signal output of a production sits in `<dir>/signal_outputs/<part>/` (plots and
+  tables alike), including the event-level plots of WrCoffea `scripts/signal_event_plots.py plot --era <era>
+  --dir <dir>`; the README's "Signal outputs" section lists the parts.
 - **Eras.** `--era` takes one analysis era or a combination from `data/lumi.yaml`: `2022`,
   `2023`, `2024`, `Run3`. A combination sums the sub-eras' histograms, so every sub-era needs the
   same `--dir`. `RunIII2025Summer25` is not in `data/lumi.yaml` yet, so the plotter does not take it.

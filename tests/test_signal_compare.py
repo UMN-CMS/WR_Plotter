@@ -403,7 +403,8 @@ def test_labels_name_and_efficiency_tables(script, sets, analyzer, tmp_path, mon
     monkeypatch.setitem(script["main"].__globals__, "plots_base",
                         lambda run, year, era, subdir, local: tmp_path / "plots")
     script["main"]()
-    tables = tmp_path / "tables" / "Run3" / "2024" / "RunIII2024Summer24" / DIR / "signal_compare" / "my_comparison"
+    tables = (tmp_path / "tables" / "Run3" / "2024" / "RunIII2024Summer24" / DIR / "signal_outputs" / "signal_compare"
+              / "my_comparison")
     text = (tables / "efficiency_tables.txt").read_text()
     assert "2024 private" in text and "2022 (both eras) / ref." in text
     # 2022 has twice the 2024 efficiency at every point (see the sets fixture)
