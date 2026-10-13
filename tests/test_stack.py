@@ -166,3 +166,16 @@ def test_sample_without_file_is_reported(tmp_path, caplog):
         stack = _build_syst(inputs, groups=GROUPS + [other])
     assert [g.key for g, _ in stack.mc] == ["dy", "ttbar"]
     assert "No Other file in" in caplog.text
+
+
+def test_loader_reads_each_dy_variant_file(tmp_path):
+    """Every DY variant sits in the production's --dir as WRAnalyzer_DYJets_<tag>.root next to the default
+    WRAnalyzer_DYJets.root (since 2026-10-12); the loader must read the variant's own file."""
+    from wrplotter.inputs import DYSample, Inputs
+    base = tmp_path / "rootfiles" / "Run3" / "2024" / ERA / DIR
+    _write(base, "DYJets", {CR.name: 1.0})
+    _write(base, "DYJets_nlo_inc", {CR.name: 7.0})
+    for tag, name, value in (("lo_ht", "WRAnalyzer_DYJets.root", 1.0), ("nlo_inc", "WRAnalyzer_DYJets_nlo_inc.root", 7.0)):
+        inputs = Inputs(era=ERA, dir_name=DIR, dirs=(base,), dy=DYSample(tag, tag, "black", (base / name,)))
+        h = stack_module.HistLoader(inputs, Binning(rebin=1, density=False))("DYJets", hist_key(CR.name, VAR))
+        assert h.values().tolist() == [value] * 4, tag

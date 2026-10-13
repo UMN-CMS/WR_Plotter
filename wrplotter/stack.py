@@ -13,7 +13,7 @@ from typing import Sequence
 
 from hist import Hist
 
-from .histogram_cache import load_and_rebin, load_file, load_per_file, sum_files
+from .histogram_cache import load_file, load_per_file, sum_files
 from .histogram_utils import add_hists, rebin_histogram
 from .inputs import Inputs, sr_data_unblinded
 from .regions import Region
@@ -81,14 +81,10 @@ class HistLoader:
         self.binning = binning
 
     def __call__(self, sample: str, hist_key: str) -> Hist | None:
-        return load_and_rebin(
-            input_dirs=[f.parent for f in self.inputs.files_for(sample)],
-            sample=sample,
-            hist_key=hist_key,
-            n_rebin=self.binning.rebin,
-            density=self.binning.density,
-            xmax=self.binning.xmax,
-        )
+        # Read the files Inputs resolved, not WRAnalyzer_<sample>.root rebuilt in their folders: since
+        # 2026-10-12 every DY variant is WRAnalyzer_DYJets_<tag>.root next to the default WRAnalyzer_DYJets.root,
+        # and the rebuilt name made every variant read the default sample.
+        return sum_files(self.per_file(sample, hist_key), hist_key)
 
     def per_file(self, sample: str, hist_key: str) -> dict[Path, Hist | None]:
         """``{file: hist_key of that file, rebinned, or None}``, one file per sub-era of *sample*."""
