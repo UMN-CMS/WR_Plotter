@@ -248,3 +248,43 @@ class TestPlotSettingsInheritance:
         self._write(settings_dir, "EraA", "inherit: nowhere\n")
         with pytest.raises(FileNotFoundError, match="nowhere"):
             config.load_plot_settings("EraA")
+
+
+class TestDYComparisons:
+    """data/dy_comparisons.yaml: the named comparisons and plot sets of bin/compare_dy.py."""
+
+    def test_comparisons_name_known_samples_reference_first(self):
+        from wrplotter.config import load_dy_comparisons, load_dy_samples
+        cfg = load_dy_comparisons()
+        known = load_dy_samples()["samples"]
+        assert cfg["comparisons"]["lo"][0] == "lo_ht"
+        assert cfg["comparisons"]["nlo"][0] == "nlo_inc"
+        for tags in cfg["comparisons"].values():
+            assert len(tags) >= 2 and all(t in known for t in tags)
+
+    def test_core_plots_exist_in_the_plot_settings(self):
+        """Every (region, variable) of the core set is configured for 2024, so none is skipped."""
+        from wrplotter.config import (index_plot_settings, load_dy_comparisons, load_plot_settings,
+                                      configured_variables)
+        from wrplotter.regions import expand_region_requests
+        from wrplotter.variables import build_variables
+        region_cfgs, common_vars = index_plot_settings(load_plot_settings("RunIII2024Summer24"))
+        variables = build_variables()
+        for regions, names in load_dy_comparisons()["plot_sets"]["core"].items():
+            for region in expand_region_requests("RunIII2024Summer24", [regions]):
+                configured = {v.name for v, _ in configured_variables(region_cfgs, common_vars,
+                                                                      region.name, variables)}
+                assert set(names) <= configured, (region.name, set(names) - configured)
+
+    def test_bad_comparison_refused(self, tmp_path, monkeypatch):
+        import shutil
+        from wrplotter import config
+        shutil.copy(config.data_path("dy_samples.yaml"), tmp_path / "dy_samples.yaml")
+        (tmp_path / "dy_comparisons.yaml").write_text("comparisons:\n  x: {samples: [lo_ht, nope]}\n")
+        monkeypatch.setattr(config, "data_path", lambda *parts: tmp_path.joinpath(*parts))
+        config.load_dy_comparisons.cache_clear()
+        try:
+            with pytest.raises(ValueError, match="unknown DY samples"):
+                config.load_dy_comparisons()
+        finally:
+            config.load_dy_comparisons.cache_clear()

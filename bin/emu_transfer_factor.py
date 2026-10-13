@@ -60,14 +60,15 @@ from wrplotter.histogram_cache import load_and_rebin
 from wrplotter.histogram_utils import add_hists, sum_hists
 from wrplotter.inputs import make_inputs, root_file
 from wrplotter.paths import plots_base, repo_root, save_figure
+from wrplotter.plotting_helpers import cms_label, fit_header
 from wrplotter.stack import hist_key
 
 hep.style.use("CMS")
 
 logger = logging.getLogger(__name__)
 
-COLOR_EE = "red"
-COLOR_MUMU = "blue"
+COLOR_EE = "#e42536"     # CMS (Petroff) palette red
+COLOR_MUMU = "#5790fc"   # CMS (Petroff) palette blue
 
 # Boundary between the closure region (below) and the SR (above), in GeV.
 MASS_SPLIT = 800.0
@@ -273,17 +274,8 @@ def _draw_ratio_panel(ax, centers, xerr, ratio_ee, ratio_ee_errors,
     ax.set_ylabel(rf'{cat} SR / {cat} Flavor CR (e$\mu$)', fontsize=20)
     ax.tick_params(axis='both', which='major', labelsize=20)
 
-    hep.cms.label(
-        loc=0, ax=ax, data=False,
-        label="Work in Progress",
-        lumi=f"{lumi:.1f}",
-        com=com,
-        fontsize=20
-    )
-    ax.text(0.07, 0.95, era, transform=ax.transAxes,
-            fontsize=20, ha='left', va='top')
-    ax.text(0.07, 0.90, r'Simulated $t\bar{t}$', transform=ax.transAxes,
-            fontsize=20, ha='left', va='top')
+    cms_label(ax, lumi, com, data=False, text=era + '\n' + r'Simulated $t\bar{t}$',
+              fontsize=20, text_fontsize=16)
 
 
 def _constant(x, c):
@@ -417,6 +409,7 @@ def plot_ratio(ratio_ee, ratio_ee_errors, ratio_mumu, ratio_mumu_errors,
     ax.legend(loc='upper right', fontsize=16)
 
     fig.tight_layout()
+    fit_header(ax)
     save_figure(fig, output_path)
     logger.info("Saved plot to: %s", output_path)
     plt.close(fig)
@@ -455,13 +448,9 @@ def plot_channel_ratio(ratio, ratio_errors, edges, era, lumi, output_path,
         ax.set_xlabel(r'$m_{\ell J}$ [GeV]', fontsize=20)
         ax.set_ylabel(r'Boosted SR / Boosted Flavor CR', fontsize=20)
         ax.tick_params(axis='both', which='major', labelsize=20)
-        hep.cms.label(loc=0, ax=ax, data=False, label="Work in Progress",
-                      lumi=f"{lumi:.1f}", com=com, fontsize=20)
-        ax.text(0.07, 0.95, era, transform=ax.transAxes,
-                fontsize=20, ha='left', va='top')
-        ax.text(0.07, 0.90,
-                rf'Simulated $t\bar{{t}}$ ({channel_label})',
-                transform=ax.transAxes, fontsize=20, ha='left', va='top')
+        cms_label(ax, lumi, com, data=False,
+                  text=era + '\n' + rf'Simulated $t\bar{{t}}$ ({channel_label})',
+                  fontsize=20, text_fontsize=16)
 
     fig, ax = plt.subplots()
     _make_panel(ax)
@@ -475,6 +464,7 @@ def plot_channel_ratio(ratio, ratio_errors, edges, era, lumi, output_path,
 
     ax.legend(loc='upper right', fontsize=16)
     fig.tight_layout()
+    fit_header(ax)
     save_figure(fig, output_path)
     logger.info("Saved %s plot to: %s", channel_label, output_path)
     plt.close(fig)

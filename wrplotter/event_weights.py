@@ -32,8 +32,7 @@ from hist import Hist
 from matplotlib.figure import Figure
 
 from .histogram_cache import _open_root, has_key, read_hist
-from .plotting_helpers import (FONT_SIZE_LEGEND, cms_label, custom_log_formatter, log_ylim,
-                               region_text)
+from .plotting_helpers import FONT_SIZE_LEGEND, cms_label, custom_log_formatter, fit_header, log_ylim
 
 SIGNS = ("positive", "negative")
 
@@ -158,10 +157,10 @@ def plot_weight_distributions(
         if len(nonzero):
             ax.set_xlim(edges[max(nonzero[0] - 5, 0)], edges[min(nonzero[-1] + 6, len(edges) - 1)])
     ax.set_xlabel(r"$\log_{10}|w|$ (per-region nominal event weight)")
-    ax.set_ylabel("MC events")
-    region_text(ax, text + "\nsolid: $w > 0$, dashed: $w < 0$")
-    cms_label(ax, lumi, com)
+    ax.set_ylabel("Simulated events")
+    cms_label(ax, lumi, com, data=False, text=text + "\nsolid: $w > 0$, dashed: $w < 0$")
     ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 5)
+    fit_header(ax)
     return fig
 
 
@@ -307,11 +306,11 @@ def plot_component(
                       else rf"$\log_{{10}}$ {component_label(name)}")
     else:
         ax.set_xlabel(component_label(name))
-    ax.set_ylabel("Fraction of MC events")
+    ax.set_ylabel("Fraction of simulated events")
     note = "\nsolid: $w > 0$, dashed: $w < 0$" if name == GENWEIGHT else ""
-    region_text(ax, text + note)
-    cms_label(ax, lumi, com)
+    cms_label(ax, lumi, com, data=False, text=text + note)
     ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 5)
+    fit_header(ax)
     return fig
 
 

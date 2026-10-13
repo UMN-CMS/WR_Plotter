@@ -26,15 +26,17 @@ labels:
   two_pteta_electrons:    {table: '$\geq$2 electrons ($p_T > 53$, $|\eta| < 2.5$)', plot: '$\geq$2 e ($p_T$, $\eta$)'}
   two_pteta_muons:        {table: '$\geq$2 muons ($p_T > 53$, $|\eta| < 2.4$)', plot: '$\geq$2 $\mu$ ($p_T$, $\eta$)'}
   two_pteta_em:           {table: '$\geq$1 electron + $\geq$1 muon ($p_T > 53$)', plot: '$\geq$1 e + $\geq$1 $\mu$ ($p_T$, $\eta$)'}
-  two_id_electrons:       {table: '$\geq$2 electrons (HEEP ID)', plot: '$\geq$2 e (HEEP)'}
-  two_id_muons:           {table: '$\geq$2 muons (high-$p_T$ ID)', plot: '$\geq$2 $\mu$ (high-$p_T$ ID)'}
-  two_id_em:              {table: '$\geq$1 electron + $\geq$1 muon passing ID', plot: '$\geq$1 e + $\geq$1 $\mu$ (ID)'}
-  two_tight_leptons:      {table: 'Exactly two tight leptons', plot: '2 tight $\ell$'}
-  two_tight_electrons:    {table: 'Two tight electrons', plot: '2 tight e'}
-  two_tight_muons:        {table: 'Two tight muons', plot: '2 tight $\mu$'}
-  two_tight_em:           {table: 'One tight electron + one tight muon', plot: '1 tight e + 1 tight $\mu$'}
+  # Since 2026-10-12 the ID rows count leptons passing pT/eta and the ID together (tight); before, the ID alone.
+  two_id_electrons:       {table: '$\geq$2 electrons ($p_T$, $\eta$, HEEP ID)', plot: '$\geq$2 e ($p_T$, $\eta$, HEEP)'}
+  two_id_muons:           {table: '$\geq$2 muons ($p_T$, $\eta$, high-$p_T$ ID)', plot: '$\geq$2 $\mu$ ($p_T$, $\eta$, ID)'}
+  two_id_em:              {table: '$\geq$1 electron + $\geq$1 muon ($p_T$, $\eta$, ID)', plot: '$\geq$1 e + $\geq$1 $\mu$ ($p_T$, $\eta$, ID)'}
+  two_tight_leptons:      {table: 'Exactly two tight leptons', plot: '2 tight $\ell$'}   # files made before 2026-10-12
+  two_tight_electrons:    {table: 'Exactly two tight electrons', plot: '2 tight e'}
+  two_tight_muons:        {table: 'Exactly two tight muons', plot: '2 tight $\mu$'}
+  two_tight_em:           {table: 'Exactly one tight electron and one tight muon', plot: '1 tight e + 1 tight $\mu$'}
+  no_third_tight_lepton:  {table: 'No third tight lepton', plot: 'no 3rd tight $\ell$'}
   lead_tight_lepton_pt60: {table: 'Leading tight lepton $p_T > 60$ GeV', plot: '$p_T^{\ell_1} > 60$'}
-  sublead_tight_pt53:     {table: 'Subleading tight lepton $p_T > 53$ GeV', plot: '$p_T^{\ell_2} > 53$'}
+  sublead_tight_pt53:     {table: 'Subleading tight lepton $p_T > 53$ GeV', plot: '$p_T^{\ell_2} > 53$'}   # files made before 2026-10-12
   e_trigger:              {table: 'Electron trigger', plot: 'e trigger'}
   mu_trigger:             {table: 'Muon trigger', plot: '$\mu$ trigger'}
   emu_trigger:            {table: '$e\mu$ trigger (muon triggers)', plot: '$e\mu$ trigger'}

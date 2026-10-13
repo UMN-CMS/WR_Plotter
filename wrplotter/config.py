@@ -273,6 +273,29 @@ def load_dy_samples() -> Dict[str, Any]:
 
 
 @lru_cache(maxsize=None)
+def load_dy_comparisons() -> Dict[str, Any]:
+    """Load data/dy_comparisons.yaml: {"comparisons": {name: [tags, reference first]},
+    "plot_sets": {name: {region or shorthand: [variables]}}}.  Tags must be in dy_samples.yaml."""
+    data = read_yaml(data_path("dy_comparisons.yaml")) or {}
+    known = load_dy_samples()["samples"]
+    comparisons = {}
+    for name, entry in (data.get("comparisons") or {}).items():
+        tags = list((entry or {}).get("samples") or [])
+        if len(tags) < 2 or len(set(tags)) != len(tags):
+            raise ValueError(f"dy_comparisons.yaml: '{name}' needs two or more distinct samples, got {tags}")
+        unknown = [t for t in tags if t not in known]
+        if unknown:
+            raise ValueError(f"dy_comparisons.yaml: '{name}' names unknown DY samples {unknown} "
+                             f"(dy_samples.yaml has {sorted(known)})")
+        comparisons[name] = tags
+    plot_sets = {name: {str(k): list(v or []) for k, v in (entry or {}).items()}
+                 for name, entry in (data.get("plot_sets") or {}).items()}
+    if "all" in plot_sets:
+        raise ValueError("dy_comparisons.yaml: 'all' is reserved (every configured plot)")
+    return {"comparisons": comparisons, "plot_sets": plot_sets}
+
+
+@lru_cache(maxsize=None)
 def load_cutflow_config() -> Dict[str, Any]:
     """Load data/cutflows.yaml: {"data_stream": {topology: {channel: stream}}, "labels": {...}}."""
     data = read_yaml(data_path("cutflows.yaml")) or {}

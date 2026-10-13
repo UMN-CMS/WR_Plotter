@@ -55,9 +55,11 @@ def add_dy_arg(parser, *, multiple: bool = True):
     parser.add_argument(
         "--dy", dest="dy", action="append" if multiple else "store", default=None,
         metavar="TAG[=DIR]",
-        help=what + "TAG is an analyzer --dy tag (lo_ht, lo_inc, nlo_inc, ...); the default "
-             "sample is read from --dir and any other from <dir>_<TAG>_dy unless =DIR is given. "
-             "Default: the analyzer's default sample (data/dy_samples.yaml).",
+        help=what + "TAG is a data/dy_samples.yaml tag (lo_ht, lo_ht_zpt, lo_ht_zpt_reshape, lo_inc, "
+             "nlo_inc, ...), read from --dir: WRAnalyzer_DYJets.root for the default sample, "
+             "WRAnalyzer_DYJets_<TAG>.root for any other (sets made before 2026-10-12: "
+             "<dir>_<TAG>_dy/WRAnalyzer_DYJets.root); =DIR reads it from DIR instead. "
+             "Default: the analyzer's default sample.",
     )
 
 

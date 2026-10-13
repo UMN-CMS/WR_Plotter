@@ -2,9 +2,11 @@
 
 An analysis set is one ``--dir`` under ``rootfiles/<Run>/<Year>/<Era>`` (one
 directory per sub-era for combined eras such as 2022).  Every sample is read
-from there except DYJets, which comes from the directory of the chosen
-Drell-Yan sample: the analyzer always names the file WRAnalyzer_DYJets.root, so
-the DY sample is told apart by directory only (see data/dy_samples.yaml).
+from there, DYJets from the file of the chosen Drell-Yan sample:
+WRAnalyzer_DYJets.root for the default sample, WRAnalyzer_DYJets_<tag>.root for
+any other.  Sets made before 2026-10-12 kept every DY sample as
+WRAnalyzer_DYJets.root in its own directory, <dir>_<tag>_dy; a tag whose file is
+not in ``--dir`` is read from there (see data/dy_samples.yaml).
 
 Next to each ROOT file the analyzer writes a manifest,
 ``WRAnalyzer_<sample>_systematics.json``.  It lists the datasets the file was
@@ -96,17 +98,39 @@ def sr_data_unblinded(root_path: str | Path) -> bool:
 
 @dataclass(frozen=True)
 class DYSample:
-    tag: str                 # analyzer --dy tag, e.g. "lo_ht"
+    tag: str                 # data/dy_samples.yaml tag, e.g. "lo_ht" (never an alias)
     label: str               # legend label
     color: str
-    dirs: tuple[Path, ...]   # directory of WRAnalyzer_DYJets.root, one per sub-era
+    files: tuple[Path, ...]  # its DYJets file, one per sub-era
 
 
-def dy_dir_name(dir_name: str, tag: str) -> str:
-    """Directory holding the DY sample *tag* for the analysis set *dir_name*."""
+def canonical_dy_tag(name: str) -> str:
+    """The data/dy_samples.yaml tag *name* stands for: itself, or the tag listing it in ``aliases``."""
+    samples = load_dy_samples()["samples"]
+    if name in samples:
+        return name
+    for tag, info in samples.items():
+        if name in (info.get("aliases") or ()):
+            return tag
+    raise ValueError(f"Unknown DY sample '{name}'. Known: {', '.join(sorted(samples))} "
+                     "(data/dy_samples.yaml).")
+
+
+def dy_file_name(tag: str) -> str:
+    """The analyzer's file for the DY sample *tag*: WRAnalyzer_DYJets.root for the default
+    sample, WRAnalyzer_DYJets_<tag>.root for any other (WrCoffea cli_utils.dy_file_tag)."""
     if tag == load_dy_samples()["default"]:
-        return dir_name
-    return f"{dir_name}_{tag}_dy" if dir_name else f"{tag}_dy"
+        return root_file("", DY_SAMPLE).name
+    return root_file("", f"{DY_SAMPLE}_{tag}").name
+
+
+def legacy_dy_dir_names(dir_name: str, tag: str) -> list[str]:
+    """The old-layout directories (sets made before 2026-10-12) that held *tag* as
+    WRAnalyzer_DYJets.root: <dir>_<name>_dy for the tag and its aliases, then its legacy_dirs."""
+    info = load_dy_samples()["samples"][tag]
+    names = [f"{{dir}}_{n}_dy" for n in (tag, *(info.get("aliases") or ()))]
+    names += list(info.get("legacy_dirs") or ())
+    return [n.format(dir=dir_name).lstrip("_") for n in names]
 
 
 def _dy_datasets(manifest: dict) -> list[str]:
@@ -118,7 +142,7 @@ def _dy_datasets(manifest: dict) -> list[str]:
 def detect_dy_tag(root_path: str | Path) -> str | None:
     """The DY sample whose dataset pattern matches every dataset in the file, if unique.
 
-    Samples sharing a pattern (lo_ht, lo_ht_noreweight, lo_ht_zptonly) count as
+    Samples sharing a pattern (lo_ht and its lo_ht_* variants) count as
     one; the first listed is returned.
     """
     datasets = _dy_datasets(read_manifest(root_path) or {})
@@ -132,42 +156,108 @@ def detect_dy_tag(root_path: str | Path) -> str | None:
     return matches[0] if len(patterns) == 1 else None
 
 
+# The DY reweighting factors (--dy-reweight) and the per-factor event-weight histograms
+# the analyzer writes for them, event_weights/<region>/components/<factor>, MC only.
+_DY_REWEIGHT_FACTORS = (("zpt", "dy_zpt"), ("reshape", "dy_reshape"))
+
+
+def expected_dy_reweight(tag: str) -> str | None:
+    """The ``--dy-reweight`` mode the DY sample *tag* stands for: its ``analyzer_args``,
+    "none" for the default sample (not reweighted since 2026-10-12), None for samples
+    the reweighting does not target."""
+    cfg = load_dy_samples()
+    tag = canonical_dy_tag(tag)
+    m = re.search(r"--dy-reweight\s+(\S+)", cfg["samples"][tag].get("analyzer_args") or "")
+    if m:
+        return m[1]
+    return "none" if tag == cfg["default"] else None
+
+
+def dy_reweight_in_file(root_path: str | Path) -> str | None:
+    """The ``--dy-reweight`` mode a DYJets file was made with ("none", "zpt" or
+    "zpt+reshape"), read from its per-factor event-weight histograms: a factor counts as
+    applied when some events have a value other than 1.  None for files without them."""
+    from .histogram_cache import keys_in_file, read_hist   # lazy: histogram_cache is heavier
+
+    keys = keys_in_file(str(root_path))
+    regions = sorted({k.split("/")[1] for k in keys
+                      if k.startswith("event_weights/") and "/components/" in k})
+    if not regions:
+        return None
+    applied = []
+    for mode, factor in _DY_REWEIGHT_FACTORS:
+        for region in regions:
+            h = read_hist(root_path, f"event_weights/{region}/components/{factor}")
+            if h is None or h.values().sum() <= 0:
+                continue
+            at_one = h.axes[0].index(1.0)
+            values = h.values()
+            if values.sum() - values[at_one] > 0:
+                applied.append(mode)
+            break
+    return "+".join(applied) or "none"
+
+
 def resolve_dy(era: str, dir_name: str, spec: str | None = None,
                working_dir: str | Path | None = None) -> DYSample:
     """Resolve ``--dy TAG`` or ``--dy TAG=DIR`` (None = the default sample).
 
-    DIR is a directory name under each sub-era, like ``--dir``.  A directory
-    whose DYJets file was made from another DY sample is refused.
+    The DY file is the tag's file in ``--dir`` or, for sets made before 2026-10-12,
+    WRAnalyzer_DYJets.root in one of its old-layout directories.  DIR is a directory
+    name under each sub-era, like ``--dir``, holding the tag's file or (old layout)
+    WRAnalyzer_DYJets.root.  A file made from another DY sample is refused, and so is one
+    whose DY reweighting (read from the file) is not the one *TAG* stands for.
+    For the implicit default (*spec* None) that is only a warning: analysis sets
+    made before 2026-10-12 hold the reweighted DY in ``--dir``.
     """
     cfg = load_dy_samples()
     samples = cfg["samples"]
-    tag, _, explicit = (spec or cfg["default"]).partition("=")
-    tag, explicit = tag.strip(), explicit.strip()
-    if tag not in samples:
-        raise ValueError(f"Unknown DY sample '{tag}'. Known: {', '.join(sorted(samples))} "
-                         "(data/dy_samples.yaml).")
-
+    name, _, explicit = (spec or cfg["default"]).partition("=")
+    tag, explicit = canonical_dy_tag(name.strip()), explicit.strip()
     info = samples[tag]
-    sub_dir = explicit or dy_dir_name(dir_name, tag)
-    dirs, _ = input_dirs_for_era(era, working_dir or repo_root(), sub_dir)
-    missing = [str(d) for d in dirs if not root_file(d, DY_SAMPLE).is_file()]
+    working_dir = working_dir or repo_root()
+    fname, plain = dy_file_name(tag), root_file("", DY_SAMPLE).name
+    if explicit:
+        dirs, _ = input_dirs_for_era(era, working_dir, explicit)
+        candidates = [[d / fname, d / plain] for d in dirs]
+        old = []
+    else:
+        dirs, _ = input_dirs_for_era(era, working_dir, dir_name)
+        old = legacy_dy_dir_names(dir_name, tag) if tag != cfg["default"] else []
+        old_dirs = [input_dirs_for_era(era, working_dir, n)[0] for n in old]
+        candidates = [[d / fname] + [od[i] / plain for od in old_dirs] for i, d in enumerate(dirs)]
+    files = [next((p for p in cands if p.is_file()), None) for cands in candidates]
+    missing = [str(cands[0]) for cands, f in zip(candidates, files) if f is None]
     if missing:
         run = info.get("analyzer_args") or f"--dy {tag}"
         raise FileNotFoundError(
-            f"No WRAnalyzer_{DY_SAMPLE}.root for DY sample '{tag}' in {missing}. "
-            f"Run the analyzer with {run} --dir {sub_dir}, or point to it with "
+            f"No {fname} for DY sample '{tag}': {', '.join(missing)}"
+            + (f" (nor {plain} in the old-layout {', '.join(old)})" if old else "")
+            + f". Run the analyzer with {run} --dir {explicit or dir_name}, or point to it with "
             f"--dy {tag}=<dir>."
         )
-    for d in dirs:
-        found = detect_dy_tag(root_file(d, DY_SAMPLE))
+    for f in files:
+        found = detect_dy_tag(f)
         if found is not None and samples[found]["datasets"] != info.get("datasets"):
             raise ValueError(
-                f"{root_file(d, DY_SAMPLE)} holds the '{found}' DY sample, not '{tag}' "
+                f"{f} holds the '{found}' DY sample, not '{tag}' "
                 "(dataset names in its manifest)."
             )
+        expected = expected_dy_reweight(tag)
+        made_with = dy_reweight_in_file(f) if expected else None
+        if made_with is not None and made_with != expected:
+            right = [t for t in samples if samples[t].get("datasets") == info.get("datasets")
+                     and expected_dy_reweight(t) == made_with]
+            msg = (f"{f} holds the DY made with --dy-reweight {made_with} "
+                   f"(its event-weight histograms), but '{tag}' stands for --dy-reweight {expected}")
+            msg += f": read it with --dy {right[0]}={f.parent.name}." if right else "."
+            if spec is None:
+                logger.warning(msg)
+            else:
+                raise ValueError(msg)
 
     return DYSample(tag=tag, label=str(info.get("label", tag)),
-                    color=str(info.get("color", "#000000")), dirs=tuple(dirs))
+                    color=str(info.get("color", "#000000")), files=tuple(files))
 
 
 # ---------------------------------------------------------------------------
@@ -183,20 +273,26 @@ class Inputs:
     dirs: tuple[Path, ...]   # base directories, one per sub-era
     dy: DYSample | None      # None: made with make_inputs(..., with_dy=False)
 
-    def dirs_for(self, sample: str) -> list[Path]:
-        if sample != DY_SAMPLE:
-            return list(self.dirs)
+    def _dy(self) -> DYSample:
         if self.dy is None:
             raise ValueError(f"No Drell-Yan sample chosen for {self.era}/{self.dir_name} "
                              "(inputs made with with_dy=False).")
-        return list(self.dy.dirs)
+        return self.dy
+
+    def dirs_for(self, sample: str) -> list[Path]:
+        if sample != DY_SAMPLE:
+            return list(self.dirs)
+        return [f.parent for f in self._dy().files]
 
     def files_for(self, sample: str) -> list[Path]:
-        """Existing files of *sample*, one per sub-era directory that has it.
+        """Existing files of *sample*, one per sub-era directory that has it (DYJets: the
+        chosen DY sample's file, resolved in every sub-era).
 
         A sample present in only some eras of a combination is reported once:
         summing what exists would undercount it.
         """
+        if sample == DY_SAMPLE:
+            return list(self._dy().files)
         dirs = self.dirs_for(sample)
         files = [p for d in dirs if (p := root_file(d, sample)).is_file()]
         if files and len(files) < len(dirs):

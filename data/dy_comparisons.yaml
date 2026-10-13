@@ -1,0 +1,51 @@
+# data/dy_comparisons.yaml
+# Named Drell-Yan comparisons and plot sets for bin/compare_dy.py.
+#
+# comparisons: --comparison NAME draws the listed DY samples (tags of data/dy_samples.yaml);
+#   the first is the reference.  Each sample's file is found as for --dy TAG (in <dir>:
+#   WRAnalyzer_DYJets.root for the default sample, WRAnalyzer_DYJets_<TAG>.root for any other;
+#   sets made before 2026-10-12: <dir>_<TAG>_dy/), or where a --dy TAG=DIR given with --comparison
+#   points.
+#   Output: <plots>/.../dy_compare/<NAME>/{abs,shape,total,total_scaled}/.
+#
+# plot_sets: --plots NAME restricts the (region, variable) pairs; keys are region names or
+#   shorthands of data/region_shorthands.yaml.  --plots all draws every configured pair.
+
+comparisons:
+  lo:
+    # Same LO madgraphMLM generator: HT slicing vs inclusive (closure), and what the
+    # Z-pT reweight + jet-pT reshape do to it.
+    samples: [lo_ht, lo_inc, lo_ht_zpt_reshape]
+  nlo:
+    # The NLO samples against the inclusive amcatnloFXFX.  nlo_ptll is left out: its
+    # pT(ll) slices are added unstitched, so it is not a DY prediction.
+    samples: [nlo_inc, nlo_mll, nlo_njet]
+  lo_vs_nlo_inclusive:
+    # The generator difference alone: both inclusive, both at the inclusive NNLO normalization.
+    samples: [lo_inc, nlo_inc]
+  lo_ht_vs_nlo:
+    # The default DY against the best NLO prediction.
+    samples: [lo_ht, nlo_inc]
+
+plot_sets:
+  core:
+    resolved_dy_cr:
+      - mass_fourobject      # the fit observable
+      - mass_dilepton        # Z peak: normalization and lepton scale
+      - pt_dilepton          # what the Z-pT reweight corrects
+      - pt_leading_jet       # what the jet-pT reshape corrects
+      - pt_subleading_jet    # the second hard jet: matrix element vs parton shower
+      - mass_dijet           # both jets together
+      - pt_fourobject        # recoil of lljj against further jets (3rd jet and beyond)
+    boosted_dy_cr:
+      - mass_twoobject       # the fit observable
+      - mass_dilepton
+      - pt_dilepton
+      - pt_leading_AK8Jets   # what the boosted jet-pT reshape corrects
+      - pt_twoobject         # recoil of lJ against further jets
+    resolved_sr:
+      - mass_fourobject      # how the DY choice moves the SR prediction
+      - mass_dilepton        # the m_ll > 400 GeV tail the SR extrapolates into
+    boosted_sr:
+      - mass_twoobject
+      - mass_dilepton

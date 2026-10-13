@@ -13,14 +13,15 @@ from typing import Sequence
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import matplotlib.transforms as mtransforms
 import mplhep as hep
 import numpy as np
 from hist import Hist
 from matplotlib.figure import Figure
 
 from .inputs import DYSample
-from .plotting_helpers import (FONT_SIZE_LEGEND, cms_label, custom_log_formatter,
-                               log_ylim, region_text, set_y_label)
+from .plotting_helpers import (FONT_SIZE_LEGEND, cms_label, custom_log_formatter, data_errors,
+                               fit_header, log_ylim, reorder_legend, set_y_label)
 from .regions import Region
 from .stack import Binning, hist_yield
 from .variables import Variable
@@ -41,16 +42,18 @@ def _ratio(num: np.ndarray, den: np.ndarray) -> np.ndarray:
 
 
 def _finish(fig, ax, rax, region: Region, variable: Variable, ref: Hist, *, xlim, ylim,
-            ratio_ylim, rlabel, lumi, com, text, per_unit=False) -> Figure:
+            ratio_ylim, rlabel, lumi, com, text, data: bool, per_unit=False) -> Figure:
     ax.set_yscale("log")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
     ax.set_ylim(*ylim)
     ax.set_xlim(*xlim)
-    region_text(ax, text)
-    cms_label(ax, lumi, com)
+    cms_label(ax, lumi, com, data=data, text=text)
     set_y_label(ax, ref, variable, per_unit=per_unit)
     ax.set_xlabel("")
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 2)
+    # many samples: a smaller legend, so it still fits beside the region text
+    many = len(ax.get_legend_handles_labels()[1]) > 6
+    reorder_legend(ax, fontsize=FONT_SIZE_LEGEND - (4 if many else 2))
+    fit_header(ax)
     rax.axhline(1.0, ls="--", color="k")
     rax.set_ylim(*ratio_ylim)
     rax.set_ylabel(rlabel)
@@ -105,7 +108,7 @@ def plot_dy_overlay(
     fig = _finish(fig, ax, rax, region, variable, entries[0][1], xlim=xlim,
                   ylim=log_ylim(shown, pad_high=1e3), ratio_ylim=ratio_ylim,
                   rlabel="Ratio to ref.",
-                  lumi=lumi, com=com, text=text, per_unit=binning.per_gev)
+                  lumi=lumi, com=com, text=text, data=False, per_unit=binning.per_gev)
     if normalize:
         ax.set_ylabel(ax.get_ylabel().replace("Events", "Fraction of events", 1))
     return fig
@@ -139,13 +142,13 @@ def plot_total_comparison(
     edges = entries[0][1].axes[0].edges
     centers = 0.5 * (edges[:-1] + edges[1:])
     widths = np.diff(edges)
+    per_gev = binning is not None and binning.per_gev
     show_data = data is not None and not data_blinded
     scale_to_data = scale_to_data and show_data
 
     factors = [1.0] * len(entries)
     if scale_to_data:
         in_range = (edges[:-1] < xlim[1]) & (edges[1:] > xlim[0])
-        per_gev = binning is not None and binning.per_gev
         count = lambda h: float(((h.values() * widths) if per_gev else h.values())[in_range].sum())
         n_data = count(data)
         factors = [n_data / n if (n := count(total)) > 0 else 1.0 for _, total in entries]
@@ -154,21 +157,30 @@ def plot_total_comparison(
         ref = " (ref.)" if i == 0 and len(entries) > 1 and not show_data else ""
         scaled = rf" ($\times${factors[i]:.2f})" if scale_to_data else ""
         hep.histplot(total.values() * factors[i], edges, histtype="step", color=dy.color,
-                     linewidth=2, label=f"Total bkg., DY {dy.label}{ref}{scaled}", ax=ax)
+                     linewidth=2, label=f"DY {dy.label}{ref}{scaled}", ax=ax)
     if show_data:
-        hep.histplot(data, label="Data", xerr=True, color="k", histtype="errorbar", ax=ax)
+        # Garwood errors; horizontal bars only where the bin width varies (PubGuidelines)
+        derrs = data_errors(data, per_unit=per_gev)
+        hep.histplot(data, yerr=derrs, label="Data", xerr=not np.allclose(widths, widths[0]),
+                     color="k", histtype="errorbar", ax=ax)
 
     n = len(entries)
     ref_vals = entries[0][1].values()
     if show_data:
         dvals = data.values()
-        dvars = data.variances()  # per-GeV bins: not the values
-        derrs = np.sqrt(dvars if dvars is not None else dvals)
+        # Side by side at each bin centre, a fixed distance apart on the page: a shift in
+        # GeV put them TeV apart in the wide last bin, where they read as other masses.
+        shown = (edges[:-1] < xlim[1]) & (edges[1:] > xlim[0])
+        axis_pts = rax.get_position().width * fig.get_size_inches()[0] * 72
+        narrowest = np.min(widths[shown]) / (xlim[1] - xlim[0]) * axis_pts
+        step = min(6.0, 0.7 * narrowest / max(n - 1, 1))
         for i, (dy, total) in enumerate(entries):
             tvals = total.values() * factors[i]
-            shift = (i - (n - 1) / 2) * 0.12 * widths
-            rax.errorbar(centers + shift, _ratio(dvals, tvals), yerr=_ratio(derrs, tvals),
-                         fmt="o", color=dy.color, markersize=4, capsize=2)
+            shift = mtransforms.offset_copy(rax.transData, fig=fig, units="points",
+                                            x=(i - (n - 1) / 2) * step)
+            rax.errorbar(centers, _ratio(dvals, tvals),
+                         yerr=np.nan_to_num(np.array([_ratio(e, tvals) for e in derrs])),
+                         fmt="o", color=dy.color, markersize=4, capsize=2, transform=shift)
         rlabel = "Data / Bkg."
     else:
         rel = _ratio(np.sqrt(entries[0][1].variances()), ref_vals)
@@ -184,8 +196,11 @@ def plot_total_comparison(
         arrays = ([t.values() * f for (_, t), f in zip(entries, factors)]
                   + ([data.values()] if show_data else []))
         ylim = log_ylim(arrays)
-    text = region.tlatex_alias + ("\nTotals scaled to data" if scale_to_data else "")
+    # "Total bkg." once here, not in every legend entry: seven samples' entries
+    # were too wide to sit next to this text.
+    text = region.tlatex_alias + "\nTotal bkg. by DY"
+    text += "\n(scaled to data)" if scale_to_data else ""
     text += f"\n{extra_label}" if extra_label else ""
     return _finish(fig, ax, rax, region, variable, entries[0][1], xlim=xlim, ylim=ylim,
                    ratio_ylim=ratio_ylim, rlabel=rlabel, lumi=lumi, com=com, text=text,
-                   per_unit=binning is not None and binning.per_gev)
+                   data=show_data, per_unit=per_gev)

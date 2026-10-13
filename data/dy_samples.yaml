@@ -1,18 +1,29 @@
 # data/dy_samples.yaml
-# Drell-Yan samples the analyzer can run with `--dy <tag>` (WrCoffea wrcoffea/config.yaml:
-# dy_variants, default_mc_tag).  The analyzer always writes WRAnalyzer_DYJets.root, so the
-# sample is told apart by directory only:
-#   - the base --dir holds the default sample (`default` below, the analyzer's default_mc_tag),
-#   - any other sample is looked up in <dir>_<tag>_dy (e.g. 20261008_skims_v2_lo_inc_dy).
-# Override the directory explicitly with `--dy TAG=DIR`.
+# Drell-Yan samples, each read from its own file in the analysis set's --dir (WrCoffea
+# wrcoffea/cli_utils.py dy_file_tag):
+#   - the default sample (`default` below: the analyzer's default --dy variant, not reweighted)
+#     is WRAnalyzer_DYJets.root,
+#   - any other is WRAnalyzer_DYJets_<tag>.root, made by run_analysis.py <era> DYJets
+#     <analyzer_args, default --dy <tag>> --dir <dir>; <tag> is the --dy variant plus _zpt or
+#     _zpt_reshape for --dy-reweight zpt or zpt+reshape.
+# `--dy TAG=DIR` reads the tag's file from another directory (or that directory's
+# WRAnalyzer_DYJets.root, the old layout).
+#
+# Old layout (sets made before 2026-10-12): every variant was WRAnalyzer_DYJets.root in its own
+# directory, <dir>_<name>_dy for the tag and each of its `aliases`, plus any `legacy_dirs`
+# ({dir} = --dir).  A tag whose file is not in --dir is read from there.
 #
 # `datasets` is a regex searched in the dataset names recorded in the file's manifest
-# (WRAnalyzer_DYJets_systematics.json).  A directory whose DYJets file holds a different
-# sample than the tag claims is refused.  Patterns follow the Run 3 dataset names.
+# (WRAnalyzer_DYJets[_<tag>]_systematics.json).  A file holding a different sample than the
+# tag claims is refused.  Patterns follow the Run 3 dataset names.
 #
-# An entry with `analyzer_args` is not an analyzer --dy tag: it is a sample's datasets made
-# with other analyzer options (it shares that sample's pattern).  The manifest does not record
-# those options, so the plotter cannot check them; the directory name is the only record.
+# `analyzer_args` with --dy-reweight: the reweighting the tag stands for.  The plotter reads
+# the one a file was made with from its event-weight histograms
+# (event_weights/<region>/components/dy_zpt, dy_reshape) and refuses a mismatch.
+#
+# Since 2026-10-12 the analyzer does not reweight the default DY (LO HT-binned at its NNLO-
+# normalized cross section; --dy-reweight none).  Sets made before then hold the Z-pT reweighted
+# and reshaped DY in --dir itself: read it with --dy lo_ht_zpt_reshape=<dir>.
 
 default: lo_ht
 
@@ -21,6 +32,21 @@ samples:
     label: "LO HT-binned"
     color: "#3f90da"
     datasets: "DYto2L-4Jets_Bin-HT-"
+  lo_ht_zpt:
+    # lo_ht with the DY Z-pT reweight, without the jet-pT reshape
+    label: "LO HT-binned, Z $p_{T}$ reweight only"
+    color: "#b9ac70"
+    datasets: "DYto2L-4Jets_Bin-HT-"
+    analyzer_args: "--dy-reweight zpt"
+    aliases: [lo_ht_zptonly]
+    legacy_dirs: ["{dir}_noreshape"]
+  lo_ht_zpt_reshape:
+    # lo_ht with the DY Z-pT reweight and the jet-pT reshape (the default before 2026-10-12)
+    label: "LO HT-binned, Z $p_{T}$ + jet $p_{T}$ reweighted"
+    color: "#e76300"
+    datasets: "DYto2L-4Jets_Bin-HT-"
+    analyzer_args: "--dy-reweight zpt+reshape"
+    aliases: [lo_ht_reweighted]
   lo_inc:
     label: "LO inclusive"
     color: "#bd1f01"
@@ -43,15 +69,3 @@ samples:
     label: "NLO $p_{T}^{\\ell\\ell}$-binned"
     color: "#a96b59"
     datasets: "DYto2L-2Jets_Bin-MLL-50-PTLL-"
-  lo_ht_noreweight:
-    # lo_ht without the DY Z-pT reweight and the jet-pT reshape (the flag turns off both)
-    label: "LO HT-binned, not reweighted"
-    color: "#717581"
-    datasets: "DYto2L-4Jets_Bin-HT-"
-    analyzer_args: "--no-dy-zpt-reweight"
-  lo_ht_zptonly:
-    # lo_ht with the DY Z-pT reweight but without the jet-pT reshape
-    label: "LO HT-binned, Z $p_{T}$ reweight only"
-    color: "#b9ac70"
-    datasets: "DYto2L-4Jets_Bin-HT-"
-    analyzer_args: "--no-dy-reshape"

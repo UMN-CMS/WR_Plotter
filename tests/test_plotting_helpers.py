@@ -15,6 +15,8 @@ from wrplotter.plotting_helpers import (
     _safe_sum_hists,
     data_ratio,
     plot_stack,
+    poisson_errors,
+    set_y_label,
 )
 from wrplotter.regions import Region
 from wrplotter.variables import Variable
@@ -30,24 +32,54 @@ class TestDataRatio:
         return h
 
     def test_events_per_bin(self):
-        ratio, err = data_ratio(self._data([4.0, 9.0, 16.0]), np.array([2.0, 9.0, 8.0]))
+        mc = np.array([2.0, 9.0, 8.0])
+        ratio, err = data_ratio(self._data([4.0, 9.0, 16.0]), mc)
         np.testing.assert_allclose(ratio, [2.0, 1.0, 2.0])
-        np.testing.assert_allclose(err, [1.0, 1 / 3, 0.5])        # sqrt(N) / MC
+        np.testing.assert_allclose(err, poisson_errors([4, 9, 16]) / mc)   # Garwood / MC
 
-    def test_per_gev_error_is_sqrt_n(self):
+    def test_per_gev_error_is_on_the_counts(self):
         # 4 events in each 10-GeV bin, regrouped into [0, 20) and [20, 100) GeV and drawn per GeV:
-        # the relative error must stay 1/sqrt(N) (N = 8, 32).  sqrt of the per-GeV contents
-        # made it sqrt(width) times too large.
+        # the relative errors are those of N = 8 and 32 events, not of the per-GeV contents.
         raw = self._data([4.0] * 10)
         data = rebin_histogram(raw, [0, 20, 100], density=True)
-        ratio, err = data_ratio(data, data.values())
+        ratio, err = data_ratio(data, data.values(), per_unit=True)
         np.testing.assert_allclose(ratio, 1.0)
-        np.testing.assert_allclose(err, [1 / np.sqrt(8), 1 / np.sqrt(32)])
+        np.testing.assert_allclose(err, poisson_errors([8, 32]) / [8, 32])
 
     def test_bins_without_mc_are_zero(self):
         ratio, err = data_ratio(self._data([4.0, 1.0]), np.array([0.0, 2.0]))
         np.testing.assert_allclose(ratio, [0.0, 0.5])
-        np.testing.assert_allclose(err, [0.0, 0.5])
+        np.testing.assert_allclose(err[:, 0], 0.0)
+        np.testing.assert_allclose(err[:, 1], poisson_errors([1])[:, 0] / 2)
+
+
+class TestPoissonErrors:
+
+    def test_garwood_values(self):
+        # 68 % central intervals, as mplhep draws them for unweighted data:
+        # N=1 -> [0.173, 3.300], N=4 -> [2.086, 7.163]
+        from mplhep.error_estimation import poisson_interval
+        n = np.array([1.0, 4.0, 25.0])
+        down, up = poisson_errors(n)
+        lo, hi = poisson_interval(n, n)
+        np.testing.assert_allclose(n - down, lo, rtol=1e-9)
+        np.testing.assert_allclose(n + up, hi, rtol=1e-9)
+        np.testing.assert_allclose(n[:2] - down[:2], [0.1727, 2.0856], atol=1e-4)
+
+    def test_zero_counts_upper_limit(self):
+        down, up = poisson_errors([0])
+        assert down[0] == 0.0
+        np.testing.assert_allclose(up, 1.8410, atol=1e-4)
+
+
+class TestYLabel:
+
+    def test_per_unit_label_has_brackets(self):
+        fig, ax = plt.subplots()
+        h = rebin_histogram(_make_weighted_hist(np.ones(10)), [0, 200, 1000], density=True)
+        set_y_label(ax, h, Variable("m", "m", "GeV", 10, 0, 1000), per_unit=True)
+        assert ax.get_ylabel() == r"$\langle$Events / GeV$\rangle$"
+        plt.close(fig)
 
 
 class TestCustomLogFormatter:
@@ -229,3 +261,25 @@ class TestPlotStack:
         assert any("syst." in l for l in labels_syst)
         plt.close(fig_stat)
         plt.close(fig_syst)
+
+    def test_guideline_label_and_legend(self):
+        """CMS FigGuidelines: CMS label in the frame, Data first in the legend, and
+        'Simulation' when the plot shows no data."""
+        region = Region("wr_mumu_resolved_dy_cr", "muon", "CR test")
+        variable = Variable("mass_fourobject", r"$m_{lljj}$", "GeV", 10, 0, 1000)
+        mc = _make_weighted_hist(np.arange(1, 11, dtype=float) * 10)
+        data = _make_weighted_hist(np.arange(1, 11, dtype=float) * 12)
+        common = dict(stack_list=[mc], stack_colors=["#5790fc"], stack_labels=["Z+jets"],
+                      xlim=(0, 1000), ylim=(1, 1e6), lumi=59.7)
+
+        fig = plot_stack(region, variable, data_hist=[data], **common)
+        ax = fig.axes[0]
+        texts = {t.get_text(): t for t in ax.texts}
+        assert texts["CMS"].get_transform() == ax.transAxes   # inside the frame
+        assert "Work in progress" in texts
+        assert [t.get_text() for t in ax.get_legend().get_texts()][0] == "Data"
+        plt.close(fig)
+
+        fig = plot_stack(region, variable, data_hist=[], show_data=False, **common)
+        assert "Simulation Work in progress" in {t.get_text() for t in fig.axes[0].texts}
+        plt.close(fig)

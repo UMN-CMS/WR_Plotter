@@ -18,7 +18,8 @@ from matplotlib.figure import Figure
 
 from .cutflow import CHANNEL_LATEX, CutflowTable, cut_label, efficiency
 from .plotting_helpers import (FONT_SIZE_LEGEND, SIGNAL_COLORS, SIGNAL_STYLES, cms_label,
-                               custom_log_formatter, log_ylim, region_text, signal_label)
+                               custom_log_formatter, fit_header, log_ylim, poisson_errors,
+                               reorder_legend, signal_label)
 
 _BAND = {"hatch": "////", "facecolor": "none", "lw": 0, "edgecolor": "k", "alpha": 0.5}
 _FIGSIZE = (15, 11)
@@ -91,7 +92,7 @@ def plot_yields(table: CutflowTable, *, era: str, lumi: float, com: float = 13.6
         if stack:
             hep.histplot([c.cutflow.values for c in stack], edges, stack=True, histtype="fill",
                          color=[c.color for c in stack], label=[c.label for c in stack],
-                         alpha=0.7, ax=ax)
+                         ax=ax)
         total, total_err = table.total, np.sqrt(table.total_variance)
         ax.stairs(total + total_err, edges, baseline=np.clip(total - total_err, 0, None),
                   label="Bkg. stat. unc.", **_BAND)
@@ -101,17 +102,17 @@ def plot_yields(table: CutflowTable, *, era: str, lumi: float, com: float = 13.6
 
     if show_data:
         ok = ~table.blinded
-        ax.errorbar(x[ok], table.data[ok], yerr=np.sqrt(table.data[ok]), fmt="o", color="k",
-                    markersize=7, label="Data", zorder=5)
+        ax.errorbar(x[ok], table.data[ok], yerr=poisson_errors(table.data[ok]), fmt="o",
+                    color="k", markersize=7, label="Data", zorder=5)
         drawn.append(table.data[ok])
 
     ax.set_yscale("log")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
     ax.set_ylim(*log_ylim(drawn, pad_high=1e4))
-    ax.set_ylabel("Raw MC events" if table.unweighted else "Events")
-    region_text(ax, _title(table, era, "Unweighted (raw counts)" if table.unweighted else "Weighted"))
-    cms_label(ax, lumi, com)
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 4, ncol=2)
+    ax.set_ylabel("Simulated events (unweighted)" if table.unweighted else "Events")
+    cms_label(ax, lumi, com, data=show_data,
+              text=_title(table, era, "Unweighted (raw counts)" if table.unweighted else "Weighted"))
+    reorder_legend(ax, fontsize=FONT_SIZE_LEGEND - 4, ncol=2)
 
     if rax is not None:
         total = table.total
@@ -120,7 +121,8 @@ def plot_yields(table: CutflowTable, *, era: str, lumi: float, com: float = 13.6
         rax.stairs(1 - rel, edges, baseline=1 + rel, **_BAND)
         if show_data:
             ok = ~table.blinded & (total > 0)
-            rax.errorbar(x[ok], table.data[ok] / total[ok], yerr=np.sqrt(table.data[ok]) / total[ok],
+            rax.errorbar(x[ok], table.data[ok] / total[ok],
+                         yerr=poisson_errors(table.data[ok]) / total[ok],
                          fmt="o", color="k", markersize=6)
         else:
             rax.text(0.5, 0.78, "No data shown", transform=rax.transAxes, ha="center",
@@ -134,6 +136,7 @@ def plot_yields(table: CutflowTable, *, era: str, lumi: float, com: float = 13.6
     else:
         _cut_axis(ax, table.cuts)
         _shade_blinded([ax], table.blinded, label_ax=ax)
+    fit_header(ax)
     return fig
 
 
@@ -173,7 +176,8 @@ def plot_efficiency(table: CutflowTable, mode: str, *, era: str, lumi: float,
     _cut_axis(ax, table.cuts)
     _shade_blinded([ax], table.blinded, label_ax=ax)
     weighting = "Unweighted" if table.unweighted else "Weighted"
-    region_text(ax, _title(table, era, f"{weighting}, {EFFICIENCY_YLABEL[label_key].lower()}"))
-    cms_label(ax, lumi, com)
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 4, ncol=2)
+    cms_label(ax, lumi, com, data=table.data is not None,
+              text=_title(table, era, f"{weighting}, {EFFICIENCY_YLABEL[label_key].lower()}"))
+    reorder_legend(ax, fontsize=FONT_SIZE_LEGEND - 4, ncol=2)
+    fit_header(ax)
     return fig

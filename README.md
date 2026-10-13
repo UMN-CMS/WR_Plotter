@@ -20,7 +20,10 @@ Plotting tools for the WR analysis. Takes ROOT histogram files produced by the W
   - [make_cutflows.py](#make_cutflowspy)
   - [make_signal_cutflows.py](#make_signal_cutflowspy)
   - [compare_signal_eras.py](#compare_signal_eraspy)
+  - [make_signal_plots.py](#make_signal_plotspy)
+  - [plot_signal_theory_uncertainties.py](#plot_signal_theory_uncertaintiespy)
   - [compare_dy.py](#compare_dypy)
+  - [plot_dy_zpt_reweight.py](#plot_dy_zpt_reweightpy)
   - [plot_event_weights.py](#plot_event_weightspy)
   - [emu_transfer_factor.py](#emu_transfer_factorpy)
 - [Removed Options](#removed-options)
@@ -173,20 +176,21 @@ done
 
 ### Drell-Yan Samples
 
-The analyzer always writes the Drell-Yan prediction as `WRAnalyzer_DYJets.root`, so a DY sample is
-identified by its directory. `--dy TAG` (`make_stackplots.py`, `compare_dy.py`, `make_cutflows.py`,
-`plot_event_weights.py`) picks one by its analyzer `--dy` tag (`data/dy_samples.yaml`):
+Every Drell-Yan sample has its own file in `--dir`. `--dy TAG` (`make_stackplots.py`, `compare_dy.py`,
+`make_cutflows.py`, `plot_event_weights.py`) picks one by its tag (`data/dy_samples.yaml`):
 
-- the default sample (`lo_ht`) is read from `--dir` itself;
-- any other sample is read from `<dir>_<tag>_dy`, e.g. `20261008_skims_v2_lo_inc_dy`;
+- the default sample (`lo_ht`: LO HT-binned, not reweighted) is `WRAnalyzer_DYJets.root`;
+- any other is `WRAnalyzer_DYJets_<tag>.root`: `lo_ht_zpt` and `lo_ht_zpt_reshape` (the LO HT-binned
+  DY with the Z-pT reweight, and with the jet-pT reshape too: analyzer `--dy-reweight zpt` or
+  `zpt+reshape`), `lo_inc`, `nlo_inc`, `nlo_mll`, `nlo_njet`, `nlo_ptll` (analyzer `--dy <tag>`);
+- sets made before 2026-10-12 kept each sample as `WRAnalyzer_DYJets.root` in `<dir>_<tag>_dy`
+  (`lo_ht_zpt` also as `lo_ht_zptonly` or `<dir>_noreshape`, `lo_ht_zpt_reshape` as
+  `lo_ht_reweighted`; these old names still work as tags); a tag whose file is not in `--dir` is read
+  from there;
 - `--dy TAG=DIR` reads it from another directory.
 
-`lo_ht_noreweight` and `lo_ht_zptonly` are not analyzer tags: they are `lo_ht` run with
-`--no-dy-zpt-reweight` (no Z-pT reweight, no jet-pT reshape) or `--no-dy-reshape` (Z-pT reweight
-only) into `<dir>_<tag>_dy`.
-
-Every other sample always comes from `--dir`. A directory whose DYJets manifest lists the datasets
-of a different DY sample is refused. Repeat `--dy` (or comma-separate) to make one set per sample:
+Every other sample always comes from `--dir`. A DY file whose manifest lists the datasets of a
+different DY sample is refused. Repeat `--dy` (or comma-separate) to make one set per sample:
 ```bash
 python3 bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc --local-plots
 ```
@@ -348,15 +352,73 @@ the UL18 official and pre-legacy samples, run into different directories) are gi
 
 `--points` defaults to the `cutflow_signals` of `data/lumi.yaml` that every set has (`all` = every common point).
 
+### make_signal_plots.py
+
+Signal plots of one era from its signal files alone (the single-era counterpart of
+`compare_signal_eras.py`; definitions in `wrplotter/signal_compare.py` and `wrplotter/signal_plots.py`):
+```bash
+python3 bin/make_signal_plots.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --local-plots
+python3 bin/make_signal_plots.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --points WR4000_N2100 WR6000_N100 --local-plots
+```
+Under `<plots>/<Run>/<Year>/<Era>/<dir>/signal_plots/`:
+
+| Folder | Content |
+|---|---|
+| `efficiency/<channel>_WR<m>.pdf` | A × ε (SR yield over σ × L of the flavour) vs m_N at each m_WR: resolved SR, boosted SR, their sum (AN-19-083 App. B) |
+| `efficiency_map/<topology>_<channel>.pdf` | A × ε over the (m_WR, m_N) grid |
+| `cr_fraction/<topology>_<channel>_WR<m>.pdf` | signal in the DY and flavour CRs over σ × L (the flavour CRs over both flavours, as a point's file merges them), vs m_N |
+| `xsec/`, `kfactor/` | σ_LO and σ_LO × k (fb) and k vs m_N, from the analyzer's signal config (AN Fig. 6) |
+| `mass/` | SR mass of several m_N at one m_WR, and of every m_WR at m_N ≈ 0.05 / 0.5 m_WR, unit area |
+| `resolution/` | median / m_WR and σ_eff / median of the SR mass peak vs m_N |
+| `kinematics/<region>/`, `cutflow/` | the other SR variables (unit area) and the cumulative cutflow efficiency of `--points` (default: the `cutflow_signals` of `data/lumi.yaml`) |
+
+Tables under `tables/<...>/<dir>/signal_plots/`: `efficiency.csv` (per point and channel: A × ε, the CR fractions,
+the peak median and σ_eff) and `latex/signal_eff_<channel>_WR<m>.tex` with `preview.tex`. `-o DIR` writes everything
+under `DIR`; `--max-shapes N` limits the curves per mass plot; `--no-kinematics` skips the per-point plots.
+
+### plot_signal_theory_uncertainties.py
+
+The change of each signal region's yield under the QCD scale (envelope), PDF, α_S and parton-shower ISR / FSR
+variations against m_WR (AN-19-083 Fig. 129), from a signal set made with `run_analysis.py ... Signal --systs scale
+pdf ps`. The weights are normalized per sample by the analyzer, so these are acceptance effects only:
+```bash
+python3 bin/plot_signal_theory_uncertainties.py --era RunIII2024Summer24 --dir 20261012_signal_theory --local-plots
+```
+Plots `<plots>/<...>/<dir>/signal_theory/<topology>_<channel>_<mN100|mNhalf>.pdf` (the lightest m_N at each m_WR,
+and m_N ≈ m_WR / 2); the table `tables/<...>/<dir>/signal_theory/theory_uncertainties.csv` holds every point, region
+and source.
+
 ### compare_dy.py
 
-Compare Drell-Yan samples (at least two `--dy`; the first is the reference), on their own and inside
-the total background:
+Compare Drell-Yan samples, on their own and inside the total background: a named comparison of
+`data/dy_comparisons.yaml` (`--comparison NAME`, several or `all`; the first sample is the reference),
+or two or more `--dy` samples, the first the reference:
 ```bash
-python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc --local-plots
-python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc -r resolved_dy_cr -v mass_fourobject --local-plots
+python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --comparison all --local-plots
+python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --comparison lo,lo_ht_vs_nlo --plots all --local-plots
+python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --dy lo_ht,lo_inc -r resolved_dy_cr -v mass_fourobject --local-plots
 ```
-Outputs under `<plots>/<Run>/<Year>/<Era>/<dir>/dy_compare/`:
+
+| Comparison | Samples (reference first) | Question |
+|---|---|---|
+| `lo` | `lo_ht`, `lo_inc`, `lo_ht_zpt_reshape` | HT slicing vs inclusive LO; what the Z-pT reweight + jet-pT reshape do |
+| `nlo` | `nlo_inc`, `nlo_mll`, `nlo_njet` | The NLO samples against the inclusive one (`nlo_ptll` left out: unstitched) |
+| `lo_vs_nlo_inclusive` | `lo_inc`, `nlo_inc` | The generator difference alone, both inclusive |
+| `lo_ht_vs_nlo` | `lo_ht`, `nlo_inc` | The default DY against the best NLO |
+
+Every DY sample is a file in `--dir`: `WRAnalyzer_DYJets.root` for the default `lo_ht`, `WRAnalyzer_DYJets_<TAG>.root` for any other (sets made before 2026-10-12: `<dir>_<TAG>_dy/`, still read). With `--comparison`, `--dy TAG=DIR` only says where a sample is;
+a comparison whose sample cannot be found is skipped and reported, the others are drawn. `--plots core`
+(the default) draws the `core` set of `data/dy_comparisons.yaml`: in the DY CRs the fit observable, m_ll,
+pT(ll), the jet pT the reshape uses, the subleading jet, m_jj and the recoil pT; in the SRs the fit observable
+and m_ll. `--plots all` draws every configured pair; `-r`/`-v` restrict either.
+Every variable is drawn in uniform bins (the plot settings' `rebin`); `--run2-binning` draws the m(W_R)
+observables in the Run 2 fit bins (`rebin_variable`) and writes to `dy_compare_run2_binning/` instead.
+`lo_ht` is the LO HT-binned DY without the Z-pT reweight and the jet-pT reshape (the analyzer default
+since 2026-10-12; `lo_ht_zpt` and `lo_ht_zpt_reshape` add them); sets made before then hold the reweighted DY
+in `<dir>`, read with `--dy lo_ht_zpt_reshape=<dir>`. A DY file whose reweighting (read from its event-weight histograms) is not
+the one its tag stands for is refused.
+
+Outputs under `<plots>/<Run>/<Year>/<Era>/<dir>/dy_compare/[<comparison>/]`:
 
 | Folder | Content |
 |---|---|
@@ -364,6 +426,29 @@ Outputs under `<plots>/<Run>/<Year>/<Era>/<dir>/dy_compare/`:
 | `shape/<region>/` | The same, each sample scaled to unit yield |
 | `total/<region>/` | Total background built with each DY sample; data and Data/Bkg. per sample in control regions, totals compared to the reference in signal regions |
 | `total_scaled/<region>/` | Control regions only: as `total`, each prediction scaled to the data yield (factor in the legend) |
+
+### plot_dy_zpt_reweight.py
+
+The DY Z-pT reweighting of an era, drawn from the payload the analyzer applies (`config.yaml`
+`dy_zpt_reweight`, or `--payload`), with the converted Run 2 ratio overlaid (`--reference`, default:
+the payload the EW correction was copied from; `none` to skip):
+```bash
+python3 bin/plot_dy_zpt_reweight.py --era RunIII2024Summer24 --local-plots
+python3 bin/plot_dy_zpt_reweight.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --dy lo_ht,lo_ht_zpt --local-plots
+```
+Outputs under `<plots>/<Run>/<Year>/<Era>/[<dir>/]dy_zpt_reweight/`:
+
+| File | Content |
+|---|---|
+| `qcd_ratio.pdf` | QCD NLO / LO vs generator Z pT up to 1 TeV with the scale, PDF and α_S variations and the Run 2 ratio (AN-19-083 Fig. 14) |
+| `qcd_ratio_full_range.pdf` | The same over the payload's whole range, log x |
+| `ew_correction.pdf` | The EW factor with its three uncertainties |
+| `weight.pdf` | QCD × EW, the weight the analyzer gives a DY event, with the total uncertainty and the two factors |
+| `spectra.pdf` | The inclusive LO and NLO generator spectra the ratio came from, with NLO / LO |
+| `applied/<region>.pdf` | With `--dir`: the reweighted over the unreweighted DY (`--dy before,after`) in the reco pT(ll) of each DY CR, against the payload |
+
+The before/after pT(ll) stack plots of AN-19-083 Figs. 15-18 are `make_stackplots.py`'s with
+`--dy lo_ht,lo_ht_zpt -r resolved_dy_cr,boosted_dy_cr -v pt_dilepton`.
 
 ### plot_event_weights.py
 
@@ -447,6 +532,7 @@ WR_Plotter/
 │   ├── make_stackplots.py            #   Stacked MC + data plots, one set per DY sample
 │   ├── make_cutflows.py              #   Cutflow tables and plots (yields, efficiencies)
 │   ├── compare_dy.py                 #   Drell-Yan sample comparisons
+│   ├── plot_dy_zpt_reweight.py       #   The DY Z-pT reweighting payload and its effect
 │   ├── plot_event_weights.py         #   MC event-weight distributions and components
 │   ├── make_signal_cutflows.py       #   Signal cutflow tables per (WR, N) mass point
 │   └── emu_transfer_factor.py        #   tt+tW SR/CR transfer factors (resolved + boosted)

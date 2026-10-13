@@ -7,8 +7,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.collections import PathCollection
 from matplotlib.figure import Figure
 import mplhep as hep
+from mplhep.label import ExpSuffix, ExpText
+from scipy.stats import chi2
 
 from .histogram_utils import for_drawing, sum_hists
 from .systematics import band_error2
@@ -20,13 +23,20 @@ if TYPE_CHECKING:
 
 # ----------------------------- constants -------------------------------------- #
 
-FONT_SIZE_TITLE  = 20
+# CMS figure guidelines (FigGuidelines twiki, CAT plotting pages): the text after "CMS".
+# "Work in progress" is the thesis-endorsement label; a PAS or CMS note takes "Preliminary".
+CMS_EXTRA_TEXT = "Work in progress"
+
+FONT_SIZE_TITLE  = 18   # region text: no larger than the legend (FigGuidelines)
 FONT_SIZE_LABEL  = 20
 FONT_SIZE_LEGEND = 18
 
 # Colours and linestyles cycled over multiple signal overlays so they remain
 # visually distinguishable when more than one signal is shown on the same plot.
-SIGNAL_COLORS = ["black", "#e41a1c", "#377eb8", "#4daf4a", "#984ea3"]
+# CMS (Petroff) palette colours the background fills do not use (those are the
+# 6-colour scheme's blue, orange, red and purple, data/sample_groups.yaml):
+# the 6-colour violet, then the 10-colour brown, grey, dark orange and dark red.
+SIGNAL_COLORS = ["#7a21dd", "#a96b59", "#717581", "#e76300", "#bd1f01"]
 SIGNAL_STYLES = ["--", "-.", ":", (0, (3, 1, 1, 1)), (0, (5, 1))]
 
 # ----------------------------- formatters/labels ----------------------------- #
@@ -61,8 +71,9 @@ def _format_bin_width(w: float) -> str:
 def set_y_label(ax, tot, variable, *, per_unit: bool = False) -> None:
     """
     Set y-axis label as 'Events / <binwidth> [unit]' for uniform binning.
-    For non-uniform binning, 'Events / bin', or 'Events / [unit]' when the contents
-    were divided by the bin width (*per_unit*).
+    For non-uniform binning, 'Events / bin', or '< Events / [unit] >' when the contents
+    were divided by the bin width (*per_unit*); the brackets mark the average over
+    the bin (CMS PubGuidelines, figures).
     """
     edges = np.asarray(tot.axes[0].edges)
     widths = np.diff(edges)
@@ -76,24 +87,24 @@ def set_y_label(ax, tot, variable, *, per_unit: bool = False) -> None:
         else:
             ax.set_ylabel(f"Events / {bw}")
     elif per_unit:
-        ax.set_ylabel(f"Events / {unit}" if unit else "Events / unit")
+        ax.set_ylabel(rf"$\langle$Events / {unit or 'unit'}$\rangle$")
     else:
         ax.set_ylabel("Events / bin")
 
 # --------------------------------- legends ---------------------------------- #
 
-def reorder_legend(ax, priority=("MC stat.", "Data"), fontsize=18) -> None:
+def reorder_legend(ax, priority=("Data", "Sim. stat."), fontsize=18, **legend_kw) -> None:
     """
-    Put MC uncertainty band first, 'Data' second, keep the rest in reverse stack order.
-    The first priority element is matched as a prefix (handles both
-    'MC stat. unc.' and 'MC stat. + syst. unc.').
-    Missing labels are skipped gracefully.
+    Put 'Data' first (CMS FigGuidelines: data at the top of a stack plot's legend),
+    the MC uncertainty band second, and keep the rest in reverse stack order.
+    The band is matched as a prefix (handles both 'Sim. stat. unc.' and
+    'Sim. stat. + syst. unc.').  Missing labels are skipped gracefully.
+    The legend goes top right: the CMS label and region text hold the top left.
     """
     handles, labels = ax.get_legend_handles_labels()
     idx = {label: i for i, label in enumerate(labels)}
-    # Prefix match for the MC uncertainty label
-    first = next((idx[l] for l in labels if l.startswith(priority[0])), None)
-    second = idx.get(priority[1])
+    first = idx.get(priority[0])
+    second = next((idx[l] for l in labels if l.startswith(priority[1])), None)
     rest = [i for i in range(len(labels)) if i not in {first, second}]
     order = ([first] if first is not None else []) + \
             ([second] if second is not None else []) + rest
@@ -101,23 +112,50 @@ def reorder_legend(ax, priority=("MC stat.", "Data"), fontsize=18) -> None:
         return
     ax.legend([handles[i] for i in order],
               [labels[i] for i in order],
-              loc="best", fontsize=fontsize)
+              loc="upper right", fontsize=fontsize, **legend_kw)
 
 # --------------------------------- drawing ---------------------------------- #
 
-def data_ratio(data: Hist, tot_vals: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Data/MC ratio per bin and its statistical error (both 0 where the MC total is not positive).
+def poisson_errors(counts: np.ndarray) -> np.ndarray:
+    """(down, up) offsets of the Garwood 68 % central interval on event *counts*.
 
-    The error uses the data's own variances, sqrt(N) per bin, so it stays right
-    when the contents are per GeV (``--per-gev`` divides the variances by the
-    bin width squared); sqrt of the per-GeV contents was too large by sqrt(width).
+    For zero counts the upper limit (1.84) and no downward error, as the CMS
+    Statistics Committee recommends for data points (PubGuidelines, figures).
+    """
+    n = np.asarray(counts, dtype=float)
+    alpha = 1 - 0.682689492137
+    lo = np.where(n > 0, chi2.ppf(alpha / 2, 2 * n) / 2, 0.0)
+    hi = chi2.ppf(1 - alpha / 2, 2 * (n + 1)) / 2
+    return np.array([n - lo, hi - n])
+
+
+def data_counts(data: Hist, *, per_unit: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    """(event counts, contents per count) of a data histogram; with *per_unit*
+    the contents were divided by the bin width, so one event is 1/width."""
+    widths = np.diff(np.asarray(data.axes[0].edges))
+    scale = 1.0 / widths if per_unit else np.ones_like(widths)
+    return np.rint(data.values() / scale), scale
+
+
+def data_errors(data: Hist, *, per_unit: bool = False) -> np.ndarray:
+    """(down, up) Garwood errors of a data histogram in its own units."""
+    counts, scale = data_counts(data, per_unit=per_unit)
+    return poisson_errors(counts) * scale
+
+
+def data_ratio(data: Hist, tot_vals: np.ndarray, *,
+               per_unit: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    """Data/MC ratio per bin and its (down, up) statistical errors, shape (2, N);
+    all 0 where the MC total is not positive.
+
+    The errors are the Garwood interval on the event count over the MC total,
+    so they stay right when the contents are per GeV (*per_unit*).
     """
     data_vals = data.values()
-    data_vars = data.variances()
-    data_err = np.sqrt(data_vars if data_vars is not None else data_vals)
+    errs = data_errors(data, per_unit=per_unit)
     ok = tot_vals > 0
     ratio = np.divide(data_vals, tot_vals, out=np.zeros_like(data_vals, dtype=float), where=ok)
-    ratio_err = np.divide(data_err, tot_vals, out=np.zeros_like(data_vals, dtype=float), where=ok)
+    ratio_err = np.divide(errs, tot_vals, out=np.zeros_like(errs, dtype=float), where=ok)
     return ratio, ratio_err
 
 
@@ -149,7 +187,7 @@ def plot_stack(
     Args:
       syst_variations: {syst: {"up": Hist, "down": Hist}} totals of the whole MC
         stack (see wrplotter.systematics.total_variations); each source adds its
-        largest shift in quadrature to the MC stat. band.
+        largest shift in quadrature to the simulation's statistical band.
       show_data: If False, data points are not shown and ratio panel displays "Blinded"
       signal_hists: Dict of signal sample name -> histogram to overlay (not stacked)
     """
@@ -176,15 +214,20 @@ def plot_stack(
     fig, (ax, rax) = plt.subplots(
         2, 1, gridspec_kw=dict(height_ratios=[3, 1], hspace=0.1), sharex=True
     )
+    # Horizontal bars on data points only where the bin width varies (PubGuidelines);
+    # the same bars in both panels and in the legend.
+    widths = np.diff(edges)
+    data_xerr = not np.allclose(widths, widths[0])
 
-    # main panel
+    # main panel: the palette colours as given, no transparency (CAT colour scheme)
     if bkg_stack:
         hep.histplot([for_drawing(h) for h in bkg_stack], stack=True, label=bkg_labels,
-                     color=bkg_colors, histtype="fill", alpha=0.7, ax=ax,
+                     color=bkg_colors, histtype="fill", ax=ax,
                      flow="hint")
 
     if show_data and data is not None:
-        hep.histplot(for_drawing(data), label="Data", xerr=True, color="k",
+        hep.histplot(for_drawing(data), yerr=data_errors(data, per_unit=per_unit),
+                     label="Data", xerr=data_xerr, color="k",
                      histtype="errorbar", ax=ax, flow="hint")
 
     # --- Signal overlays ---
@@ -204,7 +247,9 @@ def plot_stack(
         syst_err2, has_syst = band_error2(tot_vals, syst_variations)
         mc_total_errs = np.sqrt(tot_vars + syst_err2)
 
-        unc_label = "MC stat. + syst. unc." if has_syst else "MC stat. unc."
+        # "Sim.", as the ratio panel's "Data/Sim.": the PubGuidelines keep "MC" for an
+        # adjective ("Monte Carlo program"), never a noun.
+        unc_label = "Sim. stat. + syst. unc." if has_syst else "Sim. stat. unc."
         hep.histplot(tot, histtype="band", yerr=mc_total_errs, ax=ax, **errps, label=unc_label)
 
         # ratio
@@ -213,9 +258,9 @@ def plot_stack(
                             where=(tot_vals > 0))
 
         if show_data and data is not None:
-            ratio, ratio_err = data_ratio(data, tot_vals)
-            hep.histplot(ratio, edges, yerr=ratio_err, xerr=False, ax=rax,
-                         histtype="errorbar", color="k", capsize=4, label="Data")
+            ratio, ratio_err = data_ratio(data, tot_vals, per_unit=per_unit)
+            hep.histplot(ratio, edges, yerr=ratio_err, xerr=data_xerr, ax=rax,
+                         histtype="errorbar", color="k", label="Data")
 
         band_low, band_high = 1 - rel_err, 1 + rel_err
         bad = tot_vals <= 0
@@ -224,7 +269,7 @@ def plot_stack(
         rax.stairs(band_low, edges, baseline=band_high, **errps)
     else:
         # No MC: keep the ratio panel but indicate missing denominator.
-        rax.text(0.5, 0.5, "No MC", transform=rax.transAxes,
+        rax.text(0.5, 0.5, "No simulation", transform=rax.transAxes,
                  ha="center", va="center", fontsize=18, fontweight="bold", color="red")
 
     # cosmetics
@@ -234,16 +279,9 @@ def plot_stack(
     alias = region.tlatex_alias.replace("\\n", "\n")
     if extra_label:
         alias = f"{alias}\n{extra_label}"
-    ax.text(
-        0.05, 0.96, alias,
-        transform=ax.transAxes,
-        fontsize=fontsize_title,
-        va="top"
-    )
-
-    hep.cms.label(loc=0, ax=ax, data=True,
-                  label="Work in Progress", lumi=f"{lumi:.2f}",
-                  com=com, fontsize=fontsize_label)
+    # Blinded or data-less plots show simulation only: "CMS Simulation".
+    cms_label(ax, lumi, com, data=show_data and data is not None, text=alias,
+              fontsize=fontsize_label, text_fontsize=fontsize_title)
 
     xlabel = f"{variable.tlatex_alias} [{variable.unit}]" if getattr(variable, "unit", "") else variable.tlatex_alias
     rax.set_xlabel(xlabel)
@@ -275,22 +313,149 @@ def plot_stack(
     set_y_label(ax, tot if tot is not None else data, variable, per_unit=per_unit)
 
     reorder_legend(ax, fontsize=fontsize_legend)
+    fit_header(ax)
     return fig
 
 
 # ------------------------------ shared cosmetics ----------------------------- #
 
-def cms_label(ax, lumi: float, com: float = 13.6, *, fontsize: int = FONT_SIZE_LABEL) -> None:
-    """CMS 'Work in Progress' header with luminosity and centre-of-mass energy."""
-    hep.cms.label(loc=0, ax=ax, data=True, label="Work in Progress",
-                  lumi=f"{lumi:.2f}", com=com, fontsize=fontsize)
+def cms_label(ax, lumi: float | None, com: float = 13.6, *, data: bool = True,
+              text: str | None = None, rlabel: str | None = None,
+              fontsize: int = FONT_SIZE_LABEL, text_fontsize: int = FONT_SIZE_TITLE):
+    """The CMS label as the CMS figure guidelines ask: "CMS" in bold inside the frame,
+    top left, the same distance from both axes, with the italic secondary label
+    (``Simulation`` first when *data* is False) under it; "<lumi> fb^-1 (<com> TeV)",
+    or *rlabel*, above the frame on the right.  *text* (the region description) goes
+    under the label.  Returns the lowest text artist of the block.
+    """
+    pos = ax.get_position()
+    fig_w, fig_h = ax.figure.get_size_inches()
+    aspect = (pos.width * fig_w) / (pos.height * fig_h)
+    right = {"rlabel": rlabel} if rlabel is not None else {"lumi": f"{lumi:.2f}", "com": com}
+    _, suffix, _ = hep.cms.label(CMS_EXTRA_TEXT, loc=2, ax=ax, data=data, fontsize=fontsize,
+                                 pad=0.05 * (aspect - 1), **right)
+    if text:
+        return region_text(ax, text, fontsize=text_fontsize, below=suffix)
+    return suffix
+
+
+def _content_vertices(ax) -> np.ndarray:
+    """(x, y) data points of everything drawn in *ax* (lines, bars, fills, steps)."""
+    pts = []
+    for line in ax.lines:
+        if line.get_transform().contains_branch(ax.transData):
+            pts.append(line.get_path().interpolated(50).vertices)
+    for coll in ax.collections:
+        if isinstance(coll, PathCollection):
+            pts.append(np.asarray(coll.get_offsets()))
+        elif coll.get_transform().contains_branch(ax.transData):
+            pts += [p.interpolated(50).vertices for p in coll.get_paths() if len(p.vertices)]
+    for patch in ax.patches:
+        if len(patch.get_path().vertices) and patch.get_data_transform().contains_branch(ax.transData):
+            pts.append(patch.get_patch_transform().transform(
+                patch.get_path().interpolated(50).vertices))
+    pts = [np.asarray(p, dtype=float).reshape(-1, 2) for p in pts if len(p)]
+    return np.concatenate(pts) if pts else np.empty((0, 2))
+
+
+def fit_header(ax, *, margin: float = 0.02) -> None:
+    """Keep the CMS label, the region text and the legend clear of the plot content.
+
+    Puts "Simulation" on its own line when the secondary label runs into the
+    legend, then raises the top of the y axis until nothing drawn lies under any
+    of them.  Only blocks that hang from the top of the frame count: raising the
+    axis cannot clear a legend placed low (limit plots put theirs lower left).
+    Call it last, once the legend and the x range are set.
+    """
+    fig = ax.figure
+    renderer = fig.canvas.get_renderer()
+    legend = ax.get_legend()
+    if legend is not None:
+        leg_box = legend.get_window_extent(renderer)
+        for t in ax.texts:
+            if (isinstance(t, ExpSuffix) and t.get_text().startswith("Simulation ")
+                    and t.get_window_extent(renderer).overlaps(leg_box)):
+                t.set_text(t.get_text().replace("Simulation ", "Simulation\n", 1))
+
+    header = [t for t in ax.texts
+              if isinstance(t, (ExpText, ExpSuffix)) or getattr(t, "is_region_text", False)]
+    blockers = [t.get_window_extent(renderer) for t in header if t.get_text().strip()]
+    if legend is not None:
+        legend = _fit_legend(ax, legend, blockers, renderer, margin)
+        blockers.append(legend.get_window_extent(renderer))
+    pts = _content_vertices(ax)
+    log = ax.get_yscale() == "log"
+    if log:
+        pts = pts[pts[:, 1] > 0]
+    pts = pts[np.isfinite(pts).all(axis=1)]
+    if not len(pts):
+        return
+
+    lo, hi = ax.get_ylim()
+    f = np.log10 if log else (lambda v: v)
+    to_axes = ax.transAxes.inverted()
+    to_data = ax.transData.inverted()
+    # The top moves up at most to twice the axis span: a header that needs more
+    # (a legend pushed low in the frame) is left as it is, with the warning above.
+    need, cap = f(hi), f(lo) + 2 * (f(hi) - f(lo))
+    for box in blockers:
+        bottom = to_axes.transform((box.x0, box.y0))[1]
+        top = to_axes.transform((box.x1, box.y1))[1]
+        if not 0 < bottom < 1:                       # out of the frame (luminosity)
+            continue
+        if top < 0.75:                               # not hanging from the top of the frame
+            continue
+        x0 = to_data.transform((box.x0, box.y0))[0]
+        x1 = to_data.transform((box.x1, box.y0))[0]
+        under = pts[(pts[:, 0] >= min(x0, x1)) & (pts[:, 0] <= max(x0, x1)), 1]
+        if not len(under) or (room := bottom - margin) <= 0:
+            continue
+        top = f(lo) + (f(under.max()) - f(lo)) / room
+        if np.isfinite(top):
+            need = max(need, min(top, cap))
+    if need > f(hi):
+        ax.set_ylim(lo, 10 ** need if log else need)
+
+
+LEGEND_MIN_FONTSIZE = 12
+
+
+def _fit_legend(ax, legend, blockers, renderer, margin):
+    """The legend clear of the label block *blockers*: its font shrinks (to
+    LEGEND_MIN_FONTSIZE) until it fits beside them; failing that it goes under
+    them, with a warning.  Returns the legend, re-made when the font changed."""
+    def overlaps(lg):
+        box = lg.get_window_extent(renderer)
+        return any(b.overlaps(box) for b in blockers)
+
+    if not overlaps(legend):
+        return legend
+    handles, labels = legend.legend_handles, [t.get_text() for t in legend.texts]
+    ncols = getattr(legend, "_ncols", 1)
+    size = legend.texts[0].get_fontsize() if legend.texts else LEGEND_MIN_FONTSIZE
+    while overlaps(legend) and size > LEGEND_MIN_FONTSIZE:
+        size = max(size - 1, LEGEND_MIN_FONTSIZE)
+        legend.remove()
+        legend = ax.legend(handles, labels, loc="upper right", fontsize=size, ncols=ncols)
+    if overlaps(legend):
+        lowest = min(ax.transAxes.inverted().transform((0, b.y0))[1] for b in blockers)
+        legend.set_bbox_to_anchor((1, lowest - margin), transform=ax.transAxes)
+        logging.warning("Legend of %d entries does not fit beside the CMS label even at %d pt; "
+                        "placed under it. Shorten its labels.", len(labels), LEGEND_MIN_FONTSIZE)
+    return legend
 
 
 def region_text(ax, text: str, *, fontsize: int = FONT_SIZE_TITLE, x: float = 0.05,
-                y: float = 0.96) -> None:
-    """Multi-line region description in the top-left corner (literal '\\n' allowed)."""
-    ax.text(x, y, text.replace("\\n", "\n"), transform=ax.transAxes,
-            fontsize=fontsize, va="top")
+                y: float = 0.96, below=None):
+    """Multi-line region description (literal '\\n' allowed): under the *below* text
+    artist when given (the CMS label), else at (*x*, *y*) in axes fraction."""
+    text = text.replace("\\n", "\n")
+    if below is not None:
+        ann = ax.annotate(text, xy=(0, 0), xycoords=below, xytext=(0, -0.5 * fontsize),
+                          textcoords="offset points", fontsize=fontsize, ha="left", va="top")
+        ann.is_region_text = True        # fit_header keeps the content clear of it
+        return ann
+    return ax.text(x, y, text, transform=ax.transAxes, fontsize=fontsize, va="top")
 
 
 def signal_label(name: str) -> str:
