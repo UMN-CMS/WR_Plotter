@@ -363,8 +363,9 @@ def fit_header(ax, *, margin: float = 0.02) -> None:
 
     Puts "Simulation" on its own line when the secondary label runs into the
     legend, then raises the top of the y axis until nothing drawn lies under any
-    of them.  Only blocks that hang from the top of the frame count: raising the
-    axis cannot clear a legend placed low (limit plots put theirs lower left).
+    of them.  The CMS label and the region text always count; a legend counts only
+    when it hangs from the top of the frame: raising the axis cannot clear a legend
+    placed low (limit plots put theirs lower left).
     Call it last, once the legend and the x range are set.
     """
     fig = ax.figure
@@ -376,10 +377,15 @@ def fit_header(ax, *, margin: float = 0.02) -> None:
             if (isinstance(t, ExpSuffix) and t.get_text().startswith("Simulation ")
                     and t.get_window_extent(renderer).overlaps(leg_box)):
                 t.set_text(t.get_text().replace("Simulation ", "Simulation\n", 1))
+                # the region text hangs from this label: lay the figure out again so its extent below
+                # is measured where it now sits, one line lower
+                fig.canvas.draw()
+                renderer = fig.canvas.get_renderer()
 
     header = [t for t in ax.texts
               if isinstance(t, (ExpText, ExpSuffix)) or getattr(t, "is_region_text", False)]
     blockers = [t.get_window_extent(renderer) for t in header if t.get_text().strip()]
+    n_header = len(blockers)
     if legend is not None:
         legend = _fit_legend(ax, legend, blockers, renderer, margin)
         blockers.append(legend.get_window_extent(renderer))
@@ -398,12 +404,12 @@ def fit_header(ax, *, margin: float = 0.02) -> None:
     # The top moves up at most to twice the axis span: a header that needs more
     # (a legend pushed low in the frame) is left as it is, with the warning above.
     need, cap = f(hi), f(lo) + 2 * (f(hi) - f(lo))
-    for box in blockers:
+    for i, box in enumerate(blockers):
         bottom = to_axes.transform((box.x0, box.y0))[1]
         top = to_axes.transform((box.x1, box.y1))[1]
         if not 0 < bottom < 1:                       # out of the frame (luminosity)
             continue
-        if top < 0.75:                               # not hanging from the top of the frame
+        if i >= n_header and top < 0.75:             # a legend not hanging from the top of the frame
             continue
         x0 = to_data.transform((box.x0, box.y0))[0]
         x1 = to_data.transform((box.x1, box.y0))[0]

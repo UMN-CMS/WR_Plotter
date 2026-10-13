@@ -283,3 +283,33 @@ class TestPlotStack:
         fig = plot_stack(region, variable, data_hist=[], show_data=False, **common)
         assert "Simulation Work in progress" in {t.get_text() for t in fig.axes[0].texts}
         plt.close(fig)
+
+
+def test_fit_header_clears_region_text_hanging_low():
+    """The region text under a two-line "Simulation / Work in progress" label can start below 75 % of the
+    frame; it must still be cleared of the points under it (only a legend placed low is ignored).  The
+    layout of the signal cutflow plots, where it once overlapped the points."""
+    import mplhep as hep
+    from wrplotter.plotting_helpers import cms_label, fit_header
+    hep.style.use("CMS")
+    fig, ax = plt.subplots(figsize=(12, 9))
+    fig.subplots_adjust(bottom=0.2037)        # room for rotated category labels: a shorter frame
+    x = np.arange(12)
+    for i, m in enumerate((100, 900, 1700, 2300, 3100, 3900)):
+        ax.errorbar(x, np.full(12, 81.0 - i), yerr=0.5, marker="o", markersize=8, lw=2, capsize=3,
+                    label=f"$m_N$ = {m} GeV")
+    ax.set_yscale("log")
+    ax.set_ylim(0.1, 100)
+    ax.set_xlim(-0.5, 11.5)
+    ax.legend(loc="upper right", ncols=2, fontsize=18)
+    cms_label(ax, None, data=False, rlabel="(13.6 TeV)",
+              text="ee, Resolved SR\n$m_{W_R}$ = 4000 GeV\nWithout lepton SFs")
+    fit_header(ax, margin=0.07)
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    to_axes = ax.transAxes.inverted()
+    region = next(t for t in ax.texts if getattr(t, "is_region_text", False))
+    region_bottom = to_axes.transform((0, region.get_window_extent(renderer).y0))[1]
+    data_top = to_axes.transform(ax.transData.transform((1, 81.0)))[1]
+    assert data_top < region_bottom
+    plt.close(fig)

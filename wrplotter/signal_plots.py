@@ -421,36 +421,76 @@ def plot_resolution_vs_mn(era_set: EraSet, summaries: Sequence[PointSummary], m_
     return fig
 
 
+def _fit_bottom(fig, ax, pad: float = 0.015) -> None:
+    """Move the axes up and right until its x tick labels lie inside the figure."""
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    boxes = [t.get_window_extent(renderer) for t in ax.get_xticklabels() if t.get_text()]
+    if not boxes:
+        return
+    pos = ax.get_position()
+    low = min(b.y0 for b in boxes) / fig.bbox.height
+    left = min(b.x0 for b in boxes) / fig.bbox.width
+    if low < pad:
+        fig.subplots_adjust(bottom=pos.y0 + pad - low)
+    if left < pad:
+        fig.subplots_adjust(left=pos.x0 + pad - left)
+
+
+def _efficiency_ticks(ax, log: bool) -> None:
+    """Efficiency ticks only up to 100 %: the axis may run higher to hold the CMS label and legend."""
+    ticker = matplotlib.ticker
+    lo = ax.get_ylim()[0]
+    if log:
+        first = math.floor(math.log10(lo))
+        ax.yaxis.set_major_locator(ticker.FixedLocator([10.0 ** k for k in range(first, 3) if lo <= 10.0 ** k <= 100]))
+        ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda y, _: f"{y:g}"))
+        ax.yaxis.set_minor_locator(ticker.FixedLocator(
+            [m * 10.0 ** k for k in range(first, 2) for m in range(2, 10) if lo <= m * 10.0 ** k <= 100]))
+        ax.yaxis.set_minor_formatter(ticker.NullFormatter())
+    else:
+        ax.yaxis.set_major_locator(ticker.FixedLocator(range(0, 101, 20)))
+        ax.yaxis.set_minor_locator(ticker.FixedLocator([v for v in range(0, 101, 5) if v % 20]))
+
+
 def plot_cutflows(era_set: EraSet, entries: Sequence[tuple[str, CutflowEfficiency]], *, topology: str, channel: str,
                   m_wr: int | None = None):
-    """Cumulative efficiency after each cut for several points (base weight); *m_wr* names the plot's
-    fixed W_R mass when every entry has it."""
+    """Cumulative efficiency after each cut for several points (base weight), drawn for a note: the cut names
+    under the axis, rotated, with the bottom margin made to fit them; the efficiency axis labelled up to
+    100 % only (the space above holds the CMS label and the legend), linear unless the efficiencies span
+    more than a factor 20.  *m_wr* names the plot's fixed W_R mass when every entry has it."""
     cuts = list(entries[0][1].cuts)
     for _, cf in entries[1:]:
         cuts += [c for c in cf.cuts if c not in cuts]
-    fig, ax = _figure((14, 9))
+    fig, ax = _figure((12, 9))
     shown = []
     for i, (label, cf) in enumerate(entries):
         pos = np.array([cuts.index(c) for c in cf.cuts])
         st = _style(i)
-        ax.errorbar(pos, cf.values * 100, yerr=cf.errors * 100, color=st["color"], marker=st["marker"], markersize=6,
-                    lw=1.5, capsize=2, label=label)
+        ax.errorbar(pos, cf.values * 100, yerr=cf.errors * 100, color=st["color"], marker=st["marker"], markersize=8,
+                    lw=2, capsize=3, label=label)
         shown.append(cf.values * 100)
     shown = np.concatenate(shown)
     shown = shown[np.isfinite(shown) & (shown > 0)]
-    top = float(shown.max()) if shown.size else 1.0
-    if shown.size and top / float(shown.min()) > 20:
+    low = float(shown.min()) if shown.size else 1.0
+    log = bool(shown.size) and float(shown.max()) / low > 20
+    if log:
         ax.set_yscale("log")
-        ax.set_ylim(float(shown.min()) / 3, top * 20)
+        ax.set_ylim(10 ** math.floor(math.log10(low / 2)), 100)
     else:
-        ax.set_ylim(0, 1.6 * top)
-    ax.set_ylabel("Cumulative efficiency [%]")
+        ax.set_ylim(0, 100)
     ax.set_xticks(np.arange(len(cuts)))
-    ax.set_xticklabels([cut_label(c, "plot") for c in cuts], rotation=45, ha="right", fontsize=13)
+    ax.set_xticklabels([cut_label(c, "plot") for c in cuts], rotation=40, ha="right", rotation_mode="anchor",
+                       fontsize=18)
+    ax.tick_params(axis="x", which="minor", bottom=False, top=False)
     ax.set_xlim(-0.5, len(cuts) - 0.5)
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 4)
-    _header(ax, era_set, label_text(channel, topology=topology, m_wr=m_wr) + "\nBase weight (no lepton SFs)")
-    fit_header(ax)
+    ax.set_ylabel("Cumulative efficiency [%]")
+    _fit_bottom(fig, ax)
+    short = max(len(label) for label, _ in entries) <= 24
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND, ncols=2 if short and len(entries) > 3 else 1)
+    _header(ax, era_set, label_text(channel, topology=topology, m_wr=m_wr) + "\nWithout lepton SFs")
+    fit_header(ax, margin=0.07)           # the clearance is measured to the marker centres
+    _efficiency_ticks(ax, log)
     return fig
 
 
