@@ -150,9 +150,9 @@ variables:
 
   - name: LSF_leading_AK8Jets
     label: "$\\mathrm{LSF}_{3}$ of the leading AK8 jet"
-    nbins: 100
-    xmin: 0
-    xmax: 1.1
+    nbins: 300
+    xmin: -1
+    xmax: 2
 
   - name: pt_leading_loose_lepton
     label: "$p_{T}$ of the leading loose lepton"
@@ -207,7 +207,33 @@ variables:
     xmax: 4000
 
   - name: dPhi_leading_tightlepton_AK8Jet
-    label: "$\\Delta\\phi(\\ell, \\mathrm{AK8\\ jet})$"
-    nbins: 64
+    label: "$|\\Delta\\phi(\\ell, \\mathrm{AK8\\ jet})|$"
+    nbins: 48
+    xmin: 2
+    xmax: 3.1416
+
+  - name: dR_loose_lepton_AK8Jet
+    label: "$\\Delta R(\\ell_{\\mathrm{loose}}, \\mathrm{AK8\\ jet})$"
+    nbins: 100
     xmin: 0
-    xmax: 3.2
+    xmax: 5
+
+  - name: msd_leading_AK8Jets
+    label: "$m_{\\mathrm{SD}}$ of the leading AK8 jet"
+    unit: GeV
+    nbins: 200
+    xmin: 0
+    xmax: 1000
+
+  # Both topologies
+  - name: npv_good
+    label: "Number of good primary vertices"
+    nbins: 100
+    xmin: -0.5
+    xmax: 99.5
+
+  - name: n_ak4_jets
+    label: "Number of AK4 jets"
+    nbins: 10
+    xmin: -0.5
+    xmax: 9.5
