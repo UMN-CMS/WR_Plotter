@@ -430,48 +430,58 @@ def fit_header(ax, *, margin: float = 0.02) -> None:
     header = [t for t in ax.texts
               if isinstance(t, (ExpText, ExpSuffix)) or getattr(t, "is_region_text", False)]
     blockers = [t.get_window_extent(renderer) for t in header if t.get_text().strip()]
-    n_header = len(blockers)
-    moved = False
-    if legend is not None:
-        legend, moved = _fit_legend(ax, legend, blockers, renderer, margin)
-        blockers.append(legend.get_window_extent(renderer))
     pts = _content_vertices(ax)
     log = ax.get_yscale() == "log"
     if log:
         pts = pts[pts[:, 1] > 0]
     pts = pts[np.isfinite(pts).all(axis=1)]
     if not len(pts):
+        if legend is not None:
+            _fit_legend(ax, legend, blockers, renderer, margin)
         return
 
     lo, hi = ax.get_ylim()
     f = np.log10 if log else (lambda v: v)
     to_axes = ax.transAxes.inverted()
-    to_data = ax.transData.inverted()
     # The top moves up at most to three times the axis span (the content then fills the lower
     # third); a header that needs more is left overlapping, with a warning.
-    need, cap = f(hi), f(lo) + 3 * (f(hi) - f(lo))
-    capped = False
-    for i, box in enumerate(blockers):
-        bottom = to_axes.transform((box.x0, box.y0))[1]
-        top = to_axes.transform((box.x1, box.y1))[1]
-        if not 0 < bottom < 1:                       # out of the frame (luminosity)
-            continue
-        if i >= n_header and top < 0.75 and not moved:   # a legend the caller placed low
-            continue
-        x0 = to_data.transform((box.x0, box.y0))[0]
-        x1 = to_data.transform((box.x1, box.y0))[0]
-        under = pts[(pts[:, 0] >= min(x0, x1)) & (pts[:, 0] <= max(x0, x1)), 1]
-        if not len(under) or (room := bottom - margin) <= 0:
-            continue
-        top = f(lo) + (f(under.max()) - f(lo)) / room
-        if np.isfinite(top):
-            capped |= top > cap
-            need = max(need, min(top, cap))
+    cap = f(lo) + 3 * (f(hi) - f(lo))
+
+    def raise_for(boxes) -> bool:
+        """Raise the top until no content lies under *boxes*; True when the cap stopped it."""
+        cur = ax.get_ylim()[1]
+        need, capped = f(cur), False
+        to_data = ax.transData.inverted()
+        for box in boxes:
+            bottom = to_axes.transform((box.x0, box.y0))[1]
+            if not 0 < bottom < 1:                       # out of the frame (luminosity)
+                continue
+            x0 = to_data.transform((box.x0, box.y0))[0]
+            x1 = to_data.transform((box.x1, box.y0))[0]
+            under = pts[(pts[:, 0] >= min(x0, x1)) & (pts[:, 0] <= max(x0, x1)), 1]
+            if not len(under) or (room := bottom - margin) <= 0:
+                continue
+            top = f(lo) + (f(under.max()) - f(lo)) / room
+            if np.isfinite(top):
+                capped |= top > cap
+                need = max(need, min(top, cap))
+        if need > f(cur):
+            ax.set_ylim(lo, 10 ** need if log else need)
+        return capped
+
+    # The label block first, then the legend in the frame that leaves: a legend put in an empty
+    # lower corner must be checked against the content where it ends up after the raise.
+    capped = raise_for(blockers)
+    if legend is not None:
+        legend, moved = _fit_legend(ax, legend, blockers, renderer, margin)
+        box = legend.get_window_extent(renderer)
+        # a legend counts when it hangs from the top of the frame or sits under the label;
+        # one placed low (a lower corner, limit plots' lower left) cannot be cleared by raising
+        if moved or to_axes.transform((box.x1, box.y1))[1] >= 0.75:
+            capped |= raise_for([box])
     if capped:
         logging.warning("The CMS label, region text and legend need more than three times the y range; "
                         "some content stays under them. Shorten the legend or the region text.")
-    if need > f(hi):
-        ax.set_ylim(lo, 10 ** need if log else need)
 
 
 LEGEND_MIN_FONTSIZE = FONT_SIZE_MIN
@@ -500,11 +510,12 @@ def _fit_legend(ax, legend, blockers, renderer, margin):
         return legend, False
     pts = ax.transData.transform(_content_vertices(ax))
     pts = pts[np.isfinite(pts).all(axis=1)]
+    pad = margin * ax.bbox.height            # keep this much clear around the legend
     for loc in ("lower left", "lower right"):
         trial = ax.legend(handles, labels, loc=loc, fontsize=size, ncols=ncols)
         box = trial.get_window_extent(renderer)
-        covered = ((pts[:, 0] >= box.x0) & (pts[:, 0] <= box.x1)
-                   & (pts[:, 1] >= box.y0) & (pts[:, 1] <= box.y1)).any()
+        covered = ((pts[:, 0] >= box.x0 - pad) & (pts[:, 0] <= box.x1 + pad)
+                   & (pts[:, 1] >= box.y0 - pad) & (pts[:, 1] <= box.y1 + pad)).any()
         if not covered and not overlaps(trial):
             return trial, False
     legend = ax.legend(handles, labels, loc="upper right", fontsize=size, ncols=ncols)

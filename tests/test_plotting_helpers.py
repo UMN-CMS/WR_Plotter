@@ -395,8 +395,8 @@ class TestLegendPlacement:
         hep.style.use("CMS")
         fig, ax = plt.subplots(figsize=(10, 10))
         x = np.linspace(0, 10, 200)
-        for i in range(4):                      # falling curves: the lower left stays empty
-            ax.plot(x, 1e4 * np.exp(-x) * (1 + 0.1 * i), label=f"a long legend entry number {i} xxxxxxxx")
+        for i in range(4):                      # flat curves high up: both lower corners stay empty
+            ax.plot(x, np.full_like(x, 1e3 * (1 + 0.5 * i)), label=f"a long legend entry number {i} xxxxxxxx")
         ax.set_yscale("log")
         ax.set_xlim(0, 10)
         ax.set_ylim(1e-1, 1e6)
