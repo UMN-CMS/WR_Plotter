@@ -162,7 +162,7 @@ def test_year_sums_its_eras(script, tmp_path):
 def test_text_and_latex_formats(script, inputs):
     table = _build(script, inputs, "fixed-wr")[0]
     text = script["format_text"](table, None, ERA).splitlines()
-    assert text[0] == f"{ERA} resolved ee, WR = 2000 GeV: yields; columns: N mass [GeV]"
+    assert text[0] == "2024 resolved ee, WR = 2000 GeV: yields; columns: N mass [GeV]"   # the era's plot label
     assert text[1].split() == ["Cut", "100", "1100"]
     running = script["format_text"](table, "running", ERA).splitlines()
     assert running[-2].split() == ["e_trigger", "25.0", "25.0"]

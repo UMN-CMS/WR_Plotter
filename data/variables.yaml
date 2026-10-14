@@ -3,7 +3,7 @@
 variables:
   # Resolved region variables
   - name: mass_fourobject
-    label: "$m_{lljj}$"
+    label: "$m_{\\ell\\ell jj}$"
     unit: GeV
     nbins: 40
     xmin: 0
@@ -93,14 +93,14 @@ variables:
     xmax: 3.2
 
   - name: mass_dilepton
-    label: "$m_{ll}$"
+    label: "$m_{\\ell\\ell}$"
     unit: GeV
     nbins: 60
     xmin: 0
     xmax: 300
 
   - name: pt_dilepton
-    label: "$p_{T}^{ll}$"
+    label: "$p_{T}^{\\ell\\ell}$"
     unit: GeV
     nbins: 40
     xmin: 0
@@ -114,42 +114,42 @@ variables:
     xmax: 800
 
   - name: mass_threeobject_leadlep
-    label: "$m_{l_{\\mathrm{pri}}jj}$"
+    label: "$m_{\\ell_{1}jj}$"
     unit: GeV
     nbins: 40
     xmin: 0
     xmax: 4000
 
   - name: pt_threeobject_leadlep
-    label: "$p^{T}_{l_{\\mathrm{pri}}jj}$"
+    label: "$p_{T}^{\\ell_{1}jj}$"
     unit: GeV
     nbins: 40
     xmin: 0
     xmax: 800
 
   - name: mass_threeobject_subleadlep
-    label: "$m_{l_{\\mathrm{sec}}jj}$"
+    label: "$m_{\\ell_{2}jj}$"
     unit: GeV
     nbins: 40
     xmin: 0
     xmax: 4000
 
   - name: pt_threeobject_subleadlep
-    label: "$p^{T}_{l_{\\mathrm{sec}}jj}$"
+    label: "$p_{T}^{\\ell_{2}jj}$"
     unit: GeV
     nbins: 40
     xmin: 0
     xmax: 800
 
   - name: pt_fourobject
-    label: "$p^{T}_{lljj}$"
+    label: "$p_{T}^{\\ell\\ell jj}$"
     unit: GeV
     nbins: 50
     xmin: 0
     xmax: 1500
 
   - name: LSF_leading_AK8Jets
-    label: "LSF3_leadingAK8Jets"
+    label: "$\\mathrm{LSF}_{3}$ of the leading AK8 jet"
     nbins: 100
     xmin: 0
     xmax: 1.1
@@ -193,14 +193,14 @@ variables:
     xmax: 3.2
 
   - name: pt_twoobject
-    label: "$p^{T}_{lj}$"
+    label: "$p_{T}^{\\ell J}$"
     unit: GeV
     nbins: 50
     xmin: 0
     xmax: 1500
 
   - name: mass_twoobject
-    label: "$m_{lj}$"
+    label: "$m_{\\ell J}$"
     unit: GeV
     nbins: 40
     xmin: 0

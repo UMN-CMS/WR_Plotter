@@ -18,6 +18,7 @@ _run3_signals: &run3_signals
   cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
 
 RunIISummer20UL16APV:
+  label: "2016 (preVFP)"
   run: RunII
   year: "2016"
   lumi: 19.50    # processed luminosity of the skims_v2 data (brilcalc normtag_PHYSICS; e 19.497 / mu 19.495)
@@ -28,6 +29,7 @@ RunIISummer20UL16APV:
   cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
 
 RunIISummer20UL16:
+  label: "2016 (postVFP)"
   run: RunII
   year: "2016"
   lumi: 16.81    # processed luminosity of the skims_v2 data (brilcalc normtag_PHYSICS; e 16.811 / mu 16.811)
@@ -38,6 +40,7 @@ RunIISummer20UL16:
   cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
 
 RunIISummer20UL17:
+  label: "2017"
   run: RunII
   year: "2017"
   lumi: 42.04    # processed luminosity of the skims_v2 data (brilcalc normtag_PHYSICS; e 42.063 / mu 42.016; see WrCoffea wrcoffea/config.yaml)
@@ -48,6 +51,7 @@ RunIISummer20UL17:
   cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
 
 RunIISummer20UL18:
+  label: "2018"
   run: RunII
   year: "2018"
   lumi: 59.52    # processed luminosity of the skims_v2 data (brilcalc normtag_PHYSICS; e 59.500 / mu 59.544; was the published 59.83 before 2026-10-10)
@@ -58,6 +62,7 @@ RunIISummer20UL18:
   cutflow_signals_boosted:  [WR2000_N100,  WR4000_N100,  WR6000_N100]
 
 Run3Summer22:
+  label: "2022 (preEE)"
   run: Run3
   year: "2022"
   lumi: 8.08     # processed luminosity of the skims_v2 data, 2022B + C + D (see WrCoffea wrcoffea/config.yaml)
@@ -66,6 +71,7 @@ Run3Summer22:
   <<: *run3_signals
 
 Run3Summer22EE:
+  label: "2022 (postEE)"
   run: Run3
   year: "2022"
   lumi: 26.64    # processed luminosity of the skims_v2 data, 2022E + F + G
@@ -81,6 +87,7 @@ Run3Summer22EE:
   <<: *run3_signals
 
 Run3Summer23:
+  label: "2023 (preBPix)"
   run: Run3
   year: "2023"
   lumi: 18.59    # processed luminosity of the skims_v2 data, 2023B + 2023C (see WrCoffea wrcoffea/config.yaml)
@@ -89,6 +96,7 @@ Run3Summer23:
   <<: *run3_signals
 
 Run3Summer23BPix:
+  label: "2023 (postBPix)"
   run: Run3
   year: "2023"
   lumi: 9.675    # processed luminosity of the skims_v2 data, 2023D
@@ -104,6 +112,7 @@ Run3Summer23BPix:
   <<: *run3_signals
 
 RunIII2024Summer24:
+  label: "2024"
   run: Run3
   year: "2024"
   lumi: 109.70   # processed luminosity of the skims_v2 data (see WrCoffea wrcoffea/config.yaml)

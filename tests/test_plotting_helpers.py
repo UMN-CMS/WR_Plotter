@@ -120,6 +120,11 @@ class TestFormatBinWidth:
     def test_one(self):
         assert _format_bin_width(1.0) == "1"
 
+    def test_small_width_keeps_its_digits(self):
+        # LSF3 and dPhi bins: 0.05 must not print as "0.0".
+        assert _format_bin_width(0.05) == "0.05"
+        assert _format_bin_width(0.1 + 0.1 + 0.1 - 0.25) == "0.05"
+
 
 class TestSafeSumHists:
 
@@ -313,3 +318,99 @@ def test_fit_header_clears_region_text_hanging_low():
     data_top = to_axes.transform(ax.transData.transform((1, 81.0)))[1]
     assert data_top < region_bottom
     plt.close(fig)
+
+
+class TestDYStat:
+    """wrplotter.dy_compare.plot_dy_stat: the statistical power of each DY sample."""
+
+    def test_effective_events(self):
+        from wrplotter.dy_compare import effective_events
+        h = Hist(Regular(3, 0, 3, name="x"), storage=Weight())
+        h.fill([0.5] * 4, weight=1.0)          # 4 events of weight 1: N_eff 4
+        h.fill([1.5] * 2, weight=3.0)          # 2 events of weight 3: N_eff 2
+        h.fill([2.5, 2.5], weight=[1.0, -1.0])  # sum 0: undefined
+        n = effective_events(h)
+        np.testing.assert_allclose(n[:2], [4.0, 2.0])
+        assert np.isnan(n[2])
+
+    def test_plot_and_legend(self):
+        from wrplotter.dy_compare import plot_dy_stat
+        from wrplotter.inputs import DYSample
+        region = Region("wr_mumu_resolved_sr", "muon", "SR test")
+        variable = Variable("mass_fourobject", r"$m_{lljj}$", "GeV", 10, 0, 1000)
+        a = Hist(Regular(10, 0, 1000, name="x"), storage=Weight())
+        b = a.copy()
+        a.fill(np.full(100, 450.0), weight=1.0)    # N_eff 100
+        b.fill(np.full(25, 450.0), weight=4.0)     # N_eff 25
+        fig = plot_dy_stat(region, variable, [(DYSample("lo_ht", "LO", "#3f90da", ()), a),
+                                               (DYSample("nlo_inc", "NLO", "#ffa90e", ()), b)],
+                           xlim=(0, 1000), lumi=109.7)
+        labels = [t.get_text() for t in fig.axes[0].get_legend().get_texts()]
+        assert labels == ["LO ($N_{eff}$ = 100)", "NLO ($N_{eff}$ = 25)"]
+        plt.close(fig)
+
+
+class TestStackYlim:
+
+    def test_top_follows_content_and_bottom_a_decade_below_the_smallest_bin(self):
+        from wrplotter.plotting_helpers import stack_ylim
+        mc = _make_weighted_hist(np.full(10, 100.0))
+        data = _make_weighted_hist(np.full(10, 120.0))
+        lo, hi = stack_ylim((1.0, 1e8), mc.axes[0].edges, (0, 1000), mc, data, [])
+        assert lo == 10.0                         # flat, >= 100 per bin: from 10, not 0.1
+        assert 10 * 120 < hi < 10 * 200          # 10 x (data + its upper error)
+
+    def test_bottom_keeps_one_event_bars(self):
+        from wrplotter.plotting_helpers import stack_ylim
+        mc = _make_weighted_hist(np.full(10, 100.0))
+        data = _make_weighted_hist(np.array([120.0] * 9 + [1.0]))
+        lo, _ = stack_ylim((1.0, 1e8), mc.axes[0].edges, (0, 1000), mc, data, [])
+        assert lo == 0.1
+
+    def test_a_low_configured_bottom_shows_the_simulated_tail_under_data(self):
+        from wrplotter.plotting_helpers import stack_ylim
+        mc = _make_weighted_hist(np.array([100.0] * 9 + [3e-3]))
+        data = _make_weighted_hist(np.array([120.0] * 9 + [0.0]))
+        lo, _ = stack_ylim((1e-4, 1e8), mc.axes[0].edges, (0, 1000), mc, data, [])
+        assert lo == 1e-4                         # a decade below the 3e-3 tail bin
+
+    def test_bottom_never_below_the_configured_floor(self):
+        from wrplotter.plotting_helpers import stack_ylim
+        mc = _make_weighted_hist(np.array([100.0] * 9 + [1e-4]))
+        lo, _ = stack_ylim((1.0, 1e8), mc.axes[0].edges, (0, 1000), mc, None, [])
+        assert lo == 1.0                          # no data: a tiny MC tail stops at the configured bottom
+
+    def test_signal_above_the_stack_sets_the_top(self):
+        from wrplotter.plotting_helpers import stack_ylim
+        mc = _make_weighted_hist(np.full(10, 1.0))
+        sig = _make_weighted_hist(np.full(10, 50.0))
+        assert stack_ylim((0.1, 1e6), mc.axes[0].edges, (0, 1000), mc, None, [sig])[1] == 500.0
+
+
+class TestLegendPlacement:
+
+    def test_a_legend_too_wide_for_the_label_goes_to_an_empty_lower_corner(self):
+        import mplhep as hep
+        from wrplotter.plotting_helpers import FONT_SIZE_LEGEND, cms_label, fit_header
+        hep.style.use("CMS")
+        fig, ax = plt.subplots(figsize=(10, 10))
+        x = np.linspace(0, 10, 200)
+        for i in range(4):                      # falling curves: the lower left stays empty
+            ax.plot(x, 1e4 * np.exp(-x) * (1 + 0.1 * i), label=f"a long legend entry number {i} xxxxxxxx")
+        ax.set_yscale("log")
+        ax.set_xlim(0, 10)
+        ax.set_ylim(1e-1, 1e6)
+        cms_label(ax, 100.0, data=False, text="a region text long enough to crowd the legend")
+        ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
+        fit_header(ax)
+        legend = ax.get_legend()
+        assert legend._loc == 3                 # matplotlib's code for "lower left"
+        plt.close(fig)
+
+
+class TestDYSampleLegend:
+
+    def test_short_name_replaces_the_label_in_legends(self):
+        from wrplotter.inputs import DYSample
+        assert DYSample("t", "LO HT-binned, Z + jet reweight", "k", (), short="LO HT, rew.").legend == "LO HT, rew."
+        assert DYSample("t", "LO inclusive", "k", ()).legend == "LO inclusive"

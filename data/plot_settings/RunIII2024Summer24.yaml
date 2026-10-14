@@ -5,46 +5,38 @@
 inherit: default
 
 wr_mumu_resolved_dy_cr:
-  mass_fourobject:               { rebin: 10, ylim: [1e0, 1e6] }
   pt_dilepton:                   { ylim: [1e0, 1e6] }
-  pt_leading_jet:                { xlim: [40, 1600], ylim: [1e0, 1e6] }
+  pt_leading_jet:                { ylim: [1e0, 1e6] }
 
 wr_ee_resolved_dy_cr:
-  mass_fourobject:               { rebin: 10, ylim: [1e0, 1e6] }
   pt_dilepton:                   { ylim: [1e0, 1e6] }
-  pt_leading_jet:                { xlim: [40, 1600], ylim: [1e0, 1e6] }
+  pt_leading_jet:                { ylim: [1e0, 1e6] }
 
 wr_resolved_flavor_cr:
-  mass_dilepton:                 { xlim: [400, 2000], ylim: [1e-1, 1e5] }
-  mass_fourobject:               { rebin: 10, ylim: [1e-1, 1e5], ratio_ylim: [0, 2] }
-  pt_leading_jet:                { xlim: [40, 1600], ylim: [1e-1, 1e6] }
-
-wr_mumu_resolved_sr:
-  mass_fourobject:               { ylim: [1e-1, 1e6] }
-
-wr_ee_resolved_sr:
-  mass_fourobject:               { ylim: [1e-1, 1e6] }
+  mass_dilepton:                 { ylim: [1e-1, 1e5] }
+  mass_fourobject:               { ratio_ylim: [0, 2] }
+  pt_leading_jet:                { ylim: [1e-1, 1e6] }
 
 wr_mumu_boosted_dy_cr:
-  mass_twoobject:                { rebin: 10, ylim: [1e0, 1e5] }
+  mass_twoobject:                { ylim: [1e0, 1e5] }
   pt_dilepton:                   { ylim: [1e0, 1e6] }
-  pt_leading_AK8Jets:            { xlim: [200, 1600], ylim: [1e0, 1e6] }
+  pt_leading_AK8Jets:            { ylim: [1e0, 1e6] }
 
 wr_ee_boosted_dy_cr:
-  mass_twoobject:                { rebin: 10, ylim: [1e0, 1e5] }
+  mass_twoobject:                { ylim: [1e0, 1e5] }
   pt_dilepton:                   { ylim: [1e0, 1e6] }
-  pt_leading_AK8Jets:            { xlim: [200, 1600], ylim: [1e0, 1e6] }
+  pt_leading_AK8Jets:            { ylim: [1e0, 1e6] }
 
 wr_emu_boosted_flavor_cr:
-  mass_dilepton:                 { xlim: [400, 2000], ylim: [1e-1, 1e5] }
-  mass_twoobject:                { rebin: 10, ylim: [1e-2, 1e5], ratio_ylim: [0, 2] }
-  pt_leading_AK8Jets:            { xlim: [200, 1600], ylim: [1e-1, 1e5] }
+  mass_dilepton:                 { ylim: [1e-1, 1e5] }
+  mass_twoobject:                { ylim: [1e-2, 1e5], ratio_ylim: [0, 2] }
+  pt_leading_AK8Jets:            { ylim: [1e-1, 1e5] }
 
 wr_mue_boosted_flavor_cr:
-  mass_dilepton:                 { xlim: [400, 2000], ylim: [1e-1, 1e5] }
-  mass_twoobject:                { rebin: 10, ylim: [1e-2, 1e5], ratio_ylim: [0, 2] }
+  mass_dilepton:                 { ylim: [1e-1, 1e5] }
+  mass_twoobject:                { ylim: [1e-2, 1e5], ratio_ylim: [0, 2] }
   phi_leading_AK8Jets:           { ylim: [1e-1, 1e6] }
-  pt_leading_AK8Jets:            { xlim: [200, 1600], ylim: [1e-1, 1e5] }
+  pt_leading_AK8Jets:            { ylim: [1e-1, 1e5] }
 
 wr_mumu_boosted_sr:
   mass_twoobject:                { ylim: [1e-1, 1e6] }

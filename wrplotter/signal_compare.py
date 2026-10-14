@@ -65,7 +65,8 @@ from .histogram_cache import _open_root
 from .histogram_utils import rebin_histogram
 from .inputs import Inputs, make_inputs, mass_point, read_manifest, root_file
 from .paths import repo_root
-from .plotting_helpers import FONT_SIZE_LEGEND, cms_label, fit_header
+from .plotting_helpers import (FONT_SIZE_LABEL, FONT_SIZE_LEGEND, FONT_SIZE_MIN, FONT_SIZE_TITLE, cms_label,
+                               fit_header)
 from .stack import hist_key
 
 logger = logging.getLogger(__name__)
@@ -86,7 +87,8 @@ FLAVOUR_SHARES = {
 }
 
 COVERAGE = math.erf(1 / math.sqrt(2))     # 68.3 %: the fraction inside sigma_eff
-COLORS = ["black", "#5790fc", "#f89c20", "#e42536", "#964a8b", "#7a21dd"]   # black + CMS (Petroff) palette
+# CMS (Petroff) 6-colour palette; no black, which CMS keeps for data
+COLORS = ["#5790fc", "#f89c20", "#e42536", "#964a8b", "#9c9ca1", "#7a21dd"]
 MARKERS = ["o", "s", "^", "v", "D", "P"]
 
 
@@ -616,8 +618,8 @@ def style(index: int) -> dict:
     return {"color": COLORS[index % len(COLORS)], "marker": MARKERS[index % len(MARKERS)]}
 
 
-def _header(ax, sets: Sequence[EraSet], text: str, fontsize: int = 20,
-            text_fontsize: int = 16) -> None:
+def _header(ax, sets: Sequence[EraSet], text: str, fontsize: int = FONT_SIZE_LABEL,
+            text_fontsize: int = FONT_SIZE_TITLE) -> None:
     """CMS simulation label with *text* under it; the energies of the sets on the right."""
     energies = " / ".join(dict.fromkeys(f"{s.com:g}" for s in sets))
     cms_label(ax, None, data=False, rlabel=f"({energies} TeV)", text=text, fontsize=fontsize,
@@ -627,12 +629,12 @@ def _header(ax, sets: Sequence[EraSet], text: str, fontsize: int = 20,
 def _ratio_panel(rax, ref_label: str, ylim: tuple[float, float]) -> None:
     rax.axhline(1.0, ls="--", color="k", lw=1)
     rax.set_ylim(*ylim)
-    rax.set_ylabel("Ratio to\n" + ref_label, fontsize=14)
+    rax.set_ylabel("Ratio to\n" + ref_label, fontsize=FONT_SIZE_MIN)
 
 
 def _figure():
     hep.style.use("CMS")
-    return plt.subplots(2, 1, gridspec_kw=dict(height_ratios=[3, 1], hspace=0.1), sharex=True)
+    return plt.subplots(2, 1, gridspec_kw=dict(height_ratios=[3, 1], hspace=0.1), sharex=True, figsize=(10, 10))
 
 
 def overflow_fraction(h: Hist, xmax: float) -> float:
@@ -685,7 +687,7 @@ def plot_shape_overlay(entries: Sequence[tuple[EraSet, Hist]], *, xlabel: str, t
     ax.set_ylim(0, 1.45 * top if top > 0 else 1)
     ax.set_xlim(*xlim)
     ax.set_ylabel("Fraction of events / bin")
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 2)
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
     _header(ax, [s for s, _ in entries], text)
     fit_header(ax)
     _ratio_panel(rax, "ref.", ratio_ylim)
@@ -730,14 +732,14 @@ def plot_vs_mn(series: Sequence[tuple[EraSet, list[tuple[int, Value]]]], *, ylab
                              mfc="white", markersize=5, lw=0, elinewidth=1.0, capsize=2)
     if interpolated:
         rax.text(0.98, 0.06, "open: reference interpolated in $m_N$", transform=rax.transAxes, ha="right",
-                 fontsize=11)
+                 fontsize=FONT_SIZE_MIN)
     if ylim is not None:
         ax.set_ylim(*ylim)
     else:
         lo, hi = ax.get_ylim()
         ax.set_ylim(min(lo, 0) if lo >= 0 else lo, hi + 0.35 * (hi - min(lo, 0)))
     ax.set_ylabel(ylabel)
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 2)
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
     _header(ax, [s for s, _ in series], text)
     fit_header(ax)
     _ratio_panel(rax, series[0][0].label.split(",")[0], ratio_ylim)
@@ -779,12 +781,13 @@ def plot_cutflow_efficiency(series: Sequence[tuple[EraSet, CutflowEfficiency]], 
     else:
         ax.set_ylim(0, 1.5 * top)
     ax.set_ylabel("Cumulative efficiency [%]")
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 2)
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
     _header(ax, [s for s, _ in series], text + "\nBase weight (no lepton SFs)")
     fit_header(ax)
     _ratio_panel(rax, series[0][0].label.split(",")[0], ratio_ylim)
     rax.set_xticks(x)
-    rax.set_xticklabels([cut_label(c, "plot") for c in cuts], rotation=45, ha="right", fontsize=13)
+    rax.set_xticklabels([cut_label(c, "plot") for c in cuts], rotation=45, ha="right", rotation_mode="anchor",
+                        fontsize=FONT_SIZE_MIN)
     rax.set_xlim(-0.5, len(cuts) - 0.5)
     return fig
 
@@ -813,14 +816,14 @@ def plot_resolution(series: Sequence[tuple[EraSet, list[tuple[int, Shape]]]], *,
                          color=st["color"], marker=st["marker"], markersize=5, lw=0, elinewidth=1.5, capsize=2)
     lo, hi = ax_pos.get_ylim()
     ax_pos.set_ylim(lo, hi + 0.6 * (hi - lo))
-    ax_pos.set_ylabel(r"Median / $m_{W_R}$", fontsize=18)
+    ax_pos.set_ylabel(r"Median / $m_{W_R}$", fontsize=22)
     ax_wid.set_yscale("log")            # light N: tens of %, the peak region: a few %
     ax_wid.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, subs=(1, 2, 5)))
     ax_wid.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda y, _: f"{y:g}"))
     ax_wid.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
-    ax_wid.set_ylabel(r"$\sigma_{\mathrm{eff}}$ / median [%]", fontsize=18)
-    ax_pos.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 4)
-    _header(ax_pos, [s for s, _ in series], text, fontsize=18, text_fontsize=15)
+    ax_wid.set_ylabel(r"$\sigma_{\mathrm{eff}}$ / median [%]", fontsize=22)
+    ax_pos.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
+    _header(ax_pos, [s for s, _ in series], text)
     fit_header(ax_pos)
     _ratio_panel(rax, "ref. width", ratio_ylim)
     rax.set_xlabel(r"$m_N$ [GeV]")

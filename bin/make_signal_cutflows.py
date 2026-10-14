@@ -43,7 +43,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from wrplotter.cli_utils import add_era_args, setup_logging
-from wrplotter.config import load_lumi
+from wrplotter.config import era_label, load_lumi
 from wrplotter.cutflow import (CHANNEL_LATEX, CHANNEL_WORDS, EFFICIENCIES, Cutflow, compile_preview,
                                cut_label, efficiency, format_count, format_percent, latex_count,
                                signal_cutflows, table_variant, write_preview)
@@ -144,7 +144,7 @@ def format_text(table: SignalTable, eff: str | None, era: str) -> str:
     widths = [max(len(r[j]) for r in [headers, *rows]) for j in range(len(headers))]
     line = lambda r: "  ".join(c.rjust(w) if j else c.ljust(w) for j, (c, w) in enumerate(zip(r, widths)))
     what = VARIANTS[table_variant(table.kind, False, eff)] + (" [%]" if eff else "")
-    title = (f"{era} {table.topology} {'+'.join(table.channels)}, {table.subject(latex=False)}: "
+    title = (f"{era_label(era)} {table.topology} {'+'.join(table.channels)}, {table.subject(latex=False)}: "
              f"{what}; columns: {COLUMNS[table.mode][0]} [GeV]")
     return "\n".join([title, line(headers), "  ".join("-" * w for w in widths), *map(line, rows)])
 
@@ -160,7 +160,7 @@ def format_latex(table: SignalTable, eff: str | None, *, era: str, lumi: float, 
     rows = ("each row applies that single cut alone" if table.kind == "onecut"
             else "each row applies that cut and all preceding cuts")
     words = " and ".join(CHANNEL_WORDS[ch] for ch in table.channels)
-    caption = (f"{era}: {what} for {table.subject(latex=True)}, {table.topology} selection, {words} "
+    caption = (f"{era_label(era)}: {what} for {table.subject(latex=True)}, {table.topology} selection, {words} "
                f"channel{'s' if len(table.groups) > 1 else ''}; {rows}. Columns show "
                f"{COLUMNS[table.mode][1]} in GeV. Normalized to ${lumi:.1f}\\,\\mathrm{{fb}}^{{-1}}$ "
                f"({year}). Weighted simulation uses the base event weight, without lepton scale factors.")

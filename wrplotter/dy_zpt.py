@@ -148,7 +148,7 @@ def weight_edges(p: ZptPayload, xmax: float | None = None) -> np.ndarray:
 X_LABEL = r"$p_{T}$ of the generator-level Z [GeV]"
 
 
-def _finish(fig: Figure, ax, *, com: float, text: str, legend_fontsize: int = FONT_SIZE_LEGEND - 2) -> Figure:
+def _finish(fig: Figure, ax, *, com: float, text: str, legend_fontsize: int = FONT_SIZE_LEGEND) -> Figure:
     ax.legend(loc="upper right", fontsize=legend_fontsize)
     cms_label(ax, None, com, data=False, rlabel=f"({com:g} TeV)", text=text)
     fit_header(ax)
@@ -257,7 +257,7 @@ def plot_spectra(p: ZptPayload, *, xlim: tuple[float, float] = (1.0, 8000.0),
     integrated = (p.provenance.get("integrated") or {}).get("nlo_over_lo")
     if integrated is not None:
         text = f"{text}\nIntegrated NLO / LO = {integrated:.4f}" if text else f"Integrated NLO / LO = {integrated:.4f}"
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 2)
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
     cms_label(ax, None, com, data=False, rlabel=f"({com:g} TeV)")
     # The spectra peak under the label block, so the description goes to the empty lower left.
     region_text(ax, text, x=0.05, y=0.30)

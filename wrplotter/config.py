@@ -160,6 +160,8 @@ def index_plot_settings(plot_settings: dict) -> tuple[dict, dict]:
 
 # Valid keys for per-variable plot configuration entries
 _VALID_VAR_CFG_KEYS = {"rebin", "rebin_variable", "xlim", "ylim", "ratio_ylim"}
+# Region entry with defaults for all of the region's variables (get_var_cfg)
+REGION_DEFAULTS_KEY = "_all"
 
 
 def validate_var_cfg(var_name: str, cfg: dict, region_name: str = "") -> None:
@@ -186,11 +188,14 @@ def get_var_cfg(region_cfgs: dict, common_vars: dict,
     4-object), which the analyzer does not fill in boosted regions; the boosted
     blocks list every variable they plot.
     """
-    reg = region_cfgs.get(region_name, {})
+    reg = region_cfgs.get(region_name) or {}   # an era file may leave a block empty
     cfg = reg.get(var_name)
     if cfg is None and "boosted" not in region_name.lower():   # same rule as Region.is_boosted
         cfg = common_vars.get(var_name)
     if cfg is not None:
+        # A region's `_all` entry holds defaults for every variable it plots (e.g. its
+        # ratio range); the variable's own keys take precedence.
+        cfg = {**(reg.get(REGION_DEFAULTS_KEY) or {}), **cfg}
         validate_var_cfg(var_name, cfg, region_name)
     return cfg
 

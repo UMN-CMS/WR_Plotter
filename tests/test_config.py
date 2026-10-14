@@ -288,3 +288,26 @@ class TestDYComparisons:
                 config.load_dy_comparisons()
         finally:
             config.load_dy_comparisons.cache_clear()
+
+
+class TestRegionDefaults:
+    """A region's `_all` plot-settings entry applies to every variable it plots."""
+
+    def test_all_entry_merged_under_variable_keys(self):
+        from wrplotter.config import get_var_cfg
+        regions = {"wr_x_resolved_dy_cr": {"_all": {"ratio_ylim": [0.5, 2.5], "rebin": 7},
+                                           "pt": {"rebin": 2, "xlim": [0, 10]}}}
+        cfg = get_var_cfg(regions, {"eta": {"rebin": 5}}, "wr_x_resolved_dy_cr", "pt")
+        assert cfg == {"ratio_ylim": [0.5, 2.5], "rebin": 2, "xlim": [0, 10]}
+        common = get_var_cfg(regions, {"eta": {"rebin": 5}}, "wr_x_resolved_dy_cr", "eta")
+        assert common == {"ratio_ylim": [0.5, 2.5], "rebin": 5}
+        assert get_var_cfg(regions, {}, "wr_x_resolved_dy_cr", "_absent") is None
+
+    def test_2024_ranges(self):
+        from wrplotter.config import get_var_cfg, index_plot_settings, load_plot_settings
+        rc, cv = index_plot_settings(load_plot_settings("RunIII2024Summer24"))
+        assert get_var_cfg(rc, cv, "wr_mumu_resolved_dy_cr", "pt_leading_jet")["ratio_ylim"] == [0.5, 2.5]
+        assert get_var_cfg(rc, cv, "wr_resolved_flavor_cr", "pt_leading_jet")["ratio_ylim"] == [0, 2]
+        # boosted SR and flavor CRs select m_ll > 200 GeV: the axis starts there
+        assert get_var_cfg(rc, cv, "wr_ee_boosted_sr", "mass_dilepton")["xlim"][0] == 200
+        assert get_var_cfg(rc, cv, "wr_emu_boosted_flavor_cr", "mass_dilepton")["xlim"][0] == 200

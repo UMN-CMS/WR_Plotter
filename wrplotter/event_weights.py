@@ -134,7 +134,7 @@ def plot_weight_distributions(
 ) -> Figure:
     """log10|w| per entry (label, color, distribution): solid w > 0, dashed w < 0."""
     hep.style.use("CMS")
-    fig, ax = plt.subplots(figsize=(13, 10))
+    fig, ax = plt.subplots(figsize=(10, 10))
     drawn = []
     edges = None
     for label, color, dist in entries:
@@ -147,7 +147,7 @@ def plot_weight_distributions(
             edges = h.axes[0].edges
             hep.histplot(h.values(), edges, histtype="step", color=color, linestyle=style,
                          linewidth=2, ax=ax, flow=None,
-                         label=f"{label}: {stats}" if sign == "positive" else None)
+                         label=f"{label}\n{stats}" if sign == "positive" else None)
             drawn.append(h.values())
     ax.set_yscale("log")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
@@ -159,7 +159,7 @@ def plot_weight_distributions(
     ax.set_xlabel(r"$\log_{10}|w|$ (per-region nominal event weight)")
     ax.set_ylabel("Simulated events")
     cms_label(ax, lumi, com, data=False, text=text + "\nsolid: $w > 0$, dashed: $w < 0$")
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 5)
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
     fit_header(ax)
     return fig
 
@@ -259,11 +259,11 @@ def plot_component(
 
     Each entry is normalized to unit area so the shapes compare across samples
     of very different size; the legend gives N and the mean and RMS (in log10
-    for the log components).  The generator weight is drawn solid for w > 0
+    for the log components) on a line under each sample.  The generator weight is drawn solid for w > 0
     and dashed for w < 0.  Returns None when no entry has the component.
     """
     hep.style.use("CMS")
-    fig, ax = plt.subplots(figsize=(13, 10))
+    fig, ax = plt.subplots(figsize=(10, 10))
     drawn, edges = [], None
     log_axis = name in LOG_COMPONENTS
     for label, color, hists in entries:
@@ -271,7 +271,7 @@ def plot_component(
         if stats is None or stats.n <= 0:
             continue
         unit = "log10" if log_axis else ""
-        legend = (f"{label}: N={stats.n:.3g}, mean{'' if not unit else ' ' + unit}={stats.mean:.3g}, "
+        legend = (f"{label}\nN={stats.n:.3g}, mean{'' if not unit else ' ' + unit}={stats.mean:.3g}, "
                   f"RMS={stats.rms:.2g}")
         if name == GENWEIGHT and stats.negative:
             legend += f", {100 * stats.negative:.1f}% w<0"
@@ -309,7 +309,7 @@ def plot_component(
     ax.set_ylabel("Fraction of simulated events")
     note = "\nsolid: $w > 0$, dashed: $w < 0$" if name == GENWEIGHT else ""
     cms_label(ax, lumi, com, data=False, text=text + note)
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 5)
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
     fit_header(ax)
     return fig
 

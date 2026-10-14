@@ -49,14 +49,17 @@ class AxisConfig:
 def axis_config(vcfg: dict, *, variable_rebin: bool = True, density: bool = False) -> AxisConfig:
     """Binning and axis ranges of one (region, variable) plot-settings entry.
 
-    The variable-width edges (``rebin_variable``, the Run 2 m(W_R) binning) are used
-    where given, unless *variable_rebin* is False; otherwise the uniform ``rebin``.
+    The variable-width edges (``rebin_variable``, the Run 2 m(W_R) fit binning) are used
+    where given and *variable_rebin* is True; otherwise the uniform ``rebin``.  The
+    variable edges keep their own last edge as the axis end, so ``xlim`` (set for the
+    uniform bins) never cuts the Run 2 bins short.
     """
+    xlim = tuple(map(float, vcfg.get("xlim", (0.0, 1.0))))
     if variable_rebin and "rebin_variable" in vcfg:
         rebin = list(vcfg["rebin_variable"])
+        xlim = (xlim[0], float(rebin[-1]))
     else:
         rebin = vcfg.get("rebin", 1)
-    xlim = tuple(map(float, vcfg.get("xlim", (0.0, 1.0))))
     return AxisConfig(
         binning=Binning(rebin=rebin, xmax=xlim[1], density=density),
         xlim=xlim,

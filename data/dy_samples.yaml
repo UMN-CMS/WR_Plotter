@@ -17,6 +17,9 @@
 # (WRAnalyzer_DYJets[_<tag>]_systematics.json).  A file holding a different sample than the
 # tag claims is refused.  Patterns follow the Run 3 dataset names.
 #
+# `label` names the sample on the stack plots ("DY: <label>"); `short`, where given, replaces it in
+# the DY-comparison legends, which list up to six samples at 20 pt.
+#
 # `analyzer_args` with --dy-reweight: the reweighting the tag stands for.  The plotter reads
 # the one a file was made with from its event-weight histograms
 # (event_weights/<region>/components/dy_zpt, dy_reshape) and refuses a mismatch.
@@ -34,7 +37,8 @@ samples:
     datasets: "DYto2L-4Jets_Bin-HT-"
   lo_ht_zpt:
     # lo_ht with the DY Z-pT reweight, without the jet-pT reshape
-    label: "LO HT-binned, Z $p_{T}$ reweight only"
+    label: "LO HT-binned, Z $p_{T}$ reweight"
+    short: "LO HT, Z $p_{T}$ rew."
     color: "#b9ac70"
     datasets: "DYto2L-4Jets_Bin-HT-"
     analyzer_args: "--dy-reweight zpt"
@@ -42,7 +46,8 @@ samples:
     legacy_dirs: ["{dir}_noreshape"]
   lo_ht_zpt_reshape:
     # lo_ht with the DY Z-pT reweight and the jet-pT reshape (the default before 2026-10-12)
-    label: "LO HT-binned, Z $p_{T}$ + jet $p_{T}$ reweighted"
+    label: "LO HT-binned, Z + jet $p_{T}$ reweight"
+    short: "LO HT, Z + jet $p_{T}$ rew."
     color: "#e76300"
     datasets: "DYto2L-4Jets_Bin-HT-"
     analyzer_args: "--dy-reweight zpt+reshape"

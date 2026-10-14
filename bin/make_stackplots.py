@@ -6,6 +6,9 @@ analyzer's default sample), each in its own folder:
 
     <plots>/<Run>/<Year>/<Era>/<dir>/stack_dy_<tag>/<region>/<variable>_<region>.pdf
 
+Every variable is drawn in uniform bins (data/plot_settings).  --run2-binning draws
+the m(W_R) observables in the Run 2 fit bins instead, into stack_dy_<tag>_run2_binning/.
+
 Signal regions show the background stack with signal overlays.  Their data
 is blinded by the analyzer; it appears only if the data files were made with
 the analyzer's --unblind (Run 2 only).
@@ -55,11 +58,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--signal", "-s", dest="signal", action="append", default=None,
                         help="Signal sample(s) overlaid in signal regions, e.g. signal_WR4000_N2100. "
                              "Default: per era and topology (data/lumi.yaml).")
-    parser.add_argument("--uniform-rebin", action="store_true",
-                        help="Use the uniform rebin factor even where variable-width edges (rebin_variable, "
-                             "the Run 2 m(W_R) binning) are set.")
+    parser.add_argument("--run2-binning", action="store_true",
+                        help="Draw the m(W_R) observables in the Run 2 fit bins (rebin_variable) instead of "
+                             "uniform bins; plots go to stack_dy_<tag>_run2_binning/.")
     parser.add_argument("--per-gev", action="store_true",
-                        help="With variable-width bins, show events per GeV instead of per bin "
+                        help="With --run2-binning, show events per GeV instead of per bin "
                              "(Run 2 drew events per bin).")
     parser.add_argument("--no-syst", action="store_true",
                         help="Stat-only band even if the files carry systematic variations.")
@@ -130,10 +133,10 @@ def main():
 
     n_saved = n_skipped = n_failed = 0
     for inputs in inputs_list:
-        out_dir = base / f"stack_dy_{inputs.dy.tag}"
+        out_dir = base / (f"stack_dy_{inputs.dy.tag}" + ("_run2_binning" if args.run2_binning else ""))
         for i, (region, variable, vcfg) in enumerate(plan, 1):
             logging.info("[DY %s %d/%d] %s / %s", inputs.dy.tag, i, len(plan), region.name, variable.name)
-            axes = axis_config(vcfg, variable_rebin=not args.uniform_rebin, density=args.per_gev)
+            axes = axis_config(vcfg, variable_rebin=args.run2_binning, density=args.per_gev)
             signals = []
             if region.is_signal_region:
                 signals = args.signal or default_signals(info, boosted=region.is_boosted)
@@ -145,7 +148,10 @@ def main():
                 n_skipped += 1
                 continue
 
-            label = f"DY: {inputs.dy.label}" + (f"\n{args.extra_label}" if args.extra_label else "")
+            # The DY sample is named only where DY matters: the flavor CRs hold next to none.
+            # (a long sample name, e.g. "LO HT-binned, Z + jet pT reweight", breaks after its comma)
+            lines = [] if "flavor_cr" in region.name else [f"DY: {inputs.dy.label}".replace(", ", ",\n")]
+            label = "\n".join(lines + ([args.extra_label] if args.extra_label else [])) or None
             fig = plot_stack(
                 region, variable,
                 stack_list=[h for _, h in stack.mc],

@@ -42,9 +42,9 @@ from .config import load_lumi
 from .cutflow import cut_label
 from .inputs import mass_point, read_manifest
 from .paths import SIGNAL_OUTPUTS, plots_base, repo_root
-from .plotting_helpers import FONT_SIZE_LEGEND, cms_label, fit_header
+from .plotting_helpers import FONT_SIZE_LEGEND, FONT_SIZE_MIN, cms_label, fit_header
 from .signal_compare import (
-    CHANNEL_LABELS, CHANNELS, COLORS, COMBINED, MARKERS, MASS_LABELS, MASS_VARIABLES, TOPOLOGIES,
+    CHANNEL_LABELS, CHANNELS, COMBINED, MARKERS, MASS_LABELS, MASS_VARIABLES, TOPOLOGIES,
     TOPOLOGY_LABELS, CutflowEfficiency, EraSet, Produced, Shape, Value, _normalized, display_range, efficiency,
     flavour_shares, flow_arrays, load_point_hist, make_era_sets, overflow_fraction, point_files, produced_events,
     shape_summary,
@@ -53,13 +53,20 @@ from .stack import hist_key
 
 logger = logging.getLogger(__name__)
 
+# CMS colour scheme (CAT plotting pages: M. Petroff's 10-colour set, for more than six
+# categories).  No black: CMS keeps black for data.  Overlaid histograms also change line
+# style, so the figures stay readable in greyscale (PubGuidelines, figures).
+COLORS = ["#3f90da", "#ffa90e", "#bd1f01", "#94a4a2", "#832db6", "#a96b59", "#e76300", "#b9ac70",
+          "#717581", "#92dadd"]
+LINESTYLES = ["-", "--", "-.", ":"]     # named styles only: mplhep splits a tuple per histogram
+
 # Control regions of each topology.  A DY CR is a channel's region and its yield is divided by
 # sigma x L of that flavour; a flavour CR (no channel in its name) takes events of both flavours
 # of the point's file and its yield is divided by sigma x L of both.
 CONTROL_REGIONS = {
-    "resolved": {"wr_{ch}_resolved_dy_cr": "DY CR", "wr_resolved_flavor_cr": "flavour CR"},
-    "boosted": {"wr_{ch}_boosted_dy_cr": "DY CR", "wr_emu_boosted_flavor_cr": "flavour CR (e, $\\mu$-jet)",
-                "wr_mue_boosted_flavor_cr": "flavour CR ($\\mu$, e-jet)"},
+    "resolved": {"wr_{ch}_resolved_dy_cr": "DY CR", "wr_resolved_flavor_cr": "flavor CR"},
+    "boosted": {"wr_{ch}_boosted_dy_cr": "DY CR", "wr_emu_boosted_flavor_cr": "flavor CR (e, $\\mu$-jet)",
+                "wr_mue_boosted_flavor_cr": "flavor CR ($\\mu$, e-jet)"},
 }
 KINEMATIC_VARIABLES = {
     "resolved": ["pt_leading_lepton", "pt_subleading_lepton", "eta_leading_lepton", "eta_subleading_lepton",
@@ -272,7 +279,7 @@ def plot_efficiency_vs_mn(era_set: EraSet, summaries: Sequence[PointSummary], m_
     ax.set_xlabel(r"$m_N$ [GeV]")
     ax.set_ylabel(r"$A\epsilon$ [%]")
     ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
-    _header(ax, era_set, label_text(channel, m_wr=m_wr) + "\nSR yield / $\\sigma L$ of the flavour")
+    _header(ax, era_set, label_text(channel, m_wr=m_wr) + "\nSR yield / $\\sigma L$ of the flavor")
     fit_header(ax)
     return fig
 
@@ -297,16 +304,16 @@ def plot_cr_fraction_vs_mn(era_set: EraSet, summaries: Sequence[PointSummary], m
     ax.set_ylim(shown.min() / 5 if shown.size else 1e-4, (shown.max() if shown.size else 1) * 10)
     ax.set_xlabel(r"$m_N$ [GeV]")
     ax.set_ylabel(r"Yield / $\sigma L$ [%]")
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 4)
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
     _header(ax, era_set, label_text(channel, m_wr=m_wr) + "\nSignal in the control regions\n"
-            "(flavour CRs: both flavours over $\\sigma L$ of both)")
+            "(flavor CRs: both flavors over $\\sigma L$ of both)")
     fit_header(ax)
     return fig
 
 
 def plot_efficiency_map(era_set: EraSet, summaries: Sequence[PointSummary], topology: str, channel: str):
     """A x epsilon over the (m_WR, m_N) grid, colour-coded."""
-    fig, ax = _figure((11, 9))
+    fig, ax = _figure()
     pts = [(s.m_wr, s.m_n, s.efficiency[(topology, channel)]) for s in summaries]
     pts = [(wr, n, v.value) for wr, n, v in pts if v is not None and math.isfinite(v.value)]
     if not pts:
@@ -324,7 +331,7 @@ def plot_efficiency_map(era_set: EraSet, summaries: Sequence[PointSummary], topo
     ax.set_ylim(0, lim)
     ax.set_xlabel(r"$m_{W_R}$ [GeV]")
     ax.set_ylabel(r"$m_N$ [GeV]")
-    _header(ax, era_set, label_text(channel, topology=topology) + "\nSR yield / $\\sigma L$ of the flavour")
+    _header(ax, era_set, label_text(channel, topology=topology) + "\nSR yield / $\\sigma L$ of the flavor")
     fit_header(ax)
     return fig
 
@@ -338,7 +345,7 @@ def plot_xsec_vs_mn(era_set: EraSet, xsecs: Mapping[str, Mapping[str, Mapping[st
         return fig
     mn = np.array([m for m, _ in rows], dtype=float)
     if quantity == "xsec":
-        for i, (key, label) in enumerate((("nlo", r"$\sigma_{LO} \times k$ (NLO), the analysis normalisation"),
+        for i, (key, label) in enumerate((("nlo", r"$\sigma_{LO} \times k$ (NLO), the analysis normalization"),
                                           ("lo", r"$\sigma_{LO}$ (generator)"))):
             y = np.array([r[key] for _, r in rows]) * 1000.0     # pb -> fb
             st = _style(i)
@@ -353,9 +360,12 @@ def plot_xsec_vs_mn(era_set: EraSet, xsecs: Mapping[str, Mapping[str, Mapping[st
         ax.set_ylabel(r"$k$-factor")
         lo, hi = ax.get_ylim()
         ax.set_ylim(lo, hi + 0.5 * (hi - lo))
+        # at most three decimals: four-decimal ticks pushed the axis label off the figure
+        ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5, steps=[1, 2, 5, 10]))
+        ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter("%.3f"))
     ax.set_xlim(0, m_wr)
     ax.set_xlabel(r"$m_N$ [GeV]")
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 2)
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
     _header(ax, era_set, label_text(channel, m_wr=m_wr))
     fit_header(ax)
     return fig
@@ -376,7 +386,7 @@ def plot_shapes(era_set: EraSet, entries: Sequence[tuple[str, Hist]], *, xlabel:
         shown = vals[(edges[:-1] < xlim[1]) & (edges[1:] > xlim[0])]
         top = max(top, float(shown.max()) if shown.size else 0.0)
         hep.histplot(vals, edges, yerr=errs, histtype="step", color=COLORS[i % len(COLORS)], linewidth=2,
-                     label=label, ax=ax)
+                     linestyle=LINESTYLES[i % len(LINESTYLES)], label=label, ax=ax)
     if logy:
         ax.set_yscale("log")
         ax.set_ylim(max(top * 1e-4, 1e-6), top * 50 if top > 0 else 1)
@@ -385,7 +395,7 @@ def plot_shapes(era_set: EraSet, entries: Sequence[tuple[str, Hist]], *, xlabel:
     ax.set_xlim(*xlim)
     ax.set_xlabel(xlabel)
     ax.set_ylabel("Fraction of events / bin")
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 4)
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
     _header(ax, era_set, text)
     fit_header(ax)
     return fig
@@ -405,18 +415,17 @@ def plot_resolution_vs_mn(era_set: EraSet, summaries: Sequence[PointSummary], m_
         kw = dict(color=COLORS[0], marker=MARKERS[0], markersize=6, lw=1.5, capsize=2)
         ax_pos.errorbar(mn, [v.value for v in pos], yerr=[v.error for v in pos], **kw)
         ax_wid.errorbar(mn, [100 * v.value for v in wid], yerr=[100 * v.error for v in wid], **kw)
-    ax_pos.set_ylabel(r"Median / $m_{W_R}$", fontsize=18)
+    ax_pos.set_ylabel(r"Median / $m_{W_R}$", fontsize=22)
     lo, hi = ax_pos.get_ylim()
     ax_pos.set_ylim(lo, hi + 0.8 * (hi - lo))
     ax_wid.set_yscale("log")
     ax_wid.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=10, subs=(1, 2, 5)))
     ax_wid.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda y, _: f"{y:g}"))
     ax_wid.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
-    ax_wid.set_ylabel(r"$\sigma_{\mathrm{eff}}$ / median [%]", fontsize=18)
+    ax_wid.set_ylabel(r"$\sigma_{\mathrm{eff}}$ / median [%]", fontsize=22)
     ax_wid.set_xlabel(r"$m_N$ [GeV]")
     ax_wid.set_xlim(0, m_wr)
-    _header(ax_pos, era_set, label_text(channel, topology=topology, m_wr=m_wr) + "\n" + MASS_LABELS[topology] + " peak",
-            fontsize=18, text_fontsize=15)
+    _header(ax_pos, era_set, label_text(channel, topology=topology, m_wr=m_wr) + "\n" + MASS_LABELS[topology] + " peak")
     fit_header(ax_pos)
     return fig
 
@@ -462,7 +471,7 @@ def plot_cutflows(era_set: EraSet, entries: Sequence[tuple[str, CutflowEfficienc
     cuts = list(entries[0][1].cuts)
     for _, cf in entries[1:]:
         cuts += [c for c in cf.cuts if c not in cuts]
-    fig, ax = _figure((12, 9))
+    fig, ax = _figure()
     shown = []
     for i, (label, cf) in enumerate(entries):
         pos = np.array([cuts.index(c) for c in cf.cuts])
@@ -481,7 +490,7 @@ def plot_cutflows(era_set: EraSet, entries: Sequence[tuple[str, CutflowEfficienc
         ax.set_ylim(0, 100)
     ax.set_xticks(np.arange(len(cuts)))
     ax.set_xticklabels([cut_label(c, "plot") for c in cuts], rotation=40, ha="right", rotation_mode="anchor",
-                       fontsize=18)
+                       fontsize=FONT_SIZE_MIN)
     ax.tick_params(axis="x", which="minor", bottom=False, top=False)
     ax.set_xlim(-0.5, len(cuts) - 0.5)
     ax.set_ylabel("Cumulative efficiency [%]")
@@ -545,7 +554,7 @@ def efficiency_latex(era_set: EraSet, summaries: Sequence[PointSummary], m_wr: i
     lines = [r"\begin{table}[htbp]", r"  \centering",
              rf"  \topcaption{{Signal acceptance times efficiency (\%) in the {CHANNEL_LABELS[channel].replace('$', '')} channel "
              rf"for $m_{{W_R}} = {m_wr}$\GeV, {era_set.era} ({float(info['lumi']):.1f}\fbinv): the resolved and boosted "
-             r"signal regions and their sum, over $\sigma \times L$ of the lepton flavour. Statistical errors.}",
+             r"signal regions and their sum, over $\sigma \times L$ of the lepton flavor. The uncertainties are statistical.}",
              rf"  \label{{tab:signal_eff_{channel}_WR{m_wr}}}", r"  \cmsTable{", r"    \begin{tabular}{r|ccc}",
              r"      $m_N$ [GeV] & Resolved SR & Boosted SR & Combined \\", r"      \hline"]
     for s in summaries:

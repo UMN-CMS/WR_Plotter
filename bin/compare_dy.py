@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
 """Compare Drell-Yan samples, alone and inside the total background.
 
-The samples are a named comparison of data/dy_comparisons.yaml (--comparison,
-the first sample is the reference), or two or more --dy samples, the first the
-reference.  For each (region, variable) pair of the plot set:
+The samples are the named comparisons of data/dy_comparisons.yaml, each into
+its own folder (all/, lo/, nlo/, ...; the first sample is the reference): every
+one by default, the ones --comparison names, or two or more --dy samples, the
+first the reference, straight into dy_compare/.  For each (region, variable)
+pair of the plot set:
 
     <plots>/<Run>/<Year>/<Era>/<dir>/dy_compare/[<comparison>/]abs/<region>/<variable>_<region>.pdf
         DYJets of each sample with the ratio to the reference;
     .../shape/<region>/...
         the same, each sample scaled to unit yield;
+    .../stat/<region>/...
+        the statistical power of each sample per bin: its relative statistical
+        uncertainty, 1/sqrt(N_eff), and its effective number of simulated events
+        N_eff = (sum w)^2 / sum w^2;
     .../total/<region>/...
         the total background built with each DY sample (the other backgrounds
         are shared).  Control regions show data with Data/Bkg. per sample;
@@ -41,7 +47,8 @@ refused.  A comparison with a sample that cannot be found is skipped and
 reported; the others are still drawn.
 
 Examples:
-    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --comparison all --local-plots
+    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261013_skims_v2 --local-plots
+    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261013_skims_v2 --comparison all --local-plots
     python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --comparison lo,lo_ht_vs_nlo --plots all --local-plots
     python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261011_skims_v2 --comparison lo --dy lo_ht=20261008_skims_v2,lo_ht_zpt_reshape=20261011_skims_v2 --local-plots
     python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --dy lo_ht,lo_inc,nlo_inc -r resolved_dy_cr -v mass_fourobject --local-plots
@@ -63,7 +70,7 @@ from wrplotter.cli_utils import (add_dy_arg, add_era_args, add_output_args, add_
                                  setup_logging)
 from wrplotter.config import (configured_variables, index_plot_settings, load_dy_comparisons,
                               load_lumi, load_plot_settings)
-from wrplotter.dy_compare import plot_dy_overlay, plot_total_comparison
+from wrplotter.dy_compare import plot_dy_overlay, plot_dy_stat, plot_total_comparison
 from wrplotter.inputs import DY_SAMPLE, make_inputs
 from wrplotter.paths import plots_base, save_figure
 from wrplotter.regions import expand_region_requests
@@ -81,8 +88,8 @@ def parse_args() -> argparse.Namespace:
     add_selection_args(parser)
     add_output_args(parser)
     parser.add_argument("--comparison", action="append", default=None,
-                        help="Named comparison(s) of data/dy_comparisons.yaml, repeat or comma-separate, "
-                             f"or 'all': {', '.join(cfg['comparisons'])}.")
+                        help="Named comparison(s) of data/dy_comparisons.yaml, repeat or comma-separate: "
+                             f"{', '.join(cfg['comparisons'])}. Default (no --dy either): every one.")
     parser.add_argument("--plots", default="core", choices=[*cfg["plot_sets"], "all"],
                         help="Plot set of data/dy_comparisons.yaml, or 'all' (every configured pair). "
                              "Default: core.")
@@ -96,9 +103,9 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     args.dy = dy_specs(args.dy) or []
     args.comparison = parse_multi(args.comparison)
+    if not args.comparison and not args.dy:
+        args.comparison = list(cfg["comparisons"])      # every named comparison
     if args.comparison:
-        if "all" in args.comparison:
-            args.comparison = list(cfg["comparisons"])
         unknown = [c for c in args.comparison if c not in cfg["comparisons"]]
         if unknown:
             parser.error(f"unknown comparison(s) {unknown}; data/dy_comparisons.yaml has "
@@ -107,7 +114,8 @@ def parse_args() -> argparse.Namespace:
         if bare:
             parser.error(f"with --comparison, --dy only takes TAG=DIR (where a sample is); got {bare}")
     elif len(args.dy) < 2:
-        parser.error("give --comparison NAME, or at least two DY samples, e.g. --dy lo_ht --dy lo_inc")
+        parser.error("give at least two DY samples, e.g. --dy lo_ht --dy lo_inc, or --comparison NAME "
+                     "(or neither: every named comparison)")
     args.regions = parse_multi(args.regions)
     args.variables = parse_multi(args.variables)
     return args
@@ -168,6 +176,9 @@ def draw(name, inputs_list, plan, base, args, lumi, com, groups) -> tuple[int, i
                                       xlim=axes.xlim, lumi=lumi, com=com, normalize=normalize,
                                       ratio_ylim=axes.ratio_ylim, extra_label=args.extra_label)
                 outputs.append((fig, base / kind / region.name / file_name))
+            fig = plot_dy_stat(region, variable, dy_hists, xlim=axes.xlim, lumi=lumi, com=com,
+                               extra_label=args.extra_label)
+            outputs.append((fig, base / "stat" / region.name / file_name))
 
         # Total background with each DY sample (no signals, no systematics)
         stacks = [(inp.dy, build_stack(region, variable.name, inputs=inp, groups=groups,

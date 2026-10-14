@@ -27,9 +27,15 @@ if TYPE_CHECKING:
 # "Work in progress" is the thesis-endorsement label; a PAS or CMS note takes "Preliminary".
 CMS_EXTRA_TEXT = "Work in progress"
 
-FONT_SIZE_TITLE  = 18   # region text: no larger than the legend (FigGuidelines)
-FONT_SIZE_LABEL  = 20
-FONT_SIZE_LEGEND = 18
+# Font sizes in points, for figures 10 inches wide (every figure here is 10 inches wide).
+# FigGuidelines: legends, labels and axis labels no smaller than half the body text.  The AN's body
+# is 11 pt and a figure goes in at 0.45\textwidth (2.8 in, a 0.28 scale), so 20 pt prints at 5.7 pt.
+# Axis titles (26 pt) and tick labels (22 pt) come from the mplhep CMS style.  Sub- and superscripts
+# are smaller by construction.
+FONT_SIZE_MIN    = 20   # no text smaller, legends included (fit_header's legend shrink stops here)
+FONT_SIZE_TITLE  = 20   # region text: no larger than the legend
+FONT_SIZE_LABEL  = 21   # cms_label: "CMS" 27 pt = 1.3 x "Work in progress" 21 pt (CAT); lumi 20 pt
+FONT_SIZE_LEGEND = 20
 
 # Colours and linestyles cycled over multiple signal overlays so they remain
 # visually distinguishable when more than one signal is shown on the same plot.
@@ -66,7 +72,8 @@ def custom_log_formatter(y: float, pos) -> str:
     return ""
 
 def _format_bin_width(w: float) -> str:
-    return f"{int(w)}" if float(w).is_integer() else f"{w:.1f}"
+    w = round(float(w), 6)
+    return f"{int(w)}" if w.is_integer() else f"{w:.4g}"
 
 def set_y_label(ax, tot, variable, *, per_unit: bool = False) -> None:
     """
@@ -93,7 +100,7 @@ def set_y_label(ax, tot, variable, *, per_unit: bool = False) -> None:
 
 # --------------------------------- legends ---------------------------------- #
 
-def reorder_legend(ax, priority=("Data", "Sim. stat."), fontsize=18, **legend_kw) -> None:
+def reorder_legend(ax, priority=("Data", "Sim. stat."), fontsize=FONT_SIZE_LEGEND, **legend_kw) -> None:
     """
     Put 'Data' first (CMS FigGuidelines: data at the top of a stack plot's legend),
     the MC uncertainty band second, and keep the rest in reverse stack order.
@@ -190,6 +197,8 @@ def plot_stack(
         largest shift in quadrature to the simulation's statistical band.
       show_data: If False, data points are not shown and ratio panel displays "Blinded"
       signal_hists: Dict of signal sample name -> histogram to overlay (not stacked)
+      ylim: the bottom of the y axis (never above 0.1 when data are drawn, so a one-event
+        point keeps its whole error bar); the top follows the content (see stack_ylim).
     """
     if signal_hists is None:
         signal_hists = {}
@@ -270,12 +279,14 @@ def plot_stack(
     else:
         # No MC: keep the ratio panel but indicate missing denominator.
         rax.text(0.5, 0.5, "No simulation", transform=rax.transAxes,
-                 ha="center", va="center", fontsize=18, fontweight="bold", color="red")
+                 ha="center", va="center", fontsize=FONT_SIZE_MIN, fontweight="bold", color="red")
 
     # cosmetics
     ax.set_yscale("log")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
-    ax.set_ylim(*ylim)
+    shown_data = data if (show_data and data is not None) else None
+    ax.set_ylim(*stack_ylim(ylim, edges, xlim, tot, shown_data, list(signal_hists.values()),
+                            per_unit=per_unit))
     alias = region.tlatex_alias.replace("\\n", "\n")
     if extra_label:
         alias = f"{alias}\n{extra_label}"
@@ -315,6 +326,39 @@ def plot_stack(
     reorder_legend(ax, fontsize=fontsize_legend)
     fit_header(ax)
     return fig
+
+
+def stack_ylim(ylim, edges, xlim, tot, data, signals, *, per_unit: bool = False) -> tuple[float, float]:
+    """The y range of a stack plot.
+
+    Bottom: a decade below the smallest bin of the stack total or the data in the x range, so
+    every data point and the whole stack outline show, but never below the configured bottom,
+    nor below 0.1 when *data* is drawn (a one-event point's error bar reaches 0.17) unless the
+    configured bottom is lower: the fit observable m(lljj) is set to 1e-4, so the simulated
+    tails, whose shape the fit uses, stay in view.  A flat
+    distribution with hundreds of events per bin thus starts at 10, not 0.1; a layer far below
+    the total (e.g. nonprompt in the DY CRs) may then fall under the axis, as on any log stack.
+    Top: 10 x the highest bin drawn (stack + its errors, data + upper errors, signals);
+    fit_header then raises it only as far as the CMS label, region text and legend need.
+    The configured top is used only when nothing is drawn."""
+    floor = min(float(ylim[0]), 0.1) if data is not None else float(ylim[0])
+    edges = np.asarray(edges)
+    shown = (edges[:-1] < xlim[1]) & (edges[1:] > xlim[0])
+    highs = []
+    if tot is not None:
+        var = tot.variances()
+        highs.append(tot.values() + (np.sqrt(var) if var is not None else 0.0))
+    if data is not None:
+        highs.append(data.values() + data_errors(data, per_unit=per_unit)[1])
+    highs += [s.values() for s in signals]
+    top = max((float(np.max(h[shown])) for h in highs if np.any(shown)), default=0.0)
+    if not (top > floor):
+        return floor, float(ylim[1])
+    lows = [h.values()[shown] for h in (tot, data) if h is not None]
+    lows = [v[v > 0] for v in lows]
+    lowest = min((float(v.min()) for v in lows if v.size), default=0.0)
+    bottom = max(floor, 10.0 ** (np.floor(np.log10(lowest)) - 1)) if lowest > 0 else floor
+    return bottom, 10.0 * top
 
 
 # ------------------------------ shared cosmetics ----------------------------- #
@@ -363,9 +407,10 @@ def fit_header(ax, *, margin: float = 0.02) -> None:
 
     Puts "Simulation" on its own line when the secondary label runs into the
     legend, then raises the top of the y axis until nothing drawn lies under any
-    of them.  The CMS label and the region text always count; a legend counts only
-    when it hangs from the top of the frame: raising the axis cannot clear a legend
-    placed low (limit plots put theirs lower left).
+    of them.  The CMS label and the region text always count; a legend counts when
+    it hangs from the top of the frame or was moved under the label by
+    _fit_legend: raising the axis cannot clear a legend the caller placed low
+    (limit plots put theirs lower left).
     Call it last, once the legend and the x range are set.
     """
     fig = ax.figure
@@ -386,8 +431,9 @@ def fit_header(ax, *, margin: float = 0.02) -> None:
               if isinstance(t, (ExpText, ExpSuffix)) or getattr(t, "is_region_text", False)]
     blockers = [t.get_window_extent(renderer) for t in header if t.get_text().strip()]
     n_header = len(blockers)
+    moved = False
     if legend is not None:
-        legend = _fit_legend(ax, legend, blockers, renderer, margin)
+        legend, moved = _fit_legend(ax, legend, blockers, renderer, margin)
         blockers.append(legend.get_window_extent(renderer))
     pts = _content_vertices(ax)
     log = ax.get_yscale() == "log"
@@ -401,15 +447,16 @@ def fit_header(ax, *, margin: float = 0.02) -> None:
     f = np.log10 if log else (lambda v: v)
     to_axes = ax.transAxes.inverted()
     to_data = ax.transData.inverted()
-    # The top moves up at most to twice the axis span: a header that needs more
-    # (a legend pushed low in the frame) is left as it is, with the warning above.
-    need, cap = f(hi), f(lo) + 2 * (f(hi) - f(lo))
+    # The top moves up at most to three times the axis span (the content then fills the lower
+    # third); a header that needs more is left overlapping, with a warning.
+    need, cap = f(hi), f(lo) + 3 * (f(hi) - f(lo))
+    capped = False
     for i, box in enumerate(blockers):
         bottom = to_axes.transform((box.x0, box.y0))[1]
         top = to_axes.transform((box.x1, box.y1))[1]
         if not 0 < bottom < 1:                       # out of the frame (luminosity)
             continue
-        if i >= n_header and top < 0.75:             # a legend not hanging from the top of the frame
+        if i >= n_header and top < 0.75 and not moved:   # a legend the caller placed low
             continue
         x0 = to_data.transform((box.x0, box.y0))[0]
         x1 = to_data.transform((box.x1, box.y0))[0]
@@ -418,24 +465,30 @@ def fit_header(ax, *, margin: float = 0.02) -> None:
             continue
         top = f(lo) + (f(under.max()) - f(lo)) / room
         if np.isfinite(top):
+            capped |= top > cap
             need = max(need, min(top, cap))
+    if capped:
+        logging.warning("The CMS label, region text and legend need more than three times the y range; "
+                        "some content stays under them. Shorten the legend or the region text.")
     if need > f(hi):
         ax.set_ylim(lo, 10 ** need if log else need)
 
 
-LEGEND_MIN_FONTSIZE = 12
+LEGEND_MIN_FONTSIZE = FONT_SIZE_MIN
 
 
 def _fit_legend(ax, legend, blockers, renderer, margin):
     """The legend clear of the label block *blockers*: its font shrinks (to
-    LEGEND_MIN_FONTSIZE) until it fits beside them; failing that it goes under
-    them, with a warning.  Returns the legend, re-made when the font changed."""
+    LEGEND_MIN_FONTSIZE) until it fits beside them; failing that it goes to a lower
+    corner with nothing drawn under it (falling spectra leave the lower left empty),
+    else under the label (fit_header then raises the axis to clear it).  Returns the
+    legend, re-made when it changed, and whether it was moved under the label."""
     def overlaps(lg):
         box = lg.get_window_extent(renderer)
         return any(b.overlaps(box) for b in blockers)
 
     if not overlaps(legend):
-        return legend
+        return legend, False
     handles, labels = legend.legend_handles, [t.get_text() for t in legend.texts]
     ncols = getattr(legend, "_ncols", 1)
     size = legend.texts[0].get_fontsize() if legend.texts else LEGEND_MIN_FONTSIZE
@@ -443,12 +496,23 @@ def _fit_legend(ax, legend, blockers, renderer, margin):
         size = max(size - 1, LEGEND_MIN_FONTSIZE)
         legend.remove()
         legend = ax.legend(handles, labels, loc="upper right", fontsize=size, ncols=ncols)
-    if overlaps(legend):
-        lowest = min(ax.transAxes.inverted().transform((0, b.y0))[1] for b in blockers)
-        legend.set_bbox_to_anchor((1, lowest - margin), transform=ax.transAxes)
-        logging.warning("Legend of %d entries does not fit beside the CMS label even at %d pt; "
-                        "placed under it. Shorten its labels.", len(labels), LEGEND_MIN_FONTSIZE)
-    return legend
+    if not overlaps(legend):
+        return legend, False
+    pts = ax.transData.transform(_content_vertices(ax))
+    pts = pts[np.isfinite(pts).all(axis=1)]
+    for loc in ("lower left", "lower right"):
+        trial = ax.legend(handles, labels, loc=loc, fontsize=size, ncols=ncols)
+        box = trial.get_window_extent(renderer)
+        covered = ((pts[:, 0] >= box.x0) & (pts[:, 0] <= box.x1)
+                   & (pts[:, 1] >= box.y0) & (pts[:, 1] <= box.y1)).any()
+        if not covered and not overlaps(trial):
+            return trial, False
+    legend = ax.legend(handles, labels, loc="upper right", fontsize=size, ncols=ncols)
+    lowest = min(ax.transAxes.inverted().transform((0, b.y0))[1] for b in blockers)
+    legend.set_bbox_to_anchor((1, lowest - margin), transform=ax.transAxes)
+    logging.debug("Legend of %d entries does not fit beside the CMS label at %d pt; placed under it.",
+                  len(labels), LEGEND_MIN_FONTSIZE)
+    return legend, True
 
 
 def region_text(ax, text: str, *, fontsize: int = FONT_SIZE_TITLE, x: float = 0.05,

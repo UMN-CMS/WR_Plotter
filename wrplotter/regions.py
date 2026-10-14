@@ -66,7 +66,7 @@ def regions_for_era(era: str) -> List[Region]:
         Region("wr_ee_boosted_sr",   "egamma", rf"ee\nBoosted SR\n{era}"),
 
         # Boosted flavor CRs: leading electron (electron trigger) / leading muon (muon trigger)
-        Region("wr_emu_boosted_flavor_cr", "egamma", rf"e($\mu$-jet)\nBoosted Flavor CR\n{era}"),
+        Region("wr_emu_boosted_flavor_cr", "egamma", rf"e ($\mu$-jet)\nBoosted Flavor CR\n{era}"),
         Region("wr_mue_boosted_flavor_cr", "muon",   rf"$\mu$ (e-jet)\nBoosted Flavor CR\n{era}"),
     ]
 

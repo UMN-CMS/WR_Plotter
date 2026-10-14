@@ -4,7 +4,7 @@ What this page answers: which WR_Plotter command makes which plot or table from 
 output, and where the results go. The plotter is the `WR_Plotter/` submodule (branch `billyDev`);
 its own [README](../README.md) has the options of every script except
 `make_systematics_tables.py`, which only this page documents.
-Verified on 2026-10-12.
+Verified on 2026-10-13.
 
 Every command runs from `WR_Plotter/` with the analyzer's virtual environment and takes `--era`
 and `--dir`, the era and the `--dir` tag of the analyzer production under
@@ -21,7 +21,7 @@ cd WR_Plotter
 ../.venv/bin/python bin/make_cutflows.py            --era RunIII2024Summer24 --dir <tag> --local-plots
 ../.venv/bin/python bin/make_signal_cutflows.py     --era RunIII2024Summer24 --dir <tag>
 ../.venv/bin/python bin/make_systematics_tables.py  --era RunIII2024Summer24 --dir <tag> [--per-bin]
-../.venv/bin/python bin/compare_dy.py               --era RunIII2024Summer24 --dir <tag> --comparison all --local-plots
+../.venv/bin/python bin/compare_dy.py               --era RunIII2024Summer24 --dir <tag> --local-plots
 ../.venv/bin/python bin/plot_event_weights.py       --era RunIII2024Summer24 --dir <tag> --local-plots
 ../.venv/bin/python bin/plot_dy_zpt_reweight.py     --era RunIII2024Summer24 --dir <tag> --dy lo_ht,lo_ht_zpt --local-plots
 ../.venv/bin/python bin/emu_transfer_factor.py      --era Run3 --dir <tag> --local-plots
@@ -30,13 +30,13 @@ cd WR_Plotter
 
 | Command | Makes | Output |
 | --- | --- | --- |
-| `make_stackplots.py` | Data over the stacked backgrounds for every region and variable, signal overlays in the signal regions, the systematic band from every variation the files carry (`data/systematics.yaml`) | `plots/<...>/<dir>/stack_dy_<tag>/<region>/<variable>_<region>.pdf` |
+| `make_stackplots.py` | Data over the stacked backgrounds for every region and variable, signal overlays in the signal regions, the systematic band from every variation the files carry (`data/systematics.yaml`); uniform bins (`--run2-binning`: the Run 2 m(W_R) fit bins) | `plots/<...>/<dir>/stack_dy_<tag>/<region>/<variable>_<region>.pdf` (`stack_dy_<tag>_run2_binning/`) |
 | `make_cutflows.py` | Cutflow tables (LaTeX, text) and plots per topology and channel, weighted and raw, with efficiencies | `tables/<...>/<dir>/cutflows_dy_<tag>/`, `plots/.../cutflows_dy_<tag>/` |
 | `make_signal_cutflows.py` | Yields and efficiencies per (m_WR, m_N) point | `tables/<...>/<dir>/signal_outputs/signal_cutflows/` |
 | `make_signal_plots.py` | Signal plots of one era: A × ε vs m_N and over the grid, signal in the CRs, σ and k, mass shapes and resolution, kinematics, cutflow plots per m_WR | `plots/<...>/<dir>/signal_outputs/signal_plots/`, `tables/<...>/<dir>/signal_outputs/signal_plots/` |
 | `plot_signal_theory_uncertainties.py` | Scale, PDF, α_S and PS changes of the signal-region yields vs m_WR, from a `--systs scale pdf ps` signal set (`--theory-dir`) | `plots/<...>/<dir>/signal_outputs/signal_theory/` |
 | `make_systematics_tables.py` | Per region, at the fit binning of the mass observable: the up/down change of each process's yield under every systematic source (backgrounds, their total, signal points), the largest per-bin change, a dash where a source does not move a process (a produced variation equal to the nominal, such as a placeholder, is a row of dashes), the sources absent from the files named under the legend; `--per-bin` adds bin-by-bin tables | `tables/<...>/<dir>/systematics_dy_<tag>/systematics_<variable>_<region>.{txt,md,tex}` and the combined `systematics.{txt,md,csv}` |
-| `compare_dy.py` | DY samples alone and inside the total background: a named comparison of `data/dy_comparisons.yaml` (`--comparison lo,nlo,lo_vs_nlo_inclusive,lo_ht_vs_nlo` or `all`) or a `--dy` list; the `core` plot set by default (`--plots all`: every pair); uniform bins (`--run2-binning`: the Run 2 m(W_R) fit bins) | `plots/.../dy_compare/[<comparison>/]` (`dy_compare_run2_binning/`) |
+| `compare_dy.py` | DY samples alone and inside the total background: the named comparisons of `data/dy_comparisons.yaml` (every one by default; `--comparison all,lo,nlo,lo_vs_nlo_inclusive,lo_ht_vs_nlo` picks) or a `--dy` list; the `core` plot set by default (`--plots all`: every pair); uniform bins (`--run2-binning`: the Run 2 m(W_R) fit bins) | `plots/.../dy_compare/[<comparison>/]` (`dy_compare_run2_binning/`) |
 | `plot_event_weights.py` | The MC event-weight distributions per region, total and each factor | `plots/.../event_weights/` |
 | `plot_dy_zpt_reweight.py` | The DY Z-pT reweighting payload (QCD NLO/LO with its variations and the Run 2 ratio, the EW factor, their product, the generator spectra) and, with `--dir`, the reweighted over the unreweighted DY in the DY CRs' pT(ll) | `plots/.../dy_zpt_reweight/` |
 | `emu_transfer_factor.py` | The eμ transfer factor SR / flavour CR on tt̄ and its closure below 800 GeV (`--tf-study` with a `--study transfer-factor` production) | `plots/<...>/<dir>/emu_transfer_factor_*.pdf` (no subfolder), `tables/<...>/<dir>/emu_transfer_factor_*.tex` |

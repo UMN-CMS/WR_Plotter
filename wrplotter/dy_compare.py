@@ -6,6 +6,8 @@
   each DY sample (the other backgrounds are shared), with Data/Bkg. per
   sample, optionally with each total scaled to the data yield; where data is
   blinded or absent, the totals are compared to the first sample's instead.
+- :func:`plot_dy_stat`: the statistical power of each DY sample per bin, its
+  relative statistical uncertainty and its effective number of events.
 """
 from __future__ import annotations
 
@@ -26,6 +28,9 @@ from .regions import Region
 from .stack import Binning, hist_yield
 from .variables import Variable
 
+# Up to this many samples the legend also gives each one's yield (abs, shape) or N_eff (stat);
+# beyond it (the six-sample `all` comparison) the names alone, so the legend fits at 20 pt.
+MAX_LEGEND_DETAIL = 4
 _BAND = {"hatch": "////", "facecolor": "none", "lw": 0, "edgecolor": "k", "alpha": 0.5}
 
 
@@ -50,9 +55,7 @@ def _finish(fig, ax, rax, region: Region, variable: Variable, ref: Hist, *, xlim
     cms_label(ax, lumi, com, data=data, text=text)
     set_y_label(ax, ref, variable, per_unit=per_unit)
     ax.set_xlabel("")
-    # many samples: a smaller legend, so it still fits beside the region text
-    many = len(ax.get_legend_handles_labels()[1]) > 6
-    reorder_legend(ax, fontsize=FONT_SIZE_LEGEND - (4 if many else 2))
+    reorder_legend(ax, fontsize=FONT_SIZE_LEGEND)
     fit_header(ax)
     rax.axhline(1.0, ls="--", color="k")
     rax.set_ylim(*ratio_ylim)
@@ -91,8 +94,10 @@ def plot_dy_overlay(
         errs = np.sqrt(h.variances()) * scale
         scaled.append((dy, vals, errs))
         ref = ", ref." if i == 0 and len(entries) > 1 else ""
+        label = (f"{dy.legend} ({_fmt_events(total)} ev.{ref})" if len(entries) <= MAX_LEGEND_DETAIL
+                 else f"{dy.legend}{' (ref.)' if ref else ''}")
         hep.histplot(vals, edges, yerr=errs, histtype="step", color=dy.color, linewidth=2,
-                     label=f"{dy.label} ({_fmt_events(total)} ev.{ref})", ax=ax)
+                     label=label, ax=ax)
 
     _, ref_vals, ref_errs = scaled[0]
     rel = _ratio(ref_errs, ref_vals)
@@ -157,7 +162,7 @@ def plot_total_comparison(
         ref = " (ref.)" if i == 0 and len(entries) > 1 and not show_data else ""
         scaled = rf" ($\times${factors[i]:.2f})" if scale_to_data else ""
         hep.histplot(total.values() * factors[i], edges, histtype="step", color=dy.color,
-                     linewidth=2, label=f"DY {dy.label}{ref}{scaled}", ax=ax)
+                     linewidth=2, label=f"DY {dy.legend}{ref}{scaled}", ax=ax)
     if show_data:
         # Garwood errors; horizontal bars only where the bin width varies (PubGuidelines)
         derrs = data_errors(data, per_unit=per_gev)
@@ -190,7 +195,7 @@ def plot_total_comparison(
         rlabel = "Ratio to ref."
         if data_blinded:  # corner label: the panel holds the ratios to the reference
             rax.text(0.02, 0.92, "Data blinded", transform=rax.transAxes, ha="left", va="top",
-                     fontsize=16, fontweight="bold", color="red")
+                     fontsize=FONT_SIZE_LEGEND, fontweight="bold", color="red")
 
     if ylim is None:
         arrays = ([t.values() * f for (_, t), f in zip(entries, factors)]
@@ -204,3 +209,72 @@ def plot_total_comparison(
     return _finish(fig, ax, rax, region, variable, entries[0][1], xlim=xlim, ylim=ylim,
                    ratio_ylim=ratio_ylim, rlabel=rlabel, lumi=lumi, com=com, text=text,
                    data=show_data, per_unit=per_gev)
+
+
+def effective_events(h: Hist) -> np.ndarray:
+    """N_eff = (sum w)^2 / sum w^2 per bin: the number of unweighted events with the same
+    relative statistical uncertainty, 1/sqrt(N_eff).  NaN where the sum of weights is not
+    positive (negative-weight NLO bins) or the bin is empty."""
+    sw = np.asarray(h.values(), dtype=float)
+    sw2 = np.asarray(h.variances(), dtype=float)
+    ok = (sw > 0) & (sw2 > 0)
+    return np.divide(sw * sw, sw2, out=np.full_like(sw, np.nan), where=ok)
+
+
+def plot_dy_stat(
+    region: Region,
+    variable: Variable,
+    entries: Sequence[tuple[DYSample, Hist]],
+    *,
+    xlim: tuple[float, float],
+    lumi: float,
+    com: float = 13.6,
+    extra_label: str | None = None,
+) -> Figure:
+    """The statistical power of each DY sample per bin: its relative statistical
+    uncertainty, sqrt(sum w^2) / sum w (left axis, log), which is 1/sqrt(N_eff) with the
+    effective number of simulated events N_eff on the right axis.  The legend gives each
+    sample's N_eff over the plotted range.  A bin where a sample has no events (or a
+    non-positive sum of weights) is left as a gap in its line: drawn at the bottom it would
+    read as perfectly precise."""
+    hep.style.use("CMS")
+    fig, ax = plt.subplots(figsize=(10, 10))
+    edges = np.asarray(entries[0][1].axes[0].edges)
+    shown = (edges[:-1] < xlim[1]) & (edges[1:] > xlim[0])
+    drawn = []
+    for dy, h in entries:
+        rel = 100.0 / np.sqrt(effective_events(h))
+        drawn.append(rel[shown])
+        sw = np.asarray(h.values(), dtype=float)[shown].sum()
+        sw2 = np.asarray(h.variances(), dtype=float)[shown].sum()
+        n_tot = sw * sw / sw2 if sw > 0 and sw2 > 0 else 0.0
+        label = (f"{dy.legend} ($N_{{eff}}$ = {n_tot:.0f})" if len(entries) <= MAX_LEGEND_DETAIL
+                 else dy.legend)
+        ok = np.isfinite(rel)
+        # one open step line per run of filled bins: gaps where the sample has no events
+        starts = np.flatnonzero(ok & ~np.r_[False, ok[:-1]])
+        stops = np.flatnonzero(ok & ~np.r_[ok[1:], False]) + 1
+        for a, b in zip(starts, stops):
+            ax.stairs(rel[a:b], edges[a:b + 1], baseline=None, color=dy.color, lw=2, label=label)
+            label = None
+    finite = np.concatenate(drawn)
+    finite = finite[np.isfinite(finite) & (finite > 0)]
+    lo, hi = (finite.min(), finite.max()) if finite.size else (1.0, 100.0)
+    ax.set_yscale("log")
+    ax.set_ylim(lo / 2, max(hi * 3, 150.0))
+    ax.set_xlim(*xlim)
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
+    ax.set_xlabel(_xlabel(variable))
+    ax.set_ylabel("Relative stat. unc. per bin [%]")
+    # N_eff = (100 / rel)^2 on the right axis; the CMS style's right-hand ticks would sit on it.
+    ax.tick_params(axis="y", which="both", right=False)
+    sec = ax.secondary_yaxis("right", functions=(lambda r: (100.0 / np.maximum(r, 1e-9)) ** 2,
+                                                  lambda n: 100.0 / np.sqrt(np.maximum(n, 1e-18))))
+    sec.set_ylabel(r"Effective number of simulated events $N_{eff}$")
+    sec.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
+    text = (f"{region.tlatex_alias}\nDrell-Yan only\nGaps: no simulated events"
+            + (f"\n{extra_label}" if extra_label else ""))
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
+    cms_label(ax, lumi, com, data=False, text=text)
+    fit_header(ax)
+    return fig

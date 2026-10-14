@@ -224,8 +224,8 @@ never read, and the cutflows show no data column for them (with a note) until th
 | `--signal` | `-s` | `<sample>` | Signal sample(s) to overlay on SR plots. Repeat or comma-separate |
 | `--local-plots` | | | Save to `plots/` instead of EOS |
 | `--plot-config` | `-c` | `<yaml>` | Custom plot settings YAML |
-| `--uniform-rebin` | | | Uniform rebin factor instead of the variable-width m(W_R) bins (the Run 2 binning, the default) |
-| `--per-gev` | | | With variable-width bins, events per GeV instead of per bin (Run 2 drew events per bin) |
+| `--run2-binning` | | | m(W_R) observables in the Run 2 fit bins instead of uniform bins; plots go to `stack_dy_<tag>_run2_binning/` |
+| `--per-gev` | | | With `--run2-binning`, events per GeV instead of per bin (Run 2 drew events per bin) |
 | `--no-syst` | | | Statistical band only, even if the files carry variations |
 | `--extra-label` | | `<text>` | Extra line under the region label |
 | `--dry-run` | | | List the plots that would be made and exit |
@@ -406,21 +406,22 @@ and source.
 
 ### compare_dy.py
 
-Compare Drell-Yan samples, on their own and inside the total background: a named comparison of
-`data/dy_comparisons.yaml` (`--comparison NAME`, several or `all`; the first sample is the reference),
-or two or more `--dy` samples, the first the reference:
+Compare Drell-Yan samples, on their own and inside the total background: the named comparisons of
+`data/dy_comparisons.yaml`, each into its own folder (every one by default, or the ones `--comparison`
+names; the first sample is the reference), or two or more `--dy` samples, the first the reference:
 ```bash
-python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --comparison all --local-plots
-python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --comparison lo,lo_ht_vs_nlo --plots all --local-plots
-python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --dy lo_ht,lo_inc -r resolved_dy_cr -v mass_fourobject --local-plots
+python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261013_skims_v2 --local-plots
+python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261013_skims_v2 --comparison all,lo_ht_vs_nlo --plots all --local-plots
+python3 bin/compare_dy.py --era RunIII2024Summer24 --dir 20261013_skims_v2 --dy lo_ht,lo_inc -r resolved_dy_cr -v mass_fourobject --local-plots
 ```
 
 | Comparison | Samples (reference first) | Question |
 |---|---|---|
+| `all` | `lo_ht`, `lo_ht_zpt_reshape`, `lo_inc`, `nlo_inc`, `nlo_mll`, `nlo_njet` | Every DY prediction together (`lo_ht_zpt` and `nlo_ptll` left out) |
 | `lo` | `lo_ht`, `lo_inc`, `lo_ht_zpt_reshape` | HT slicing vs inclusive LO; what the Z-pT reweight + jet-pT reshape do |
 | `nlo` | `nlo_inc`, `nlo_mll`, `nlo_njet` | The NLO samples against the inclusive one (`nlo_ptll` left out: unstitched) |
 | `lo_vs_nlo_inclusive` | `lo_inc`, `nlo_inc` | The generator difference alone, both inclusive |
-| `lo_ht_vs_nlo` | `lo_ht`, `nlo_inc` | The default DY against the best NLO |
+| `lo_ht_vs_nlo` | `lo_ht`, `nlo_inc`, `nlo_mll`, `nlo_njet` | The default DY against the NLO samples |
 
 Every DY sample is a file in `--dir`: `WRAnalyzer_DYJets.root` for the default `lo_ht`, `WRAnalyzer_DYJets_<TAG>.root` for any other (sets made before 2026-10-12: `<dir>_<TAG>_dy/`, still read). With `--comparison`, `--dy TAG=DIR` only says where a sample is;
 a comparison whose sample cannot be found is skipped and reported, the others are drawn. `--plots core`
@@ -440,6 +441,7 @@ Outputs under `<plots>/<Run>/<Year>/<Era>/<dir>/dy_compare/[<comparison>/]`:
 |---|---|
 | `abs/<region>/` | DYJets of each sample, with the ratio to the reference |
 | `shape/<region>/` | The same, each sample scaled to unit yield |
+| `stat/<region>/` | The statistical power of each sample per bin: its relative statistical uncertainty (left axis) and effective number of simulated events N_eff = (Σw)²/Σw² (right axis); N_eff over the plotted range in the legend |
 | `total/<region>/` | Total background built with each DY sample; data and Data/Bkg. per sample in control regions, totals compared to the reference in signal regions |
 | `total_scaled/<region>/` | Control regions only: as `total`, each prediction scaled to the data yield (factor in the legend) |
 
@@ -640,15 +642,28 @@ wr_resolved_flavor_cr:
 
 Override the whole file with `--plot-config <path>` (it may use `inherit:` too).
 
-The binning follows the Run 2 analysis (AN-19-083; its plotter `git@github.com:UMN-CMS/HNWR_Plotter.git`,
-branch `Run2Legacy_v4__MK` = `Run2Legacy_v4__Default` plus plot selection: `data/Run2Legacy_v4__Default/<year>/{CR,SR}_rebins.txt`
-and `python/mylib.py: RebinWRMass`, identical for 2016-2018):
+Every variable is drawn in uniform bins (reviewed 2026-10-13 on the 2024 production):
 
-- m(W_R): resolved m(ℓℓjj) edges 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200, 8000 GeV; boosted m(ℓJ)
-  edges 800, 1000, 1200, 1500, 1800, 8000 GeV (`rebin_variable`, used by default; `--uniform-rebin` turns it off).
-  Drawn as events per bin, as in Run 2; `--per-gev` divides by the bin width.
-- Every other variable with a Run 2 counterpart has the Run 2 bin width in each region, e.g. η 0.5, m(ℓℓ) 1 GeV in
-  the DY CRs, 10 GeV in the flavour CRs and 50 GeV in the SRs, leading-jet pT 20 GeV in the CRs and 100 GeV in the SRs.
+- Each axis starts at its selection cut on a bin edge (lepton pT at 60 or 50 GeV, jet pT at 40, AK8 pT at 200,
+  m(ℓℓ) at 400 or 200, LSF3 just under 0.75, Δφ at 2) and ends about where the simulation does; what lies
+  beyond is folded into the last bin.  η follows the object's acceptance: 0.3 bins over |η| < 2.4 for muons and
+  jets, 0.5 over |η| < 2.5 for electrons and the mixed flavour CR.
+- Widths are round and set per region class by the statistics: 10-25 bins across the bulk of each distribution,
+  coarser in the boosted flavour CRs (a few hundred events).
+- m(ℓℓjj) runs over the whole fit range, 800-8000 GeV in 100 GeV bins, with the y axis down to 1e-4, so the
+  simulated and data tails are in view in every region.
+- `--run2-binning` draws the m(W_R) observables in the Run 2 fit bins instead (AN-19-083; HNWR_Plotter
+  `python/mylib.py: RebinWRMass`): resolved m(ℓℓjj) edges 800, 1000, 1200, 1400, 1600, 2000, 2400, 2800, 3200,
+  8000 GeV; boosted m(ℓJ) edges 800, 1000, 1200, 1500, 1800, 8000 GeV (`rebin_variable`).  Drawn as events per
+  bin, as in Run 2; `--per-gev` divides by the bin width.
+
+Stack y axes follow the content: the top is 10x the highest bin, raised only as far as the CMS label, region
+text and legend need; the bottom is a decade below the smallest bin of the stack or the data, never below 0.1
+with data (unless the configured bottom is lower, as for m(ℓℓjj)).
+
+Fonts: every figure is 10 inches wide with no text under 20 pt (legends, region text, the luminosity; axis
+titles 26 pt, tick labels 22 pt; `wrplotter/plotting_helpers.py` FONT_SIZE_*).  That prints at 5.7 pt when a
+figure is placed at 0.45\textwidth in the AN, above the FigGuidelines minimum of half the 11 pt body text.
 
 ---
 

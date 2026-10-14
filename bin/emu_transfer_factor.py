@@ -60,7 +60,7 @@ from wrplotter.histogram_cache import load_and_rebin
 from wrplotter.histogram_utils import add_hists, sum_hists
 from wrplotter.inputs import make_inputs, root_file
 from wrplotter.paths import plots_base, repo_root, save_figure
-from wrplotter.plotting_helpers import cms_label, fit_header
+from wrplotter.plotting_helpers import FONT_SIZE_LEGEND, cms_label, fit_header
 from wrplotter.stack import hist_key
 
 hep.style.use("CMS")
@@ -258,7 +258,7 @@ def _draw_ratio_panel(ax, centers, xerr, ratio_ee, ratio_ee_errors,
                       boosted=False):
     """Draw the common elements shared by both zoomed and full ratio plots."""
     cat = "Boosted" if boosted else "Resolved"
-    mass_label = r'$m_{lj}$' if boosted else r'$m_{lljj}$'
+    mass_label = r'$m_{\ell J}$' if boosted else r'$m_{\ell\ell jj}$'
 
     ax.stairs(ratio_ee, edges, color=COLOR_EE, linewidth=2,
               label=r'ee/e$\mu$')
@@ -270,12 +270,10 @@ def _draw_ratio_panel(ax, centers, xerr, ratio_ee, ratio_ee_errors,
     ax.errorbar(centers, ratio_mumu, yerr=ratio_mumu_errors,
                 fmt='none', ecolor=COLOR_MUMU, capsize=3)
 
-    ax.set_xlabel(f'{mass_label} [GeV]', fontsize=20)
-    ax.set_ylabel(rf'{cat} SR / {cat} Flavor CR (e$\mu$)', fontsize=20)
-    ax.tick_params(axis='both', which='major', labelsize=20)
+    ax.set_xlabel(f'{mass_label} [GeV]')
+    ax.set_ylabel(rf'{cat} SR / {cat} Flavor CR (e$\mu$)')
 
-    cms_label(ax, lumi, com, data=False, text=era + '\n' + r'Simulated $t\bar{t}$',
-              fontsize=20, text_fontsize=16)
+    cms_label(ax, lumi, com, data=False, text=era + '\n' + r'Simulated $t\bar{t}$')
 
 
 def _constant(x, c):
@@ -406,7 +404,7 @@ def plot_ratio(ratio_ee, ratio_ee_errors, ratio_mumu, ratio_mumu_errors,
     y_max = max(max_vals) * 1.15 if max_vals else 1.0
     ax.set_ylim(0, y_max)
 
-    ax.legend(loc='upper right', fontsize=16)
+    ax.legend(loc='upper right', fontsize=FONT_SIZE_LEGEND)
 
     fig.tight_layout()
     fit_header(ax)
@@ -445,12 +443,10 @@ def plot_channel_ratio(ratio, ratio_errors, edges, era, lumi, output_path,
             ax.axvline(x=fit_ranges[0][1], color='gray', linestyle=':',
                        linewidth=1, alpha=0.5)
 
-        ax.set_xlabel(r'$m_{\ell J}$ [GeV]', fontsize=20)
-        ax.set_ylabel(r'Boosted SR / Boosted Flavor CR', fontsize=20)
-        ax.tick_params(axis='both', which='major', labelsize=20)
+        ax.set_xlabel(r'$m_{\ell J}$ [GeV]')
+        ax.set_ylabel(r'Boosted SR / Boosted Flavor CR')
         cms_label(ax, lumi, com, data=False,
-                  text=era + '\n' + rf'Simulated $t\bar{{t}}$ ({channel_label})',
-                  fontsize=20, text_fontsize=16)
+                  text=era + '\n' + rf'Simulated $t\bar{{t}}$ ({channel_label})')
 
     fig, ax = plt.subplots()
     _make_panel(ax)
@@ -462,7 +458,7 @@ def plot_channel_ratio(ratio, ratio_errors, edges, era, lumi, output_path,
         maxv.append(np.max((ratio + ratio_errors)[visible & (ratio > 0)]))
     ax.set_ylim(0, max(maxv) * 1.15 if maxv else 1.0)
 
-    ax.legend(loc='upper right', fontsize=16)
+    ax.legend(loc='upper right', fontsize=FONT_SIZE_LEGEND)
     fig.tight_layout()
     fit_header(ax)
     save_figure(fig, output_path)
@@ -499,7 +495,7 @@ def write_latex_table(fits_ee, fits_mumu, fit_ranges, range_labels,
 
     lines = [
         r"\begin{table}[htp]",
-        rf"  \topcaption{{{era} ({year}): $e\mu$ transfer factor ($R_{{e\mu}}$) "
+        rf"  \topcaption{{{era_label(era)}: $e\mu$ transfer factor ($R_{{e\mu}}$) "
         rf"constant fit results for the {category.lower()} category, "
         r"with statistical uncertainties.}",
         rf"  \label{{tab:emu_tf_{category.lower()}_{era}}}",
@@ -542,7 +538,7 @@ def write_channel_latex_table(ejet_fits, mujet_fits, fit_ranges, range_labels,
 
     lines = [
         r"\begin{table}[htp]",
-        rf"  \topcaption{{{era} ({year}): per-channel $e\mu$ transfer factor ($R_{{e\mu}}$) "
+        rf"  \topcaption{{{era_label(era)}: per-channel $e\mu$ transfer factor ($R_{{e\mu}}$) "
         r"constant fit results for the boosted category, with statistical uncertainties.}",
         rf"  \label{{tab:emu_tf_boosted_perchannel_{era}}}",
         r"  \centering",

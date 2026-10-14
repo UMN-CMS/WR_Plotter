@@ -161,11 +161,11 @@ def main(argv=None) -> int:
                 ax.set_ylim(lo - 0.1 * span, hi + 0.6 * span)
                 ax.set_xlabel(r"$m_{W_R}$ [GeV]")
                 ax.set_ylabel("Change of the SR yield [%]")
-                ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND - 4, title="solid: up, dashed: down",
-                          title_fontsize=FONT_SIZE_LEGEND - 4)
+                ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND, title="solid: up, dashed: down",
+                          title_fontsize=FONT_SIZE_LEGEND)
                 cms_label(ax, None, data=False, rlabel=f"({com:g} TeV)",
                           text=f"{CHANNEL_LABELS[ch]}, {TOPOLOGY_LABELS[t]}\n{LINES[line]}\n"
-                               "Acceptance only (weights normalized per sample)")
+                               "Acceptance only\n(weights normalized per sample)")
                 fit_header(ax)
                 path = plots / f"{t}_{ch}_{line}.pdf"
                 try:

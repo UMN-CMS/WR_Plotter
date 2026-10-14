@@ -33,7 +33,7 @@ from typing import Sequence
 
 import numpy as np
 
-from .config import load_cutflow_config
+from .config import era_label, load_cutflow_config
 from .histogram_cache import _open_root, has_key, report_partial
 from .inputs import Inputs, blinding_recorded, mass_point
 from .sample_groups import load_sample_groups
@@ -409,7 +409,7 @@ def format_latex(table: CutflowTable, *, era: str, lumi: float, year: str,
         notes.append("Weighted simulation uses the base event weight, without lepton scale factors.")
     if has_data and table.blinded.any():
         notes.append("Data in the signal-region rows is blinded.")
-    caption = (f"{era}: {what} for the {table.topology}, {CHANNEL_WORDS.get(table.channel, table.channel)} "
+    caption = (f"{era_label(era)}: {what} for the {table.topology}, {CHANNEL_WORDS.get(table.channel, table.channel)} "
                f"channel; {rows_desc}. Signal columns show $(m_{{W_R}},\\,m_{{N}})$ in GeV. "
                f"Normalized to ${lumi:.1f}\\,\\mathrm{{fb}}^{{-1}}$ ({year}). " + " ".join(notes))
     lines.append(r"\begin{table}[htp]")

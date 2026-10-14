@@ -12,6 +12,10 @@
 #   shorthands of data/region_shorthands.yaml.  --plots all draws every configured pair.
 
 comparisons:
+  all:
+    # Every DY prediction together.  Left out: lo_ht_zpt, the Z-pT reweight without the
+    # reshape (Billy, 2026-10-12), and nlo_ptll (its pT(ll) slices are added unstitched).
+    samples: [lo_ht, lo_ht_zpt_reshape, lo_inc, nlo_inc, nlo_mll, nlo_njet]
   lo:
     # Same LO madgraphMLM generator: HT slicing vs inclusive (closure), and what the
     # Z-pT reweight + jet-pT reshape do to it.
@@ -24,8 +28,8 @@ comparisons:
     # The generator difference alone: both inclusive, both at the inclusive NNLO normalization.
     samples: [lo_inc, nlo_inc]
   lo_ht_vs_nlo:
-    # The default DY against the best NLO prediction.
-    samples: [lo_ht, nlo_inc]
+    # The default DY against the NLO predictions (nlo_ptll left out: unstitched).
+    samples: [lo_ht, nlo_inc, nlo_mll, nlo_njet]
 
 plot_sets:
   core:

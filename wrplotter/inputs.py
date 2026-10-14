@@ -99,9 +99,14 @@ def sr_data_unblinded(root_path: str | Path) -> bool:
 @dataclass(frozen=True)
 class DYSample:
     tag: str                 # data/dy_samples.yaml tag, e.g. "lo_ht" (never an alias)
-    label: str               # legend label
+    label: str               # full name (the stack plots' "DY: ..." line)
     color: str
     files: tuple[Path, ...]  # its DYJets file, one per sub-era
+    short: str = ""          # legend name in DY comparisons, where it shares the legend; default: label
+
+    @property
+    def legend(self) -> str:
+        return self.short or self.label
 
 
 def canonical_dy_tag(name: str) -> str:
@@ -257,7 +262,8 @@ def resolve_dy(era: str, dir_name: str, spec: str | None = None,
                 raise ValueError(msg)
 
     return DYSample(tag=tag, label=str(info.get("label", tag)),
-                    color=str(info.get("color", "#000000")), files=tuple(files))
+                    color=str(info.get("color", "#000000")), files=tuple(files),
+                    short=str(info.get("short", "")))
 
 
 # ---------------------------------------------------------------------------

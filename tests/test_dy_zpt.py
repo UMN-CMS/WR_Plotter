@@ -120,7 +120,8 @@ class TestPlots:
                     plot_spectra(payload, text="t")):
             assert isinstance(fig, plt.Figure)
             texts = {t.get_text() for t in fig.axes[0].texts}
-            assert "CMS" in texts and "Simulation Work in progress" in texts
+            # fit_header may put "Simulation" on its own line
+            assert "CMS" in texts and any(t.split() == ["Simulation", "Work", "in", "progress"] for t in texts)
             plt.close(fig)
 
     def test_spectra_need_the_spectra(self, tmp_path):
