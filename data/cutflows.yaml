@@ -15,6 +15,7 @@ data_stream:
     ee: egamma
     mumu: muon
     em: egamma      # boosted e-mu = leading electron, electron trigger
+    me: muon        # boosted mu-e = leading muon, muon trigger (since 2026-10-14)
 
 # Display labels per cut key: `table` for LaTeX tables, `plot` for the x axis of the
 # cutflow plots (matplotlib mathtext).  Unknown keys fall back to the key itself.
@@ -22,7 +23,7 @@ labels:
   # resolved
   no_cuts:                {table: 'No cuts (after event filters)', plot: 'No cuts'}
   min_two_ak4_jets_pteta: {table: '$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)', plot: '$\geq$2 jets ($p_T$, $\eta$)'}
-  min_two_ak4_jets_id:    {table: '$\geq$2 AK4 jets (tight w/ lepton veto)', plot: '$\geq$2 jets (ID)'}
+  min_two_ak4_jets_id:    {table: '$\geq$2 AK4 jets ($p_T$, $|\eta|$, tight ID w/ lepton veto)', plot: '$\geq$2 jets ($p_T$, $\eta$, ID)'}   # pT/eta and ID together since 2026-10-14
   two_pteta_electrons:    {table: '$\geq$2 electrons ($p_T > 53$, $|\eta| < 2.5$)', plot: '$\geq$2 e ($p_T$, $\eta$)'}
   two_pteta_muons:        {table: '$\geq$2 muons ($p_T > 53$, $|\eta| < 2.4$)', plot: '$\geq$2 $\mu$ ($p_T$, $\eta$)'}
   two_pteta_em:           {table: '$\geq$1 electron + $\geq$1 muon ($p_T > 53$)', plot: '$\geq$1 e + $\geq$1 $\mu$ ($p_T$, $\eta$)'}
@@ -41,9 +42,12 @@ labels:
   mu_trigger:             {table: 'Muon trigger', plot: '$\mu$ trigger'}
   emu_trigger:            {table: '$e\mu$ trigger (muon triggers)', plot: '$e\mu$ trigger'}
   dr_all_pairs_gt0p4:     {table: '$\Delta R > 0.4$ (all pairs)', plot: '$\Delta R > 0.4$'}
+  hem_veto:               {table: 'HEM 15/16 veto (2018 only)', plot: 'HEM veto'}
   mlljj_gt800:            {table: '$m(\ell\ell jj) > 800$ GeV', plot: '$m_{\ell\ell jj} > 800$'}
   mll_gt200:              {table: '$m(\ell\ell) > 200$ GeV', plot: '$m_{\ell\ell} > 200$'}
   mll_gt400:              {table: '$m(\ell\ell) > 400$ GeV', plot: '$m_{\ell\ell} > 400$'}
+  # the last row of a complete chain (resolved and boosted): the last cut with the region's lepton and LSF SFs
+  with_region_sfs:        {table: 'With lepton and LSF scale factors', plot: 'with lepton, LSF SFs'}
   # boosted
   boosted_tag:                    {table: 'Boosted tag', plot: 'Boosted tag'}
   lead_is_electron:               {table: 'Leading lepton is $e$', plot: 'Leading $\ell$ = e'}
@@ -55,6 +59,8 @@ labels:
   no_extra_tight_cr:              {table: 'No extra tight lepton', plot: 'No extra tight $\ell$'}
   sf_lepton_in_ak8:               {table: 'Loose SF lepton in AK8 jet', plot: 'SF $\ell$ in AK8'}
   no_of_lepton_in_ak8:            {table: 'No loose OF lepton in AK8 jet', plot: 'No OF $\ell$ in AK8'}
+  hem_veto_boosted_sr:            {table: 'HEM 15/16 veto (2018 only)', plot: 'HEM veto'}
+  hem_veto_boosted_cr:            {table: 'HEM 15/16 veto (2018 only)', plot: 'HEM veto'}
   no_sf_lepton_in_ak8:            {table: 'No loose SF lepton in AK8 jet', plot: 'No SF $\ell$ in AK8'}
   of_lepton_in_ak8:               {table: 'Loose OF lepton in AK8 jet', plot: 'OF $\ell$ in AK8'}
   mll_gt200_boosted:              {table: '$m(\ell\ell) > 200$ GeV', plot: '$m_{\ell\ell} > 200$'}

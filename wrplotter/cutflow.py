@@ -7,11 +7,15 @@ sequence always matches the analyzer):
 
 - ``cumulative[i]``: events passing cuts 0..i; the last ee/mumu row is the
   signal region, the last em row the flavor CR (resolved) or
-  wr_emu_boosted_flavor_cr (boosted);
+  wr_emu_boosted_flavor_cr (boosted), the last boosted me row (since
+  2026-10-14) wr_mue_boosted_flavor_cr;
 - ``onecut[i]``: events passing cut i alone (not N-1);
 - row 0, ``no_cuts``: every event after the event filters (and the skim);
-- weighted MC bins carry the base event weight, without the per-region lepton
-  scale factors, so the last row sits a few percent above the region histogram;
+- weighted MC bins carry the base event weight without the DY Z-pT reweight
+  and without the per-region lepton scale factors; since 2026-10-14 a complete
+  chain ends with ``with_region_sfs`` (CUTFLOW_SF_ROW), the last cut times the
+  lepton and LSF scale factors of its region, which equals that region's yield
+  without the DY corrections (older files end with the last cut);
   ``_unweighted`` holds raw event counts.
 
 Blinding is done by the analyzer: data cutflows stop before the
@@ -40,16 +44,21 @@ from .sample_groups import load_sample_groups
 
 logger = logging.getLogger(__name__)
 
+# The analyzer's last cutflow row (WrCoffea histograms.CUTFLOW_SF_ROW): the last cut with the region's SFs.
+CUTFLOW_SF_ROW = "with_region_sfs"
+
 TOPOLOGIES = ("resolved", "boosted")
-CHANNELS = ("ee", "mumu", "em")
+CHANNELS = ("ee", "mumu", "em", "me")
+# The chains each topology has: boosted em is the e(mu-jet) flavour CR, me (since 2026-10-14) the mu(e-jet) one.
+TOPOLOGY_CHANNELS = {"resolved": ("ee", "mumu", "em"), "boosted": ("ee", "mumu", "em", "me")}
 KINDS = ("cumulative", "onecut")
 
 # Efficiency modes per cutflow kind.  For onecut, "running" (row / no_cuts) is
 # the single-cut efficiency.
 EFFICIENCIES = {"cumulative": ("running", "relative"), "onecut": ("running",)}
 
-CHANNEL_LATEX = {"ee": "ee", "mumu": r"$\mu\mu$", "em": r"$e\mu$"}
-CHANNEL_WORDS = {"ee": "dielectron", "mumu": "dimuon", "em": "electron--muon"}
+CHANNEL_LATEX = {"ee": "ee", "mumu": r"$\mu\mu$", "em": r"$e\mu$", "me": r"$\mu e$"}
+CHANNEL_WORDS = {"ee": "dielectron", "mumu": "dimuon", "em": "electron--muon", "me": "muon--electron"}
 
 
 @dataclass(frozen=True)

@@ -42,7 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from wrplotter.cli_utils import (add_dy_arg, add_era_args, add_output_args, dy_specs,
                                  parse_multi, setup_logging)
 from wrplotter.config import default_signals, load_lumi
-from wrplotter.cutflow import (CHANNELS, EFFICIENCIES, KINDS, TOPOLOGIES, build_table,
+from wrplotter.cutflow import (CHANNELS, EFFICIENCIES, KINDS, TOPOLOGIES, TOPOLOGY_CHANNELS, build_table,
                                compile_preview, format_latex, format_text, table_variant,
                                write_preview)
 from wrplotter.cutflow_plots import plot_efficiency, plot_yields
@@ -116,7 +116,7 @@ def main():
         signals = args.signal or default_signals(info, boosted=topology == "boosted",
                                                  for_cutflow=True)
         logging.info("%s signal columns: %s", topology, ", ".join(signals) or "none")
-        for channel in channels:
+        for channel in (c for c in channels if c in TOPOLOGY_CHANNELS[topology]):
             for kind in KINDS:
                 for unweighted in (False, True):
                     try:

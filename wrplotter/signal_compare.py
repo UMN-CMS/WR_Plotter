@@ -60,7 +60,7 @@ from hist import Hist
 from matplotlib.figure import Figure
 
 from .config import era_label, load_lumi
-from .cutflow import cut_label, read_files
+from .cutflow import CUTFLOW_SF_ROW, cut_label, read_files
 from .histogram_cache import _open_root
 from .histogram_utils import rebin_histogram
 from .inputs import Inputs, make_inputs, mass_point, read_manifest, root_file
@@ -330,8 +330,8 @@ def efficiency(era_set: EraSet, point: str, topology: str, channel: str, produce
 class Factors:
     """A channel's efficiency in one topology as the product no_cuts x selection x scale factors."""
     no_cuts: float            # cutflow row 0 (skim x event filters)
-    selection: float          # last cutflow row (the signal region, base weight) / row 0
-    scale_factors: float      # signal-region yield (all weights) / last cutflow row: mean lepton-SF weight
+    selection: float          # last cut (the signal region, base weight) / row 0
+    scale_factors: float      # signal-region yield (all weights) / last cut: mean lepton-SF weight
 
 
 def efficiency_factors(era_set: EraSet, point: str, topology: str, channel: str,
@@ -339,9 +339,13 @@ def efficiency_factors(era_set: EraSet, point: str, topology: str, channel: str,
     """A channel's efficiency split into no_cuts x selection x scale factors (see cutflow_efficiency)."""
     cf = cutflow_efficiency(era_set, point, topology, channel, produced)
     sr = region_yield(era_set, point, topology, channel)
-    if cf is None or sr is None or cf.values[0] <= 0 or cf.values[-1] <= 0:
+    if cf is None or sr is None:
         return None
-    last = float(cf.values[-1])
+    # the last cut: the row before with_region_sfs in files that end with it
+    end = len(cf.cuts) - 2 if cf.cuts and cf.cuts[-1] == CUTFLOW_SF_ROW else len(cf.cuts) - 1
+    if cf.values[0] <= 0 or cf.values[end] <= 0:
+        return None
+    last = float(cf.values[end])
     return Factors(float(cf.values[0]), last / float(cf.values[0]),
                    sr.value / produced.channels[channel] / last)
 

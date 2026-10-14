@@ -425,3 +425,16 @@ def test_main_refuses_a_single_era(script, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["compare_signal_eras.py", "--era", "2022"])
     with pytest.raises(SystemExit):
         script["main"]()
+
+
+def test_efficiency_factors_use_the_last_cut_before_the_region_sf_row(monkeypatch):
+    """Files made since 2026-10-14 end their cutflows with with_region_sfs (the last cut with the region's SFs);
+    the selection factor ends at the last cut and the scale-factor factor is the region yield over it."""
+    cf = sc.CutflowEfficiency(("no_cuts", "mll_gt400", "with_region_sfs"), np.array([0.8, 0.5, 0.45]), np.zeros(3), 1)
+    monkeypatch.setattr(sc, "cutflow_efficiency", lambda *args, **kwargs: cf)
+    monkeypatch.setattr(sc, "region_yield", lambda *args, **kwargs: sc.Value(45.0, 0.0))
+    produced = sc.Produced({"ee": 100.0, "mumu": 0.0}, 100.0, ())
+    factors = sc.efficiency_factors(None, "WR4000_N2100", "resolved", "ee", produced)
+    assert factors.no_cuts == pytest.approx(0.8)
+    assert factors.selection == pytest.approx(0.5 / 0.8)
+    assert factors.scale_factors == pytest.approx(0.45 / 0.5)

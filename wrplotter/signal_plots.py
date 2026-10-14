@@ -39,7 +39,7 @@ import numpy as np
 from hist import Hist
 
 from .config import load_lumi
-from .cutflow import cut_label
+from .cutflow import CUTFLOW_SF_ROW, cut_label
 from .inputs import mass_point, read_manifest
 from .paths import SIGNAL_OUTPUTS, plots_base, repo_root
 from .plotting_helpers import FONT_SIZE_LEGEND, FONT_SIZE_MIN, cms_label, fit_header
@@ -497,7 +497,10 @@ def plot_cutflows(era_set: EraSet, entries: Sequence[tuple[str, CutflowEfficienc
     _fit_bottom(fig, ax)
     short = max(len(label) for label, _ in entries) <= 24
     ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND, ncols=2 if short and len(entries) > 3 else 1)
-    _header(ax, era_set, label_text(channel, topology=topology, m_wr=m_wr) + "\nWithout lepton SFs")
+    weights_note = ("Last point: with lepton and LSF SFs" if any(cf.cuts and cf.cuts[-1] == CUTFLOW_SF_ROW
+                                                                   for _, cf in entries)
+                    else "Without lepton SFs")
+    _header(ax, era_set, label_text(channel, topology=topology, m_wr=m_wr) + "\n" + weights_note)
     fit_header(ax, margin=0.07)           # the clearance is measured to the marker centres
     _efficiency_ticks(ax, log)
     return fig
