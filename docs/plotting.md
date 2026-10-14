@@ -83,6 +83,6 @@ cd WR_Plotter
   fit bins) must say that the horizontal bars show the bin widths.
 
 `scripts/plot_jet_veto_maps.py` draws the jet veto maps of the analyzer's `data/jsonpog/` payloads
-into `WR_Plotter/plots/jet_veto_maps.png`.
+into `WR_Plotter/plots/jet_veto_maps/<era>.pdf`, one CMS-style figure per era.
 
 Tests: `cd WR_Plotter && ../.venv/bin/python -m pytest tests -q` (350 tests, offline, about 20 seconds).

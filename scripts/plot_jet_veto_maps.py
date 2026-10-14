@@ -1,17 +1,29 @@
 """
 Plot jet veto maps from correctionlib JSON files.
-Produces a multi-panel figure showing vetoed (eta, phi) regions for each era.
+One figure per era, in the CMS style of the plotter: the vetoed (eta, phi) cells in one colour, the
+label above the frame (the map fills it), into WR_Plotter/plots/jet_veto_maps/<era>.pdf.
 """
 
 import gzip
+import sys
 from pathlib import Path
 
 import correctionlib
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import mplhep as hep
 import numpy as np
+from matplotlib.colors import BoundaryNorm, ListedColormap
+from matplotlib.patches import Patch
 
 # Base path to the veto map files (relative to repo root)
 REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT / "WR_Plotter"))
+from wrplotter.config import era_label  # noqa: E402
+from wrplotter.plotting_helpers import CMS_EXTRA_TEXT, FONT_SIZE_LABEL, FONT_SIZE_LEGEND  # noqa: E402
+
+VETO_COLOR = "#440154"   # the dark end of viridis (CAT: viridis for 2D), legible in greyscale
 
 # Era -> (json path, correction name)
 VETO_MAPS = {
@@ -67,39 +79,38 @@ def load_veto_map(json_path, correction_name):
 
 
 def main():
-    n_eras = len(VETO_MAPS)
-    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    axes = axes.flatten()
+    hep.style.use("CMS")
+    out_dir = REPO_ROOT / "WR_Plotter" / "plots" / "jet_veto_maps"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cmap = ListedColormap(["white", VETO_COLOR])
 
-    for idx, (era, (json_rel, corr_name)) in enumerate(VETO_MAPS.items()):
+    for era, (json_rel, corr_name) in VETO_MAPS.items():
         json_path = REPO_ROOT / json_rel
         if not json_path.exists():
             print(f"Skipping {era}: {json_path} not found")
-            axes[idx].set_title(f"{era} (not found)")
             continue
 
         print(f"Loading {era}...")
         eta_bins, phi_bins, veto_map_2d = load_veto_map(json_path, corr_name)
 
-        ax = axes[idx]
-        im = ax.pcolormesh(eta_bins, phi_bins, veto_map_2d, cmap="Reds", shading="auto")
-        ax.set_xlabel(r"$\eta$")
-        ax.set_ylabel(r"$\phi$")
-        ax.set_title(era)
-        fig.colorbar(im, ax=ax, label="Veto flag")
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.pcolormesh(eta_bins, phi_bins, (veto_map_2d > 0).astype(float), cmap=cmap,
+                      norm=BoundaryNorm([0, 0.5, 1], cmap.N), shading="auto", rasterized=True)
+        ax.set_xlim(eta_bins[0], eta_bins[-1])
+        ax.set_ylim(phi_bins[0], phi_bins[-1])
+        ax.set_xlabel(r"Jet $\eta$")
+        ax.set_ylabel(r"Jet $\phi$")
+        com = 13 if era.startswith("RunIISummer") else 13.6
+        hep.cms.label(CMS_EXTRA_TEXT, loc=0, ax=ax, data=True, fontsize=FONT_SIZE_LABEL,
+                      rlabel=f"{era_label(era)} ({com:g} TeV)")
+        ax.legend(handles=[Patch(facecolor=VETO_COLOR, label=f"Vetoed ({corr_name})")],
+                  loc="upper center", bbox_to_anchor=(0.5, -0.11), frameon=False, fontsize=FONT_SIZE_LEGEND)
+        fig.subplots_adjust(bottom=0.2)
 
-    # Hide unused subplots
-    for idx in range(n_eras, len(axes)):
-        axes[idx].set_visible(False)
-
-    fig.suptitle("Jet Veto Maps", fontsize=16)
-    plt.tight_layout()
-
-    outpath = REPO_ROOT / "WR_Plotter" / "plots" / "jet_veto_maps.png"
-    outpath.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(outpath, dpi=150, bbox_inches="tight")
-    print(f"Saved to {outpath}")
-    plt.show()
+        outpath = out_dir / f"{era}.pdf"
+        fig.savefig(outpath)
+        plt.close(fig)
+        print(f"Saved to {outpath}")
 
 
 if __name__ == "__main__":

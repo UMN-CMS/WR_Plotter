@@ -253,6 +253,49 @@ def compute_ratio(numerator_hist, denominator_hist):
     return ratio, ratio_errors, edges
 
 
+def _draw_points(ax, centers, ratio, errors, color, marker, label):
+    """One ratio as markers with vertical error bars (uniform bins: no horizontal bars, PubGuidelines);
+    bins whose flavor CR is empty (ratio 0) are not drawn."""
+    ok = ratio > 0
+    ax.errorbar(centers[ok], ratio[ok], yerr=errors[ok], fmt=marker, color=color, markersize=8,
+                elinewidth=1.5, capsize=0, label=label)
+
+
+def _fit_label(prefix, fv, ferr, chi2, ndf):
+    return rf"{prefix}fit: {fv:.3f} $\pm$ {ferr:.3f}, $\chi^2$/ndf = {chi2:.1f}/{ndf}"
+
+
+def _set_ranges(ax, edges, series, fit_values, xlim):
+    """x from the first edge (or *xlim*) to the last filled bin, rounded up to 500 GeV; y from 0 to
+    1.25 x the highest well-measured point with its error (relative uncertainty under 30 %), at
+    least every marker measured better than 100 %, and twice the largest fit value.  Points
+    consistent with zero and the error bars of low-statistics bins may run off the top rather
+    than squash the transfer factor."""
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    if xlim is not None:
+        x0, x1 = xlim
+    else:
+        filled = np.flatnonzero(np.any([r > 0 for r, _ in series], axis=0))
+        x0 = 800.0
+        x1 = float(edges[filled[-1] + 1]) if filled.size else float(edges[-1])
+        x1 = min(float(edges[-1]), 500.0 * np.ceil(x1 / 500.0))
+    ax.set_xlim(x0, x1)
+    visible = (centers >= x0) & (centers <= x1)
+    highs = [np.max((r + e)[m]) for r, e in series if np.any(m := visible & (r > 0) & (e < 0.3 * r))]
+    markers = [1.1 * np.max(r[m]) for r, e in series if np.any(m := visible & (r > 0) & (e < r))]
+    y_max = max([1.25 * h for h in highs] + markers + [2.0 * v for v in fit_values if v > 0] + [1.0])
+    ax.set_ylim(0, y_max)
+
+
+def _legend(ax):
+    """The ratios (error-bar markers) first, then the fits; an opaque white box, so the clipped error
+    bars of the low-statistics bins pass behind it."""
+    handles, labels = ax.get_legend_handles_labels()
+    order = sorted(range(len(labels)), key=lambda i: "fit:" in labels[i])
+    ax.legend([handles[i] for i in order], [labels[i] for i in order], loc='upper right',
+              fontsize=FONT_SIZE_LEGEND, frameon=True, facecolor="white", edgecolor="none", framealpha=1)
+
+
 def _draw_ratio_panel(ax, centers, xerr, ratio_ee, ratio_ee_errors,
                       ratio_mumu, ratio_mumu_errors, edges, era, lumi, com,
                       boosted=False):
@@ -260,15 +303,8 @@ def _draw_ratio_panel(ax, centers, xerr, ratio_ee, ratio_ee_errors,
     cat = "Boosted" if boosted else "Resolved"
     mass_label = r'$m_{\ell J}$' if boosted else r'$m_{\ell\ell jj}$'
 
-    ax.stairs(ratio_ee, edges, color=COLOR_EE, linewidth=2,
-              label=r'ee/e$\mu$')
-    ax.errorbar(centers, ratio_ee, yerr=ratio_ee_errors,
-                fmt='none', ecolor=COLOR_EE, capsize=3)
-
-    ax.stairs(ratio_mumu, edges, color=COLOR_MUMU, linewidth=2,
-              label=r'$\mu\mu$/e$\mu$')
-    ax.errorbar(centers, ratio_mumu, yerr=ratio_mumu_errors,
-                fmt='none', ecolor=COLOR_MUMU, capsize=3)
+    _draw_points(ax, centers, ratio_ee, ratio_ee_errors, COLOR_EE, "o", r"ee / e$\mu$")
+    _draw_points(ax, centers, ratio_mumu, ratio_mumu_errors, COLOR_MUMU, "s", r"$\mu\mu$ / e$\mu$")
 
     ax.set_xlabel(f'{mass_label} [GeV]')
     ax.set_ylabel(rf'{cat} SR / {cat} Flavor CR (e$\mu$)')
@@ -329,23 +365,15 @@ def chi2_fit_constant(values, errors, edges, fit_range=None):
 
 
 def _draw_fits_and_annotations(ax, fit_ranges, range_labels, fits_ee, fits_mumu):
-    """Draw dotted fit lines with p0 legend entries on a ratio panel."""
+    """Draw the constant fits (ee dashed, mumu dash-dotted) with their value and chi2/ndf in the legend."""
     for i, (fr, rl) in enumerate(zip(fit_ranges, range_labels)):
         x_lo, x_hi = fr
-        fv_ee, ferr_ee, chi2_ee, ndf_ee = fits_ee[i]
-        fv_mumu, ferr_mumu, chi2_mumu, ndf_mumu = fits_mumu[i]
-        prefix = f"{rl}: " if len(range_labels) > 1 else ""
-
-        if ndf_ee > 0:
-            ax.plot([x_lo, x_hi], [fv_ee, fv_ee], ':',
-                    color=COLOR_EE, linewidth=1.5,
-                    label=rf'{prefix}$p_{{0}}$ ={fv_ee:.3f} $\pm$ {ferr_ee:.5f} '
-                          rf'($\chi^2$ = {chi2_ee:.2f})')
-        if ndf_mumu > 0:
-            ax.plot([x_lo, x_hi], [fv_mumu, fv_mumu], ':',
-                    color=COLOR_MUMU, linewidth=1.5,
-                    label=rf'{prefix}$p_{{0}}$ ={fv_mumu:.3f} $\pm$ {ferr_mumu:.5f} '
-                          rf'($\chi^2$ = {chi2_mumu:.2f})')
+        prefix = f"{rl} " if len(range_labels) > 1 else ""
+        for (fv, ferr, chi2, ndf), color, ls, chan in ((fits_ee[i], COLOR_EE, "--", "ee"),
+                                                      (fits_mumu[i], COLOR_MUMU, "-.", r"$\mu\mu$")):
+            if ndf > 0:
+                ax.plot([x_lo, x_hi], [fv, fv], ls, color=color, linewidth=2,
+                        label=_fit_label(f"{prefix}{chan} ", fv, ferr, chi2, ndf))
 
     if len(fit_ranges) > 1:
         ax.axvline(x=fit_ranges[0][1], color='gray', linestyle=':', linewidth=1, alpha=0.5)
@@ -382,32 +410,16 @@ def plot_ratio(ratio_ee, ratio_ee_errors, ratio_mumu, ratio_mumu_errors,
     centers = 0.5 * (edges[:-1] + edges[1:])
     xerr = 0.5 * np.diff(edges)
 
-    if xlim is not None:
-        x_start, x_end = xlim
-    else:
-        x_start, x_end = 800, edges[-1]
-
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(10, 10))
     _draw_ratio_panel(ax, centers, xerr, ratio_ee, ratio_ee_errors,
                       ratio_mumu, ratio_mumu_errors, edges, era, lumi, com,
                       boosted=boosted)
     _draw_fits_and_annotations(ax, fit_ranges, range_labels, fits_ee, fits_mumu)
+    _set_ranges(ax, edges, [(ratio_ee, ratio_ee_errors), (ratio_mumu, ratio_mumu_errors)],
+                [f[0] for f in fits_ee + fits_mumu], xlim)
 
-    ax.set_xlim(x_start, x_end)
-
-    visible = (centers >= x_start) & (centers <= x_end)
-    max_vals = []
-    if np.any(visible & (ratio_ee > 0)):
-        max_vals.append(np.max((ratio_ee + ratio_ee_errors)[visible & (ratio_ee > 0)]))
-    if np.any(visible & (ratio_mumu > 0)):
-        max_vals.append(np.max((ratio_mumu + ratio_mumu_errors)[visible & (ratio_mumu > 0)]))
-    y_max = max(max_vals) * 1.15 if max_vals else 1.0
-    ax.set_ylim(0, y_max)
-
-    ax.legend(loc='upper right', fontsize=FONT_SIZE_LEGEND)
-
-    fig.tight_layout()
-    fit_header(ax)
+    _legend(ax)
+    fit_header(ax, ignore_above=True)
     save_figure(fig, output_path)
     logger.info("Saved plot to: %s", output_path)
     plt.close(fig)
@@ -420,47 +432,23 @@ def plot_channel_ratio(ratio, ratio_errors, edges, era, lumi, output_path,
     """Ratio plot for a single boosted jet-flavor channel (eJ or muJ)."""
     centers = 0.5 * (edges[:-1] + edges[1:])
 
-    if xlim is not None:
-        x_start, x_end = xlim
-    else:
-        x_start, x_end = 800, edges[-1]
+    fig, ax = plt.subplots(figsize=(10, 10))
+    _draw_points(ax, centers, ratio, ratio_errors, color, marker, f"{num_label} / {den_label}")
+    for i, fr in enumerate(fit_ranges):
+        fv, ferr, chi2, ndf = fits[i]
+        prefix = f"{range_labels[i]} " if len(range_labels) > 1 else ""
+        if ndf > 0:
+            ax.plot([fr[0], fr[1]], [fv, fv], "--", color=color, linewidth=2,
+                    label=_fit_label(prefix, fv, ferr, chi2, ndf))
+    if len(fit_ranges) > 1:
+        ax.axvline(x=fit_ranges[0][1], color='gray', linestyle=':', linewidth=1, alpha=0.5)
+    ax.set_xlabel(r'$m_{\ell J}$ [GeV]')
+    ax.set_ylabel(r'Boosted SR / Boosted Flavor CR')
+    cms_label(ax, lumi, com, data=False, text=era + '\n' + rf'Simulated $t\bar{{t}}$, {channel_label}')
+    _set_ranges(ax, edges, [(ratio, ratio_errors)], [f[0] for f in fits], xlim)
 
-    def _make_panel(ax):
-        ax.stairs(ratio, edges, color=color, linewidth=2,
-                  label=rf'$\frac{{\mathrm{{{num_label}}}}}{{\mathrm{{{den_label}}}}}$')
-        ax.errorbar(centers, ratio, yerr=ratio_errors,
-                    fmt='none', ecolor=color, capsize=3)
-
-        for i, fr in enumerate(fit_ranges):
-            fv, ferr, chi2, ndf = fits[i]
-            prefix = f"{range_labels[i]}: " if len(range_labels) > 1 else ""
-            if ndf > 0:
-                ax.plot([fr[0], fr[1]], [fv, fv], ':',
-                        color=color, linewidth=1.5,
-                        label=rf'{prefix}$p_{{0}}$ ={fv:.3f} $\pm$ {ferr:.5f} '
-                              rf'($\chi^2$ = {chi2:.2f})')
-        if len(fit_ranges) > 1:
-            ax.axvline(x=fit_ranges[0][1], color='gray', linestyle=':',
-                       linewidth=1, alpha=0.5)
-
-        ax.set_xlabel(r'$m_{\ell J}$ [GeV]')
-        ax.set_ylabel(r'Boosted SR / Boosted Flavor CR')
-        cms_label(ax, lumi, com, data=False,
-                  text=era + '\n' + rf'Simulated $t\bar{{t}}$ ({channel_label})')
-
-    fig, ax = plt.subplots()
-    _make_panel(ax)
-    ax.set_xlim(x_start, x_end)
-
-    visible = (centers >= x_start) & (centers <= x_end)
-    maxv = []
-    if np.any(visible & (ratio > 0)):
-        maxv.append(np.max((ratio + ratio_errors)[visible & (ratio > 0)]))
-    ax.set_ylim(0, max(maxv) * 1.15 if maxv else 1.0)
-
-    ax.legend(loc='upper right', fontsize=FONT_SIZE_LEGEND)
-    fig.tight_layout()
-    fit_header(ax)
+    _legend(ax)
+    fit_header(ax, ignore_above=True)
     save_figure(fig, output_path)
     logger.info("Saved %s plot to: %s", channel_label, output_path)
     plt.close(fig)
@@ -726,8 +714,8 @@ def process_topology(args, inputs, sample, boosted, plot_dir, table_dir):
     if boosted:
         emu_cr_hist, mue_cr_hist = den_hists[0], den_hists[1]
         channels = [
-            ("ejet", "eJ", ee_num_hist, mue_cr_hist, r"Boosted\ SR\ (ee)", r"Boosted\ Flavor\ CR\ (\mu e)", COLOR_EE, 'o'),
-            ("mujet", r"$\mu$J", mumu_num_hist, emu_cr_hist, r"Boosted\ SR\ (\mu\mu)", r"Boosted\ Flavor\ CR\ (e\mu)", COLOR_MUMU, 's'),
+            ("ejet", "electron in the jet", ee_num_hist, mue_cr_hist, "ee", r"$\mu$(e-jet)", COLOR_EE, 'o'),
+            ("mujet", "muon in the jet", mumu_num_hist, emu_cr_hist, r"$\mu\mu$", r"e($\mu$-jet)", COLOR_MUMU, 's'),
         ]
         channel_fits = {}
         for key, ch_label, num, den, num_label, den_label, color, marker in channels:

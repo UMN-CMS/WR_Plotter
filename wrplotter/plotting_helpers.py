@@ -402,7 +402,7 @@ def _content_vertices(ax) -> np.ndarray:
     return np.concatenate(pts) if pts else np.empty((0, 2))
 
 
-def fit_header(ax, *, margin: float = 0.02) -> None:
+def fit_header(ax, *, margin: float = 0.02, ignore_above: bool = False) -> None:
     """Keep the CMS label, the region text and the legend clear of the plot content.
 
     Puts "Simulation" on its own line when the secondary label runs into the
@@ -441,6 +441,10 @@ def fit_header(ax, *, margin: float = 0.02) -> None:
         return
 
     lo, hi = ax.get_ylim()
+    if ignore_above:
+        # what the caller clipped above the frame on purpose (error bars of low-statistics bins)
+        # does not drive the raise; give the legend a frame so such tails pass behind it
+        pts = pts[pts[:, 1] <= hi]
     f = np.log10 if log else (lambda v: v)
     to_axes = ax.transAxes.inverted()
     # The top moves up at most to three times the axis span (the content then fills the lower
@@ -501,24 +505,30 @@ def _fit_legend(ax, legend, blockers, renderer, margin):
         return legend, False
     handles, labels = legend.legend_handles, [t.get_text() for t in legend.texts]
     ncols = getattr(legend, "_ncols", 1)
+    frame = legend.get_frame()
+    keep = dict(frameon=legend.get_frame_on())          # a re-made legend keeps the caller's frame
+    if keep["frameon"]:
+        ec = frame.get_edgecolor()
+        keep.update(facecolor=frame.get_facecolor(), framealpha=frame.get_alpha(),
+                    edgecolor="none" if ec[3] == 0 else ec)
     size = legend.texts[0].get_fontsize() if legend.texts else LEGEND_MIN_FONTSIZE
     while overlaps(legend) and size > LEGEND_MIN_FONTSIZE:
         size = max(size - 1, LEGEND_MIN_FONTSIZE)
         legend.remove()
-        legend = ax.legend(handles, labels, loc="upper right", fontsize=size, ncols=ncols)
+        legend = ax.legend(handles, labels, loc="upper right", fontsize=size, ncols=ncols, **keep)
     if not overlaps(legend):
         return legend, False
     pts = ax.transData.transform(_content_vertices(ax))
     pts = pts[np.isfinite(pts).all(axis=1)]
     pad = margin * ax.bbox.height            # keep this much clear around the legend
     for loc in ("lower left", "lower right"):
-        trial = ax.legend(handles, labels, loc=loc, fontsize=size, ncols=ncols)
+        trial = ax.legend(handles, labels, loc=loc, fontsize=size, ncols=ncols, **keep)
         box = trial.get_window_extent(renderer)
         covered = ((pts[:, 0] >= box.x0 - pad) & (pts[:, 0] <= box.x1 + pad)
                    & (pts[:, 1] >= box.y0 - pad) & (pts[:, 1] <= box.y1 + pad)).any()
         if not covered and not overlaps(trial):
             return trial, False
-    legend = ax.legend(handles, labels, loc="upper right", fontsize=size, ncols=ncols)
+    legend = ax.legend(handles, labels, loc="upper right", fontsize=size, ncols=ncols, **keep)
     lowest = min(ax.transAxes.inverted().transform((0, b.y0))[1] for b in blockers)
     legend.set_bbox_to_anchor((1, lowest - margin), transform=ax.transAxes)
     logging.debug("Legend of %d entries does not fit beside the CMS label at %d pt; placed under it.",
