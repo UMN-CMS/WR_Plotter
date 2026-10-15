@@ -134,7 +134,7 @@ def plot_weight_distributions(
 ) -> Figure:
     """log10|w| per entry (label, color, distribution): solid w > 0, dashed w < 0."""
     hep.style.use("CMS")
-    fig, ax = plt.subplots(figsize=(10, 10))
+    fig, ax = plt.subplots(figsize=(10, 12))   # 10 in wide (FONT_SIZE_*); tall for the two-line legend
     drawn = []
     edges = None
     for label, color, dist in entries:
@@ -263,7 +263,7 @@ def plot_component(
     and dashed for w < 0.  Returns None when no entry has the component.
     """
     hep.style.use("CMS")
-    fig, ax = plt.subplots(figsize=(10, 10))
+    fig, ax = plt.subplots(figsize=(10, 12))   # 10 in wide (FONT_SIZE_*); tall for the two-line legend
     drawn, edges = [], None
     log_axis = name in LOG_COMPONENTS
     for label, color, hists in entries:
@@ -294,9 +294,13 @@ def plot_component(
         plt.close(fig)
         return None
 
-    ax.set_yscale("log")
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
-    ax.set_ylim(*log_ylim(drawn, pad_high=1e3, floor=1e-7))
+    if log_axis:
+        ax.set_yscale("log")
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
+        ax.set_ylim(*log_ylim(drawn, pad_high=1e3, floor=1e-7))
+    else:
+        # a scale factor: a narrow distribution of fractions, read best on a linear axis
+        ax.set_ylim(0, 1.3 * max(float(np.max(d)) for d in drawn))
     nonzero = np.flatnonzero(np.sum([np.pad(d, (0, len(edges) - 1 - len(d))) for d in drawn], axis=0) > 0)
     if len(nonzero):
         pad = max(3, (nonzero[-1] - nonzero[0]) // 10)

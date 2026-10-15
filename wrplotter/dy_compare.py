@@ -94,7 +94,8 @@ def plot_dy_overlay(
         errs = np.sqrt(h.variances()) * scale
         scaled.append((dy, vals, errs))
         ref = ", ref." if i == 0 and len(entries) > 1 else ""
-        label = (f"{dy.legend} ({_fmt_events(total)} ev.{ref})" if len(entries) <= MAX_LEGEND_DETAIL
+        # the yield on a second line: the legend stays narrow enough to sit beside the label
+        label = (f"{dy.legend}\n({_fmt_events(total)} ev.{ref})" if len(entries) <= MAX_LEGEND_DETAIL
                  else f"{dy.legend}{' (ref.)' if ref else ''}")
         hep.histplot(vals, edges, yerr=errs, histtype="step", color=dy.color, linewidth=2,
                      label=label, ax=ax)
@@ -160,9 +161,11 @@ def plot_total_comparison(
 
     for i, (dy, total) in enumerate(entries):
         ref = " (ref.)" if i == 0 and len(entries) > 1 and not show_data else ""
-        scaled = rf" ($\times${factors[i]:.2f})" if scale_to_data else ""
+        # the factor on a second line (a narrow legend) when the legend is short enough to take it
+        sep = "\n" if len(entries) <= MAX_LEGEND_DETAIL else " "
+        scaled = sep + rf"($\times${factors[i]:.2f})" if scale_to_data else ""
         hep.histplot(total.values() * factors[i], edges, histtype="step", color=dy.color,
-                     linewidth=2, label=f"DY {dy.legend}{ref}{scaled}", ax=ax)
+                     linewidth=2, label=f"{dy.legend}{ref}{scaled}", ax=ax)   # the text says "Total bkg. by DY"
     if show_data:
         # Garwood errors; horizontal bars only where the bin width varies (PubGuidelines)
         derrs = data_errors(data, per_unit=per_gev)
@@ -248,7 +251,7 @@ def plot_dy_stat(
         sw = np.asarray(h.values(), dtype=float)[shown].sum()
         sw2 = np.asarray(h.variances(), dtype=float)[shown].sum()
         n_tot = sw * sw / sw2 if sw > 0 and sw2 > 0 else 0.0
-        label = (f"{dy.legend} ($N_{{eff}}$ = {n_tot:.0f})" if len(entries) <= MAX_LEGEND_DETAIL
+        label = (f"{dy.legend}\n($N_{{eff}}$ = {n_tot:.0f})" if len(entries) <= MAX_LEGEND_DETAIL
                  else dy.legend)
         ok = np.isfinite(rel)
         # one open step line per run of filled bins: gaps where the sample has no events

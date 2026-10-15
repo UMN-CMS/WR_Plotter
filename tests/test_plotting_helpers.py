@@ -346,7 +346,7 @@ class TestDYStat:
                                                (DYSample("nlo_inc", "NLO", "#ffa90e", ()), b)],
                            xlim=(0, 1000), lumi=109.7)
         labels = [t.get_text() for t in fig.axes[0].get_legend().get_texts()]
-        assert labels == ["LO ($N_{eff}$ = 100)", "NLO ($N_{eff}$ = 25)"]
+        assert labels == ["LO\n($N_{eff}$ = 100)", "NLO\n($N_{eff}$ = 25)"]
         plt.close(fig)
 
 

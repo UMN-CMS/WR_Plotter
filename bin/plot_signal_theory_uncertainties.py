@@ -165,7 +165,7 @@ def main(argv=None) -> int:
                           title_fontsize=FONT_SIZE_LEGEND)
                 cms_label(ax, None, data=False, rlabel=f"({com:g} TeV)",
                           text=f"{CHANNEL_LABELS[ch]}, {TOPOLOGY_LABELS[t]}\n{LINES[line]}\n"
-                               "Acceptance only\n(weights normalized per sample)")
+                               "Acceptance only\n(weights normalized\nper sample)")   # narrow: the legend fits beside
                 fit_header(ax)
                 path = plots / f"{t}_{ch}_{line}.pdf"
                 try:

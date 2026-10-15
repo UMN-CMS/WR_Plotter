@@ -28,6 +28,7 @@ from __future__ import annotations
 import csv
 import logging
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -496,8 +497,17 @@ def plot_cutflows(era_set: EraSet, entries: Sequence[tuple[str, CutflowEfficienc
     ax.set_ylabel("Cumulative efficiency [%]")
     _fit_bottom(fig, ax)
     short = max(len(label) for label, _ in entries) <= 24
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND, ncols=2 if short and len(entries) > 3 else 1)
-    weights_note = ("Last point: with lepton and LSF SFs" if any(cf.cuts and cf.cuts[-1] == CUTFLOW_SF_ROW
+    handles, labels = ax.get_legend_handles_labels()
+    pairs = [re.findall(r"=\s*(\d+)", label) for label in labels]
+    # One column, narrow enough to sit beside the label block (two columns go under it, and the axis
+    # cannot rise far enough to clear the curves below); every point named by (m_WR, m_N) shows the
+    # pair alone, with the names once in the title.
+    if not short and all(len(p) == 2 for p in pairs):
+        ax.legend(handles, [f"({w}, {n})" for w, n in pairs], loc="upper right", fontsize=FONT_SIZE_LEGEND,
+                  title=r"($m_{W_R}$, $m_N$) [GeV]", title_fontsize=FONT_SIZE_LEGEND)
+    else:
+        ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
+    weights_note = ("Last point: with lepton\nand LSF SFs" if any(cf.cuts and cf.cuts[-1] == CUTFLOW_SF_ROW
                                                                    for _, cf in entries)
                     else "Without lepton SFs")
     _header(ax, era_set, label_text(channel, topology=topology, m_wr=m_wr) + "\n" + weights_note)

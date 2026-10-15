@@ -235,7 +235,11 @@ def plot_stack(
                      flow="hint")
 
     if show_data and data is not None:
-        hep.histplot(for_drawing(data), yerr=data_errors(data, per_unit=per_unit),
+        derrs = data_errors(data, per_unit=per_unit)
+        if tot is not None:
+            # no event and no prediction (e.g. LSF3 between its -1 and 0): no point, not a 1.84 bar
+            derrs[:, (data.values() == 0) & (tot.values() <= 0)] = 0.0
+        hep.histplot(for_drawing(data), yerr=derrs,
                      label="Data", xerr=data_xerr, color="k",
                      histtype="errorbar", ax=ax, flow="hint")
 
@@ -268,6 +272,7 @@ def plot_stack(
 
         if show_data and data is not None:
             ratio, ratio_err = data_ratio(data, tot_vals, per_unit=per_unit)
+            ratio[tot_vals <= 0] = np.nan            # no prediction: no ratio point (not one at 0)
             hep.histplot(ratio, edges, yerr=ratio_err, xerr=data_xerr, ax=rax,
                          histtype="errorbar", color="k", label="Data")
 
@@ -463,7 +468,10 @@ def fit_header(ax, *, margin: float = 0.02, ignore_above: bool = False) -> None:
             x0 = to_data.transform((box.x0, box.y0))[0]
             x1 = to_data.transform((box.x1, box.y0))[0]
             under = pts[(pts[:, 0] >= min(x0, x1)) & (pts[:, 0] <= max(x0, x1)), 1]
-            if not len(under) or (room := bottom - margin) <= 0:
+            if not len(under):
+                continue
+            if (room := bottom - margin) <= 0:          # reaches the bottom: no raise can clear it
+                capped = True
                 continue
             top = f(lo) + (f(under.max()) - f(lo)) / room
             if np.isfinite(top):
@@ -506,7 +514,10 @@ def _fit_legend(ax, legend, blockers, renderer, margin):
     handles, labels = legend.legend_handles, [t.get_text() for t in legend.texts]
     ncols = getattr(legend, "_ncols", 1)
     frame = legend.get_frame()
-    keep = dict(frameon=legend.get_frame_on())          # a re-made legend keeps the caller's frame
+    keep = dict(frameon=legend.get_frame_on())          # a re-made legend keeps the caller's frame and title
+    title = legend.get_title()
+    if title.get_text():
+        keep.update(title=title.get_text(), title_fontsize=title.get_fontsize())
     if keep["frameon"]:
         ec = frame.get_edgecolor()
         keep.update(facecolor=frame.get_facecolor(), framealpha=frame.get_alpha(),
