@@ -93,7 +93,7 @@ def save(fig, path: Path) -> None:
         plt.close(fig)
 
 
-def plot_ratio(block: dict, *, lumi: float, com: float, text: str):
+def plot_ratio(block: dict, *, lumi: float, com: float, text: str, year: str | None = None):
     """One topology's reshape ratio: combined points with stat errors, the stat (+) channel band,
     and the ee and mumu ratios as lines; bins without DY MC (below the jet threshold) are left out."""
     hep.style.use("CMS")
@@ -116,7 +116,7 @@ def plot_ratio(block: dict, *, lumi: float, com: float, text: str):
     ax.set_xlabel(XLABEL.get(block["variable"], block["variable"]))
     ax.set_ylabel(r"(Data $-$ non-DY) / DY")
     ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
-    cms_label(ax, lumi, com, data=True, text=text)
+    cms_label(ax, lumi, com, data=True, text=text, year=year)
     fit_header(ax)
     return fig
 
@@ -127,7 +127,7 @@ def cr2_region(parent: Region) -> Region:
     lines = parent.tlatex_alias.split(sep)
     lines[1] = lines[1].replace("DY CR", "DY CR2")
     lines.insert(2, CR2_TEXT)
-    return Region(parent.name + CR2_SUFFIX, parent.primary_dataset, sep.join(lines))
+    return Region(parent.name + CR2_SUFFIX, parent.primary_dataset, sep.join(lines), parent.year)
 
 
 def main():
@@ -145,8 +145,9 @@ def main():
     name = "_".join(filter(None, ["ratio", "{kind}", args.tag])) + ".pdf"
     for kind in ("resolved", "boosted"):
         where = [f"{TOPOLOGY[kind]} DY CR1", r"$60 < m_{\ell\ell} < 100$ GeV"] if cr1 else [f"{TOPOLOGY[kind]} DY CRs"]
-        lines = [era_label(args.era), *where, r"DY: LO HT-binned, Z $p_{T}$ reweight"]
-        save(plot_ratio(payload[kind], lumi=lumi, com=com, text="\n".join(lines)), base / name.format(kind=kind))
+        lines = [*where, r"DY: LO HT-binned, Z $p_{T}$ reweight"]     # the year goes beside the luminosity
+        save(plot_ratio(payload[kind], lumi=lumi, com=com, text="\n".join(lines), year=era_label(args.era)),
+             base / name.format(kind=kind))
 
     if not args.after:
         return

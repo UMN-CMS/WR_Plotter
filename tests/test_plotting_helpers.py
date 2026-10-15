@@ -414,3 +414,20 @@ class TestDYSampleLegend:
         from wrplotter.inputs import DYSample
         assert DYSample("t", "LO HT-binned, Z + jet reweight", "k", (), short="LO HT, rew.").legend == "LO HT, rew."
         assert DYSample("t", "LO inclusive", "k", ()).legend == "LO inclusive"
+
+
+class TestLumiLabel:
+    """The text above the frame on the right (FigGuidelines compact form, the year with the energy)."""
+
+    def test_with_lumi_and_year(self):
+        from wrplotter.plotting_helpers import lumi_label
+        assert lumi_label(109.70, 13.6, "2024") == r"109.7 $\mathrm{fb^{-1}}$ (2024, 13.6 TeV)"
+
+    def test_without_lumi_or_year(self):
+        from wrplotter.plotting_helpers import lumi_label
+        assert lumi_label(None, 13.6, "2024") == "(2024, 13.6 TeV)"
+        assert lumi_label(59.52, 13) == r"59.5 $\mathrm{fb^{-1}}$ (13 TeV)"
+
+    def test_sub_era_parentheses_do_not_nest(self):
+        from wrplotter.plotting_helpers import lumi_label
+        assert lumi_label(8.08, 13.6, "2022 (preEE)") == r"8.1 $\mathrm{fb^{-1}}$ (2022 preEE, 13.6 TeV)"

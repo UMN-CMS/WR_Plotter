@@ -35,7 +35,7 @@ EFFICIENCY_YLABEL = {
 def _title(table: CutflowTable, era: str, what: str) -> str:
     # One short item per line, so the region text leaves room for the legend beside it.
     return (f"{table.topology.capitalize()} {CHANNEL_LATEX.get(table.channel, table.channel)}\n"
-            f"Cutflow ({table.kind})\n{what}\n{era_label(era)}")
+            f"Cutflow ({table.kind})\n{what}")
 
 
 def _cut_axis(ax, cuts, topology: str | None = None) -> None:
@@ -120,7 +120,7 @@ def plot_yields(table: CutflowTable, *, era: str, lumi: float, com: float = 13.6
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
     ax.set_ylim(*log_ylim(drawn, pad_high=1e4))
     ax.set_ylabel("Simulated events (unweighted)" if table.unweighted else "Events")
-    cms_label(ax, lumi, com, data=show_data,
+    cms_label(ax, lumi, com, data=show_data, year=era_label(era),
               text=_title(table, era, "Unweighted (raw counts)" if table.unweighted else "Weighted"))
     _legend(ax)
 
@@ -186,7 +186,7 @@ def plot_efficiency(table: CutflowTable, mode: str, *, era: str, lumi: float,
     _cut_axis(ax, table.cuts, table.topology)
     _shade_blinded([ax], table.blinded, label_ax=ax)
     weighting = "Unweighted" if table.unweighted else "Weighted"
-    cms_label(ax, lumi, com, data=table.data is not None,
+    cms_label(ax, lumi, com, data=table.data is not None, year=era_label(era),
               text=_title(table, era, f"{weighting}\n{EFFICIENCY_YLABEL[label_key].capitalize()}"))
     _legend(ax)
     fit_header(ax)

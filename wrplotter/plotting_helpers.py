@@ -296,7 +296,7 @@ def plot_stack(
     if extra_label:
         alias = f"{alias}\n{extra_label}"
     # Blinded or data-less plots show simulation only: "CMS Simulation".
-    cms_label(ax, lumi, com, data=show_data and data is not None, text=alias,
+    cms_label(ax, lumi, com, data=show_data and data is not None, text=alias, year=region.year,
               fontsize=fontsize_label, text_fontsize=fontsize_title)
 
     xlabel = f"{variable.tlatex_alias} [{variable.unit}]" if getattr(variable, "unit", "") else variable.tlatex_alias
@@ -368,21 +368,32 @@ def stack_ylim(ylim, edges, xlim, tot, data, signals, *, per_unit: bool = False)
 
 # ------------------------------ shared cosmetics ----------------------------- #
 
+def lumi_label(lumi: float | None, com: float = 13.6, year: str | None = None) -> str:
+    """The text above the frame on the right, in the FigGuidelines' compact form:
+    "109.7 fb^-1 (2024, 13.6 TeV)"; without *lumi* "(2024, 13.6 TeV)", without *year*
+    "(13.6 TeV)".  The year is the dataset's, so it sits here, not in the frame (as
+    mplhep's year and cmsstyle's run arguments do); a sub-era label's parentheses are
+    dropped ("2022 (preEE)" -> "2022 preEE") so they do not nest."""
+    when = re.sub(r"\s*\((.*?)\)", r" \1", year).strip() + ", " if year else ""
+    head = f"{lumi:.1f} " + r"$\mathrm{fb^{-1}}$ " if lumi is not None else ""
+    return f"{head}({when}{com:g} TeV)"
+
+
 def cms_label(ax, lumi: float | None, com: float = 13.6, *, data: bool = True,
-              text: str | None = None, rlabel: str | None = None,
+              text: str | None = None, rlabel: str | None = None, year: str | None = None,
               fontsize: int = FONT_SIZE_LABEL, text_fontsize: int = FONT_SIZE_TITLE):
     """The CMS label as the CMS figure guidelines ask: "CMS" in bold inside the frame,
     top left, the same distance from both axes, with the italic secondary label
-    (``Simulation`` first when *data* is False) under it; "<lumi> fb^-1 (<com> TeV)",
+    (``Simulation`` first when *data* is False) under it; lumi_label(lumi, com, year),
     or *rlabel*, above the frame on the right.  *text* (the region description) goes
     under the label.  Returns the lowest text artist of the block.
     """
     pos = ax.get_position()
     fig_w, fig_h = ax.figure.get_size_inches()
     aspect = (pos.width * fig_w) / (pos.height * fig_h)
-    right = {"rlabel": rlabel} if rlabel is not None else {"lumi": f"{lumi:.2f}", "com": com}
+    right = rlabel if rlabel is not None else lumi_label(lumi, com, year)
     _, suffix, _ = hep.cms.label(CMS_EXTRA_TEXT, loc=2, ax=ax, data=data, fontsize=fontsize,
-                                 pad=0.05 * (aspect - 1), **right)
+                                 pad=0.05 * (aspect - 1), rlabel=right)
     if text:
         return region_text(ax, text, fontsize=text_fontsize, below=suffix)
     return suffix

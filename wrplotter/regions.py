@@ -15,6 +15,7 @@ class Region:
     name: str
     primary_dataset: str   # data stream of the region's trigger: "egamma" or "muon"
     tlatex_alias: str = ""
+    year: str = ""         # the era's plot label (data/lumi.yaml), shown with the luminosity, not in the frame
 
     @property
     def is_signal_region(self) -> bool:
@@ -44,30 +45,30 @@ def regions_for_era(era: str) -> List[Region]:
     wr_resolved_flavor_cr (its e-mu trigger is the muon trigger) and
     wr_mue_boosted_flavor_cr.  The other stream would add a trigger-overlap subset.
     """
-    era = era_label(era)
+    era = era_label(era)    # the plots' year label: cms_label puts it beside the luminosity
     return [
         # Resolved DY CRs
-        Region("wr_mumu_resolved_dy_cr", "muon",   rf"$\mu\mu$\nResolved DY CR\n{era}"),
-        Region("wr_ee_resolved_dy_cr",   "egamma", rf"ee\nResolved DY CR\n{era}"),
+        Region("wr_mumu_resolved_dy_cr", "muon",   rf"$\mu\mu$\nResolved DY CR", era),
+        Region("wr_ee_resolved_dy_cr",   "egamma", rf"ee\nResolved DY CR", era),
 
         # Resolved flavor CR (muon trigger)
-        Region("wr_resolved_flavor_cr", "muon", rf"$e\mu$\nResolved Flavor CR\n{era}"),
+        Region("wr_resolved_flavor_cr", "muon", rf"$e\mu$\nResolved Flavor CR", era),
 
         # Resolved SRs
-        Region("wr_mumu_resolved_sr", "muon",   rf"$\mu\mu$\nResolved SR\n{era}"),
-        Region("wr_ee_resolved_sr",   "egamma", rf"ee\nResolved SR\n{era}"),
+        Region("wr_mumu_resolved_sr", "muon",   rf"$\mu\mu$\nResolved SR", era),
+        Region("wr_ee_resolved_sr",   "egamma", rf"ee\nResolved SR", era),
 
         # Boosted DY CRs
-        Region("wr_mumu_boosted_dy_cr", "muon",   rf"$\mu\mu$\nBoosted DY CR\n{era}"),
-        Region("wr_ee_boosted_dy_cr",   "egamma", rf"ee\nBoosted DY CR\n{era}"),
+        Region("wr_mumu_boosted_dy_cr", "muon",   rf"$\mu\mu$\nBoosted DY CR", era),
+        Region("wr_ee_boosted_dy_cr",   "egamma", rf"ee\nBoosted DY CR", era),
 
         # Boosted SRs
-        Region("wr_mumu_boosted_sr", "muon",   rf"$\mu\mu$\nBoosted SR\n{era}"),
-        Region("wr_ee_boosted_sr",   "egamma", rf"ee\nBoosted SR\n{era}"),
+        Region("wr_mumu_boosted_sr", "muon",   rf"$\mu\mu$\nBoosted SR", era),
+        Region("wr_ee_boosted_sr",   "egamma", rf"ee\nBoosted SR", era),
 
         # Boosted flavor CRs: leading electron (electron trigger) / leading muon (muon trigger)
-        Region("wr_emu_boosted_flavor_cr", "egamma", rf"e ($\mu$-jet)\nBoosted Flavor CR\n{era}"),
-        Region("wr_mue_boosted_flavor_cr", "muon",   rf"$\mu$ (e-jet)\nBoosted Flavor CR\n{era}"),
+        Region("wr_emu_boosted_flavor_cr", "egamma", rf"e ($\mu$-jet)\nBoosted Flavor CR", era),
+        Region("wr_mue_boosted_flavor_cr", "muon",   rf"$\mu$ (e-jet)\nBoosted Flavor CR", era),
     ]
 
 def regions_by_name(era: str) -> Dict[str, List[Region]]:

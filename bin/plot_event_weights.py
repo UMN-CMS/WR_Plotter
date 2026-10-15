@@ -108,7 +108,7 @@ def _plot_set(out_dir, region, entries, *, text, lumi, com, components, counters
     if not totals:
         logging.warning("  %s: no event-weight histograms, skipped", region.name)
         return [], []
-    _save(plot_weight_distributions([t[1:] for t in totals], text=text, lumi=lumi, com=com),
+    _save(plot_weight_distributions([t[1:] for t in totals], text=text, lumi=lumi, com=com, year=region.year),
           out_dir / f"{region.name}.pdf", counters)
 
     comps = []
@@ -120,7 +120,8 @@ def _plot_set(out_dir, region, entries, *, text, lumi, com, components, counters
             logging.warning("  %s: no weight-component histograms (analyzer output predates them)",
                             region.name)
         for comp in component_names([k for *_, hists in comps for k in hists]):
-            _save(plot_component(comp, [c[1:] for c in comps], text=text, lumi=lumi, com=com),
+            _save(plot_component(comp, [c[1:] for c in comps], text=text, lumi=lumi, com=com,
+                                 year=region.year),
                   out_dir / "components" / region.name / f"{comp}.pdf", counters)
     return [(t[0], t[3]) for t in totals], [(c[0], c[3]) for c in comps]
 

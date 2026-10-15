@@ -242,7 +242,7 @@ def _figure(figsize=(10, 9)):
 
 
 def _header(ax, era_set: EraSet, text: str, **kw) -> None:
-    cms_label(ax, None, data=False, rlabel=f"({era_set.com:g} TeV)", text=text, **kw)
+    cms_label(ax, None, era_set.com, data=False, year=era_label(era_set.era), text=text, **kw)
 
 
 def _style(i: int) -> dict:

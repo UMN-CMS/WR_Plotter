@@ -57,7 +57,7 @@ import mplhep as hep  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from wrplotter.cli_utils import add_era_args, add_output_args, setup_logging  # noqa: E402
-from wrplotter.config import load_lumi  # noqa: E402
+from wrplotter.config import era_label, load_lumi  # noqa: E402
 from wrplotter.inputs import make_inputs, mass_point  # noqa: E402
 from wrplotter.paths import SIGNAL_OUTPUTS, plots_base, repo_root, save_figure  # noqa: E402
 from wrplotter.plotting_helpers import FONT_SIZE_LEGEND, cms_label, fit_header  # noqa: E402
@@ -181,7 +181,7 @@ def main(argv=None) -> int:
                 ax.set_ylabel("Change of the SR yield [%]")
                 ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND, title="solid: up, dashed: down",
                           title_fontsize=FONT_SIZE_LEGEND)
-                cms_label(ax, None, data=False, rlabel=f"({com:g} TeV)",
+                cms_label(ax, None, com, data=False, year=era_label(args.era),
                           text=f"{CHANNEL_LABELS[ch]}, {TOPOLOGY_LABELS[t]}\n{LINES[line]}\n"
                                "Acceptance only\n(weights normalized\nper sample)")   # narrow: the legend fits beside
                 fit_header(ax)

@@ -148,16 +148,17 @@ def weight_edges(p: ZptPayload, xmax: float | None = None) -> np.ndarray:
 X_LABEL = r"$p_{T}$ of the generator-level Z [GeV]"
 
 
-def _finish(fig: Figure, ax, *, com: float, text: str, legend_fontsize: int = FONT_SIZE_LEGEND) -> Figure:
+def _finish(fig: Figure, ax, *, com: float, text: str, year: str | None = None,
+            legend_fontsize: int = FONT_SIZE_LEGEND) -> Figure:
     ax.legend(loc="upper right", fontsize=legend_fontsize)
-    cms_label(ax, None, com, data=False, rlabel=f"({com:g} TeV)", text=text)
+    cms_label(ax, None, com, data=False, year=year, text=text)
     fit_header(ax)
     return fig
 
 
 def plot_qcd_ratio(p: ZptPayload, *, reference: ZptPayload | None = None,
                    xlim: tuple[float, float] = (0.0, 1000.0), logx: bool = False,
-                   com: float = 13.6, text: str = "") -> Figure:
+                   com: float = 13.6, text: str = "", year: str | None = None) -> Figure:
     """The QCD NLO / LO ratio vs generator Z pT with its scale (envelope), PDF and alpha_S
     variations as bands and its statistical error as bars (AN-19-083 Fig. 14), with the
     Run 2 *reference* ratio dashed on top."""
@@ -183,11 +184,11 @@ def plot_qcd_ratio(p: ZptPayload, *, reference: ZptPayload | None = None,
     ax.set_ylim(0.0, 1.8)
     ax.set_xlabel(X_LABEL)
     ax.set_ylabel("QCD NLO / LO")
-    return _finish(fig, ax, com=com, text=text)
+    return _finish(fig, ax, com=com, text=text, year=year)
 
 
 def plot_ew_correction(p: ZptPayload, *, xlim: tuple[float, float] | None = None,
-                       com: float = 13.6, text: str = "") -> Figure:
+                       com: float = 13.6, text: str = "", year: str | None = None) -> Figure:
     """The EW factor vs generator Z pT with its three uncertainties as bands (log x)."""
     hep.style.use("CMS")
     fig, ax = plt.subplots()
@@ -202,11 +203,11 @@ def plot_ew_correction(p: ZptPayload, *, xlim: tuple[float, float] | None = None
     ax.set_ylim(0.4, 1.4)
     ax.set_xlabel(X_LABEL)
     ax.set_ylabel("EW correction")
-    return _finish(fig, ax, com=com, text=text)
+    return _finish(fig, ax, com=com, text=text, year=year)
 
 
 def plot_weight(p: ZptPayload, *, xlim: tuple[float, float] = (1.0, 8000.0),
-                com: float = 13.6, text: str = "") -> Figure:
+                com: float = 13.6, text: str = "", year: str | None = None) -> Figure:
     """QCD x EW, the weight the analyzer gives a DY event, vs generator Z pT (log x), with the
     total uncertainty band and the two factors dashed."""
     hep.style.use("CMS")
@@ -224,11 +225,11 @@ def plot_weight(p: ZptPayload, *, xlim: tuple[float, float] = (1.0, 8000.0),
     ax.set_ylim(0.0, 1.8)
     ax.set_xlabel(X_LABEL)
     ax.set_ylabel(r"DY Z $p_{T}$ weight")
-    return _finish(fig, ax, com=com, text=text)
+    return _finish(fig, ax, com=com, text=text, year=year)
 
 
 def plot_spectra(p: ZptPayload, *, xlim: tuple[float, float] = (1.0, 8000.0),
-                 com: float = 13.6, text: str = "") -> Figure:
+                 com: float = 13.6, text: str = "", year: str | None = None) -> Figure:
     """The generator-level Z pT spectra of the inclusive LO and NLO samples the ratio was taken
     from, as cross sections per GeV (log-log), with NLO / LO below."""
     if p.lo_pb is None or p.nlo_pb is None:
@@ -258,7 +259,7 @@ def plot_spectra(p: ZptPayload, *, xlim: tuple[float, float] = (1.0, 8000.0),
     if integrated is not None:
         text = f"{text}\nIntegrated NLO / LO = {integrated:.4f}" if text else f"Integrated NLO / LO = {integrated:.4f}"
     ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
-    cms_label(ax, None, com, data=False, rlabel=f"({com:g} TeV)")
+    cms_label(ax, None, com, data=False, year=year)
     # The spectra peak under the label block, so the description goes to the empty lower left.
     region_text(ax, text, x=0.05, y=0.30)
     fit_header(ax)
@@ -266,7 +267,8 @@ def plot_spectra(p: ZptPayload, *, xlim: tuple[float, float] = (1.0, 8000.0),
 
 
 def plot_applied_ratio(p: ZptPayload, before: Hist, after: Hist, *, xlabel: str,
-                       xlim: tuple[float, float] = (0.0, 1000.0), com: float = 13.6, text: str = "") -> Figure:
+                       xlim: tuple[float, float] = (0.0, 1000.0), com: float = 13.6, text: str = "",
+                       year: str | None = None) -> Figure:
     """*after* / *before* per bin (the reweighted over the unreweighted DY in a reconstructed
     pT(ll) distribution: the mean weight of the events in the bin, so no error bars) against the
     payload's weight vs generator Z pT."""
@@ -285,4 +287,4 @@ def plot_applied_ratio(p: ZptPayload, before: Hist, after: Hist, *, xlabel: str,
     ax.set_ylim(0.4, 1.6)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(r"DY Z $p_{T}$ weight")
-    return _finish(fig, ax, com=com, text=text)
+    return _finish(fig, ax, com=com, text=text, year=year)

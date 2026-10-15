@@ -309,7 +309,7 @@ def _draw_ratio_panel(ax, centers, xerr, ratio_ee, ratio_ee_errors,
     ax.set_xlabel(f'{mass_label} [GeV]')
     ax.set_ylabel(rf'{cat} SR / {cat} Flavor CR (e$\mu$)')
 
-    cms_label(ax, lumi, com, data=False, text=era + '\n' + r'Simulated $t\bar{t}$')
+    cms_label(ax, lumi, com, data=False, text=r'Simulated $t\bar{t}$', year=era)
 
 
 def _constant(x, c):
@@ -444,7 +444,7 @@ def plot_channel_ratio(ratio, ratio_errors, edges, era, lumi, output_path,
         ax.axvline(x=fit_ranges[0][1], color='gray', linestyle=':', linewidth=1, alpha=0.5)
     ax.set_xlabel(r'$m_{\ell J}$ [GeV]')
     ax.set_ylabel(r'Boosted SR / Boosted Flavor CR')
-    cms_label(ax, lumi, com, data=False, text=era + '\n' + rf'Simulated $t\bar{{t}}$, {channel_label}')
+    cms_label(ax, lumi, com, data=False, text=rf'Simulated $t\bar{{t}}$, {channel_label}', year=era)
     _set_ranges(ax, edges, [(ratio, ratio_errors)], [f[0] for f in fits], xlim)
 
     _legend(ax)

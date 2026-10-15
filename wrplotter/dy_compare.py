@@ -52,7 +52,7 @@ def _finish(fig, ax, rax, region: Region, variable: Variable, ref: Hist, *, xlim
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
     ax.set_ylim(*ylim)
     ax.set_xlim(*xlim)
-    cms_label(ax, lumi, com, data=data, text=text)
+    cms_label(ax, lumi, com, data=data, text=text, year=region.year)
     set_y_label(ax, ref, variable, per_unit=per_unit)
     ax.set_xlabel("")
     reorder_legend(ax, fontsize=FONT_SIZE_LEGEND)
@@ -278,6 +278,6 @@ def plot_dy_stat(
     text = (f"{region.tlatex_alias}\nDrell-Yan only\nGaps: no simulated events"
             + (f"\n{extra_label}" if extra_label else ""))
     ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
-    cms_label(ax, lumi, com, data=False, text=text)
+    cms_label(ax, lumi, com, data=False, text=text, year=region.year)
     fit_header(ax)
     return fig

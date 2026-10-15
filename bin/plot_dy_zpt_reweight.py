@@ -121,17 +121,18 @@ def main():
     logging.info("Era %s: payload %s (derived %s), reference %s -> %s", args.era, payload.era,
                  payload.provenance.get("derived_on", "?"), reference.era if reference else "none", base)
 
-    head = f"DY Z $p_{{T}}$ reweighting\n{era_label(args.era)}"
-    save(plot_qcd_ratio(payload, reference=reference, com=com, text=f"{head}\nInclusive NLO over inclusive LO"),
+    head = "DY Z $p_{T}$ reweighting"
+    yr = era_label(args.era)      # beside the energy, not in the frame
+    save(plot_qcd_ratio(payload, reference=reference, com=com, year=yr, text=f"{head}\nInclusive NLO over inclusive LO"),
          base / "qcd_ratio.pdf")
-    save(plot_qcd_ratio(payload, reference=reference, com=com, xlim=(1.0, payload.qcd_edges[-1]), logx=True,
+    save(plot_qcd_ratio(payload, reference=reference, com=com, year=yr, xlim=(1.0, payload.qcd_edges[-1]), logx=True,
                         text=f"{head}\nInclusive NLO over inclusive LO"), base / "qcd_ratio_full_range.pdf")
-    save(plot_ew_correction(payload, com=com,
+    save(plot_ew_correction(payload, com=com, year=yr,
                             text=f"{head}\nEW correction (Run 2 payload)\nBelow 30 GeV: the 30-40 GeV value"),
          base / "ew_correction.pdf")
-    save(plot_weight(payload, com=com, text=f"{head}\nApplied to the LO HT-binned DY"), base / "weight.pdf")
+    save(plot_weight(payload, com=com, year=yr, text=f"{head}\nApplied to the LO HT-binned DY"), base / "weight.pdf")
     try:
-        save(plot_spectra(payload, com=com, text=f"{head}\nGenerator-level Z, $m_Z > 50$ GeV"), base / "spectra.pdf")
+        save(plot_spectra(payload, com=com, year=yr, text=f"{head}\nGenerator-level Z, $m_Z > 50$ GeV"), base / "spectra.pdf")
     except ValueError as exc:
         logging.warning("spectra.pdf skipped: %s", exc)
 
@@ -161,7 +162,7 @@ def main():
             continue
         xlabel = f"{variable.tlatex_alias} [{variable.unit}]" if variable.unit else variable.tlatex_alias
         text = f"{region.tlatex_alias}\nDY: {after.dy.label}\nover {before.dy.label}"
-        save(plot_applied_ratio(payload, hists[0], hists[1], xlabel=xlabel, xlim=axes.xlim, com=com, text=text),
+        save(plot_applied_ratio(payload, hists[0], hists[1], xlabel=xlabel, xlim=axes.xlim, com=com, year=yr, text=text),
              base / "applied" / f"{region.name}.pdf")
 
 

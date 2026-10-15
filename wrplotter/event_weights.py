@@ -131,6 +131,7 @@ def plot_weight_distributions(
     text: str,
     lumi: float,
     com: float = 13.6,
+    year: str | None = None,
 ) -> Figure:
     """log10|w| per entry (label, color, distribution): solid w > 0, dashed w < 0."""
     hep.style.use("CMS")
@@ -158,7 +159,7 @@ def plot_weight_distributions(
             ax.set_xlim(edges[max(nonzero[0] - 5, 0)], edges[min(nonzero[-1] + 6, len(edges) - 1)])
     ax.set_xlabel(r"$\log_{10}|w|$ (per-region nominal event weight)")
     ax.set_ylabel("Simulated events")
-    cms_label(ax, lumi, com, data=False, text=text + "\nsolid: $w > 0$, dashed: $w < 0$")
+    cms_label(ax, lumi, com, data=False, text=text + "\nsolid: $w > 0$, dashed: $w < 0$", year=year)
     ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
     fit_header(ax)
     return fig
@@ -254,6 +255,7 @@ def plot_component(
     text: str,
     lumi: float,
     com: float = 13.6,
+    year: str | None = None,
 ) -> Figure | None:
     """One weight component for each entry (label, color, read_components result).
 
@@ -312,7 +314,7 @@ def plot_component(
         ax.set_xlabel(component_label(name))
     ax.set_ylabel("Fraction of simulated events")
     note = "\nsolid: $w > 0$, dashed: $w < 0$" if name == GENWEIGHT else ""
-    cms_label(ax, lumi, com, data=False, text=text + note)
+    cms_label(ax, lumi, com, data=False, text=text + note, year=year)
     ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
     fit_header(ax)
     return fig

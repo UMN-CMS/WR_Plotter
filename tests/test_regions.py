@@ -34,9 +34,10 @@ class TestRegionsForEra:
         trigger stream is used (the other would add a trigger-overlap subset)."""
         assert regions_by_name("2022")[name][0].primary_dataset == stream
 
-    def test_era_in_tlatex(self):
+    def test_year_beside_the_luminosity_not_in_the_frame(self):
         for r in regions_for_era("TestEra"):
-            assert "TestEra" in r.tlatex_alias
+            assert r.year == "TestEra"
+            assert "TestEra" not in r.tlatex_alias
 
 
 class TestRegionsByName:
