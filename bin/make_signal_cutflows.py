@@ -11,8 +11,10 @@ Modes (--mode, repeatable):
 The mass points are the WRAnalyzer_signal_WR<m>_N<m>.root files of --dir (a
 signal-only directory works too); a year or Run 3 (--era 2024, --era Run3) sums
 the files of its eras.  The cut sequence is read from the files and must be the
-same for every mass point; the labels come from data/cutflows.yaml.  Weighted
-rows use the analyzer's base event weight, without lepton scale factors.
+same for every mass point; the labels come from data/cutflows.yaml.  The first
+row counts the skimmed events that pass the event filters; weighted rows use the
+analyzer's base event weight, without lepton (and LSF) scale factors, except the
+last row, which includes the region's scale factors.
 
 Every table comes as yields plus efficiencies (running and relative; single-cut
 with --onecut), or as the one --efficiency asked for.
@@ -44,9 +46,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from wrplotter.cli_utils import add_era_args, setup_logging
 from wrplotter.config import era_label, load_lumi
-from wrplotter.cutflow import (CHANNEL_LATEX, CHANNEL_WORDS, EFFICIENCIES, Cutflow, compile_preview,
-                               cut_label, efficiency, format_count, format_percent, latex_count,
-                               signal_cutflows, table_variant, write_preview)
+from wrplotter.cutflow import (CHANNEL_LATEX, CHANNEL_WORDS, CUTFLOW_SF_ROW, EFFICIENCIES, Cutflow,
+                               compile_preview, cut_label, efficiency, format_count, format_percent,
+                               latex_count, sf_words, signal_cutflows, table_variant, write_preview)
 from wrplotter.inputs import Inputs, make_inputs, mass_point
 from wrplotter.paths import SIGNAL_OUTPUTS, repo_root
 
@@ -89,7 +91,7 @@ class SignalTable:
 
     def row_labels(self, latex: bool) -> list[str]:
         """One label per cut; side-by-side channels whose cuts differ show both."""
-        label = (lambda cut: cut_label(cut, "table")) if latex else str
+        label = (lambda cut: cut_label(cut, "table", self.topology)) if latex else str
         sequences = [cols[0][1].cuts for _, cols in self.groups]
         return [" / ".join(dict.fromkeys(map(label, cuts))) for cuts in zip(*sequences)]
 
@@ -163,7 +165,11 @@ def format_latex(table: SignalTable, eff: str | None, *, era: str, lumi: float, 
     caption = (f"{era_label(era)}: {what} for {table.subject(latex=True)}, {table.topology} selection, {words} "
                f"channel{'s' if len(table.groups) > 1 else ''}; {rows}. Columns show "
                f"{COLUMNS[table.mode][1]} in GeV. Normalized to ${lumi:.1f}\\,\\mathrm{{fb}}^{{-1}}$ "
-               f"({year}). Weighted simulation uses the base event weight, without lepton scale factors.")
+               f"({year}). The first row counts the events of the skims (two leptons, and two AK4 jets or one "
+               f"AK8 jet) that pass the event filters. Weighted simulation uses the base event weight, without "
+               f"{sf_words(table.topology)}"
+               + (f", except the last row, which includes the region's {sf_words(table.topology)}."
+                  if any(CUTFLOW_SF_ROW in cf.cuts for _, cols in table.groups for _, cf in cols) else "."))
     columns = [_cells(cf, eff, latex=True) for _, cols in table.groups for _, cf in cols]
     col_spec = "l | " + " | ".join(" ".join("c" * len(cols)) for _, cols in table.groups)
     lines = [r"\begin{table}[htp]", f"  \\topcaption{{{caption}}}",

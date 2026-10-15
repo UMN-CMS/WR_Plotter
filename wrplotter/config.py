@@ -304,4 +304,5 @@ def load_dy_comparisons() -> Dict[str, Any]:
 def load_cutflow_config() -> Dict[str, Any]:
     """Load data/cutflows.yaml: {"data_stream": {topology: {channel: stream}}, "labels": {...}}."""
     data = read_yaml(data_path("cutflows.yaml")) or {}
-    return {"data_stream": data.get("data_stream") or {}, "labels": data.get("labels") or {}}
+    return {"data_stream": data.get("data_stream") or {}, "labels": data.get("labels") or {},
+            "era_only": data.get("era_only") or {}}

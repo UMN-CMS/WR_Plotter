@@ -12,6 +12,24 @@ from the stored members at the analysis binning.
 --theory-dir is the analyzer set with the variations; --dir is the production whose signal_outputs folder
 receives the plots (default: the --theory-dir itself), so they sit next to that production's other signal plots.
 
+Making the --theory-dir set.  The nominal productions carry no theory variations, so the variations come
+from a separate analyzer run of the signal points drawn here, with the weight families scale, pdf and ps
+(nominal plus weight variations, no shape passes; by default --systs varies only m(lljj) and m(lJ), which
+is all this script reads).  It needs a grid proxy for the XRootD signal skims (voms-proxy-init, or ~/bin/renew-proxy.sh), the
+era's PDF set table (WrCoffea config.yaml: pdf_sets) and the signal points of the two m_N lines plotted
+(mN100 and mNhalf, described below).
+One run per point, from the WrCoffea root, into a --dir of its own (2024 example, the 10 points of the
+mN100 and mNhalf lines):
+
+    for pt in WR2000_N100 WR3200_N200 WR4000_N100 WR6000_N100 WR8000_N100 \\
+              WR2000_N1100 WR3200_N1600 WR4000_N2100 WR6000_N3100 WR8000_N4100; do
+        .venv/bin/python bin/run_analysis.py RunIII2024Summer24 Signal --mass $pt \\
+            --systs scale pdf ps --dir <date>_signal_theory --xrootd-timeout 120
+    done
+
+Remake the set whenever the analyzer's signal selection or corrections change: the plotted changes are
+relative and barely move, but the csv's nominal column comes from this set, not from --dir.
+
     <plots>/<Run>/<Year>/<Era>/<dir>/signal_outputs/signal_theory/<topology>_<channel>_<line>.pdf
         up / down change (%) of the SR yield vs m_WR for the points of one m_N line:
         ``mN100`` (the lightest m_N at each m_WR) and ``mNhalf`` (m_N closest to m_WR / 2)

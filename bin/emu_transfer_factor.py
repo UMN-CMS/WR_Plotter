@@ -532,7 +532,7 @@ def write_channel_latex_table(ejet_fits, mujet_fits, fit_ranges, range_labels,
         r"  \centering",
         r"  \begin{tabular}{l | c c}",
         r"    \hline",
-        r"    Mass region & $eJ$ (ee/$\mu$e) & $\mu J$ ($\mu\mu$/e$\mu$) \\",
+        r"    Mass region & ee / $\mu$($e$-jet) & $\mu\mu$ / $e$($\mu$-jet) \\",
         r"    \hline",
     ]
 

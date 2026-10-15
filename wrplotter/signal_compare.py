@@ -60,7 +60,7 @@ from hist import Hist
 from matplotlib.figure import Figure
 
 from .config import era_label, load_lumi
-from .cutflow import CUTFLOW_SF_ROW, cut_label, read_files
+from .cutflow import CUTFLOW_SF_ROW, cut_label, read_files, topology_of
 from .histogram_cache import _open_root
 from .histogram_utils import rebin_histogram
 from .inputs import Inputs, make_inputs, mass_point, read_manifest, root_file
@@ -475,10 +475,10 @@ def cutflow_efficiency(era_set: EraSet, point: str, topology: str, channel: str,
     without signal of the channel's flavour.
     """
     files = point_files(era_set, point)
-    cf = read_files(files, topology, channel, "cumulative") if files else None
+    cf = read_files(files, topology, channel, "cumulative", eras=era_set.eras) if files else None
     if cf is None or produced.total <= 0 or produced.channels[channel] <= 0:
         return None
-    other = read_files(files, topology, "mumu" if channel == "ee" else "ee", "cumulative")
+    other = read_files(files, topology, "mumu" if channel == "ee" else "ee", "cumulative", eras=era_set.eras)
     n_shared = 0
     if other is not None:
         for cut, value, other_cut, other_value in zip(cf.cuts, cf.values, other.cuts, other.values):
@@ -790,7 +790,7 @@ def plot_cutflow_efficiency(series: Sequence[tuple[EraSet, CutflowEfficiency]], 
     fit_header(ax)
     _ratio_panel(rax, series[0][0].label.split(",")[0], ratio_ylim)
     rax.set_xticks(x)
-    rax.set_xticklabels([cut_label(c, "plot") for c in cuts], rotation=45, ha="right", rotation_mode="anchor",
+    rax.set_xticklabels([cut_label(c, "plot", topology_of(cuts)) for c in cuts], rotation=45, ha="right", rotation_mode="anchor",
                         fontsize=FONT_SIZE_MIN)
     rax.set_xlim(-0.5, len(cuts) - 0.5)
     return fig

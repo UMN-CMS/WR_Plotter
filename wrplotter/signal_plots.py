@@ -39,7 +39,7 @@ import mplhep as hep
 import numpy as np
 from hist import Hist
 
-from .config import load_lumi
+from .config import era_label, load_lumi
 from .cutflow import CUTFLOW_SF_ROW, cut_label
 from .inputs import mass_point, read_manifest
 from .paths import SIGNAL_OUTPUTS, plots_base, repo_root
@@ -490,7 +490,7 @@ def plot_cutflows(era_set: EraSet, entries: Sequence[tuple[str, CutflowEfficienc
     else:
         ax.set_ylim(0, 100)
     ax.set_xticks(np.arange(len(cuts)))
-    ax.set_xticklabels([cut_label(c, "plot") for c in cuts], rotation=40, ha="right", rotation_mode="anchor",
+    ax.set_xticklabels([cut_label(c, "plot", topology) for c in cuts], rotation=40, ha="right", rotation_mode="anchor",
                        fontsize=FONT_SIZE_MIN)
     ax.tick_params(axis="x", which="minor", bottom=False, top=False)
     ax.set_xlim(-0.5, len(cuts) - 0.5)
@@ -507,8 +507,9 @@ def plot_cutflows(era_set: EraSet, entries: Sequence[tuple[str, CutflowEfficienc
                   title=r"($m_{W_R}$, $m_N$) [GeV]", title_fontsize=FONT_SIZE_LEGEND)
     else:
         ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
-    weights_note = ("Last point: with lepton\nand LSF SFs" if any(cf.cuts and cf.cuts[-1] == CUTFLOW_SF_ROW
-                                                                   for _, cf in entries)
+    # the LSF SF only in the boosted regions; two lines leave room for the legend beside the text
+    with_sfs = "Last point: with lepton\nand LSF SFs" if topology == "boosted" else "Last point: with lepton SFs"
+    weights_note = (with_sfs if any(cf.cuts and cf.cuts[-1] == CUTFLOW_SF_ROW for _, cf in entries)
                     else "Without lepton SFs")
     _header(ax, era_set, label_text(channel, topology=topology, m_wr=m_wr) + "\n" + weights_note)
     fit_header(ax, margin=0.07)           # the clearance is measured to the marker centres
@@ -566,7 +567,7 @@ def efficiency_latex(era_set: EraSet, summaries: Sequence[PointSummary], m_wr: i
     info = load_lumi(era_set.era)
     lines = [r"\begin{table}[htbp]", r"  \centering",
              rf"  \topcaption{{Signal acceptance times efficiency (\%) in the {CHANNEL_LABELS[channel].replace('$', '')} channel "
-             rf"for $m_{{W_R}} = {m_wr}$\GeV, {era_set.era} ({float(info['lumi']):.1f}\fbinv): the resolved and boosted "
+             rf"for $m_{{W_R}} = {m_wr}$\GeV, {era_label(era_set.era)} ({float(info['lumi']):.1f}\fbinv): the resolved and boosted "
              r"signal regions and their sum, over $\sigma \times L$ of the lepton flavor. The uncertainties are statistical.}",
              rf"  \label{{tab:signal_eff_{channel}_WR{m_wr}}}", r"  \cmsTable{", r"    \begin{tabular}{r|ccc}",
              r"      $m_N$ [GeV] & Resolved SR & Boosted SR & Combined \\", r"      \hline"]

@@ -153,3 +153,32 @@ def test_efficiencies():
 ])
 def test_table_variant(kind, unweighted, mode, name):
     assert table_variant(kind, unweighted, mode) == name
+
+
+class TestShownRows:
+    """Rows a table or plot leaves out, and the per-topology label of the region-SF row."""
+
+    def test_hem_veto_only_where_an_era_applies_it(self):
+        from wrplotter.cutflow import row_shown
+        assert not row_shown("hem_veto", eras=("RunIII2024Summer24",), kind="cumulative", unweighted=False)
+        assert row_shown("hem_veto", eras=("RunIISummer20UL18",), kind="cumulative", unweighted=False)
+        assert row_shown("mll_gt400", eras=("RunIII2024Summer24",), kind="cumulative", unweighted=False)
+
+    def test_region_sf_row_only_in_weighted_cumulative_cutflows(self):
+        from wrplotter.cutflow import CUTFLOW_SF_ROW, row_shown
+        assert row_shown(CUTFLOW_SF_ROW, eras=("RunIII2024Summer24",), kind="cumulative", unweighted=False)
+        assert not row_shown(CUTFLOW_SF_ROW, eras=("RunIII2024Summer24",), kind="cumulative", unweighted=True)
+        assert not row_shown(CUTFLOW_SF_ROW, eras=("RunIII2024Summer24",), kind="onecut", unweighted=False)
+
+    def test_shown_rows_keeps_values_aligned(self):
+        from wrplotter.cutflow import Cutflow, shown_rows
+        cf = Cutflow(("no_cuts", "hem_veto", "mll_gt400"), np.array([3.0, 2.0, 1.0]), np.array([9.0, 4.0, 1.0]))
+        out = shown_rows(cf, eras=("RunIII2024Summer24",), kind="cumulative", unweighted=False)
+        assert out.cuts == ("no_cuts", "mll_gt400")
+        assert list(out.values) == [3.0, 1.0] and list(out.variances) == [9.0, 1.0]
+
+    def test_region_sf_row_label_per_topology(self):
+        from wrplotter.cutflow import CUTFLOW_SF_ROW, cut_label
+        assert "LSF" not in cut_label(CUTFLOW_SF_ROW, "table", "resolved")
+        assert "LSF" in cut_label(CUTFLOW_SF_ROW, "table", "boosted")
+        assert cut_label(CUTFLOW_SF_ROW, "table") == cut_label(CUTFLOW_SF_ROW, "table", "boosted")

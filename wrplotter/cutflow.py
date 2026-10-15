@@ -37,7 +37,7 @@ from typing import Sequence
 
 import numpy as np
 
-from .config import era_label, load_cutflow_config
+from .config import era_label, load_cutflow_config, load_lumi
 from .histogram_cache import _open_root, has_key, report_partial
 from .inputs import Inputs, blinding_recorded, mass_point
 from .sample_groups import load_sample_groups
@@ -96,11 +96,43 @@ def read_cutflow(path: str | Path, topology: str, channel: str, kind: str,
                    np.asarray(h.variances(flow=False), dtype=float))
 
 
+def single_eras(era: str) -> tuple[str, ...]:
+    """The single eras of *era* (itself, or a combination's sub-eras in data/lumi.yaml)."""
+    return tuple(load_lumi(era).get("sub_eras") or [era])
+
+
+def row_shown(cut: str, *, eras: Sequence[str], kind: str, unweighted: bool) -> bool:
+    """Whether a table or plot shows the row of *cut*: not a cut that none of *eras* applies
+    (data/cutflows.yaml era_only, e.g. the 2018 HEM veto), and the region-SF row only in weighted
+    cumulative cutflows (raw counts carry no SFs, and it is no single cut)."""
+    only = load_cutflow_config()["era_only"].get(cut)
+    if only is not None and not set(eras) & set(only):
+        return False
+    return not (cut == CUTFLOW_SF_ROW and (unweighted or kind == "onecut"))
+
+
+def shown_rows(cf: Cutflow, *, eras: Sequence[str], kind: str, unweighted: bool) -> Cutflow:
+    keep = np.array([row_shown(c, eras=eras, kind=kind, unweighted=unweighted) for c in cf.cuts], dtype=bool)
+    if keep.all():
+        return cf
+    return Cutflow(tuple(c for c, k in zip(cf.cuts, keep) if k), cf.values[keep], cf.variances[keep])
+
+
+def sf_words(topology: str) -> str:
+    """The scale factors of the region-SF row: the LSF SF only in the boosted SR and flavour CRs."""
+    return "lepton and LSF scale factors" if topology == "boosted" else "lepton scale factors"
+
+
+def topology_of(cuts: Sequence[str]) -> str:
+    return "boosted" if any(c.startswith("boosted") for c in cuts) else "resolved"
+
+
 def read_files(files: Sequence[str | Path], topology: str, channel: str, kind: str,
-               unweighted: bool = False) -> Cutflow | None:
+               unweighted: bool = False, *, eras: Sequence[str] | None = None) -> Cutflow | None:
     """Cutflow summed over *files* (e.g. the sub-eras of a combined era).
 
     A file without the cutflow while others have it is reported: the sum leaves it out.
+    With *eras*, only the rows those eras show (row_shown).
     """
     key = cutflow_key(topology, channel, kind, unweighted)
     total = None
@@ -116,6 +148,8 @@ def read_files(files: Sequence[str | Path], topology: str, channel: str, kind: s
         for f in files:
             if Path(f).is_file() and not has_key(f, key):
                 report_partial(f, key)
+        if eras is not None:
+            total = shown_rows(total, eras=eras, kind=kind, unweighted=unweighted)
     return total
 
 
@@ -129,7 +163,8 @@ def signal_cutflows(inputs: Inputs, points: Sequence[str], topology: str, channe
     key = cutflow_key(topology, channel, kind, unweighted)
     flows = {}
     for point in points:
-        cf = read_files(inputs.files_for(f"signal_{point}"), topology, channel, kind, unweighted)
+        cf = read_files(inputs.files_for(f"signal_{point}"), topology, channel, kind, unweighted,
+                        eras=single_eras(inputs.era))
         if cf is None:
             logger.warning("No %s cutflow for signal %s.", key, point)
         else:
@@ -198,7 +233,8 @@ def signal_column_label(point: str) -> str:
 def _group_cutflow(inputs: Inputs, samples, topology, channel, kind, unweighted):
     total = None
     for sample in samples:
-        cf = read_files(inputs.files_for(sample), topology, channel, kind, unweighted)
+        cf = read_files(inputs.files_for(sample), topology, channel, kind, unweighted,
+                        eras=single_eras(inputs.era))
         if cf is not None:
             total = cf if total is None else total + cf
     return total
@@ -216,7 +252,7 @@ def _data_column(inputs: Inputs, groups, topology, channel, kind, unweighted, cu
     if legacy:
         return None, (f"{legacy[0].name} has no analyzer blinding record (made before "
                       "analyzer-side blinding); rerun the data to show it")
-    cf = read_files(files, topology, channel, kind, unweighted)
+    cf = read_files(files, topology, channel, kind, unweighted, eras=single_eras(inputs.era))
     if cf is None:
         return None, "no data cutflow"
     unknown = [c for c in cf.cuts if c not in cuts]
@@ -291,9 +327,11 @@ def efficiency(values: np.ndarray, mode: str) -> np.ndarray:
 # Formatting
 # ---------------------------------------------------------------------------
 
-def cut_label(cut: str, which: str = "table") -> str:
-    """Display label of a cut (data/cutflows.yaml), falling back to the key."""
-    entry = load_cutflow_config()["labels"].get(cut)
+def cut_label(cut: str, which: str = "table", topology: str | None = None) -> str:
+    """Display label of a cut (data/cutflows.yaml), falling back to the key; a
+    ``<cut>_<topology>`` entry overrides it for that topology."""
+    labels = load_cutflow_config()["labels"]
+    entry = (labels.get(f"{cut}_{topology}") if topology else None) or labels.get(cut)
     if isinstance(entry, dict) and entry.get(which):
         return str(entry[which])
     return cut.replace("_", r"\_") if which == "table" else cut
@@ -393,9 +431,10 @@ def format_latex(table: CutflowTable, *, era: str, lumi: float, year: str,
     eff = efficiency_mode
     has_data = table.data is not None
     n_bkg = len(table.backgrounds) + 1 + int(has_data)
-    col_spec = "l | " + " ".join(["c"] * n_bkg)
+    # No vertical rules (CMS PubGuidelines, figures and tables): extra space sets the signal columns apart.
+    col_spec = "l " + " ".join(["c"] * n_bkg)
     if table.signals:
-        col_spec += " | " + " ".join(["c"] * len(table.signals))
+        col_spec += r" @{\hspace{3\tabcolsep}} " + " ".join(["c"] * len(table.signals))
 
     header = (["Selection"] + [c.label for c in table.backgrounds] + ["Total bkg."]
               + (["Data"] if has_data else []) + [c.label for c in table.signals])
@@ -413,14 +452,20 @@ def format_latex(table: CutflowTable, *, era: str, lumi: float, year: str,
         what = "raw simulated event counts" if table.unweighted else "expected event yields"
     rows_desc = ("each row applies that single cut alone" if table.kind == "onecut"
                  else "each row applies that cut and all preceding cuts")
-    notes = []
+    notes = ["The first row counts the events of the skims (two leptons, and two AK4 jets or one AK8 jet) "
+             "that pass the event filters."]
     if not table.unweighted:
-        notes.append("Weighted simulation uses the base event weight, without lepton scale factors.")
+        sfs = sf_words(table.topology)
+        notes.append(f"Weighted simulation uses the base event weight, without {sfs}"
+                     + (f", except the last row, which includes the region's {sfs}."
+                        if CUTFLOW_SF_ROW in table.cuts else "."))
     if has_data and table.blinded.any():
         notes.append("Data in the signal-region rows is blinded.")
     caption = (f"{era_label(era)}: {what} for the {table.topology}, {CHANNEL_WORDS.get(table.channel, table.channel)} "
                f"channel; {rows_desc}. Signal columns show $(m_{{W_R}},\\,m_{{N}})$ in GeV. "
-               f"Normalized to ${lumi:.1f}\\,\\mathrm{{fb}}^{{-1}}$ ({year}). " + " ".join(notes))
+               # raw counts carry no normalization
+               + ("" if table.unweighted else f"Normalized to ${lumi:.1f}\\,\\mathrm{{fb}}^{{-1}}$ ({year}). ")
+               + " ".join(notes))
     lines.append(r"\begin{table}[htp]")
     lines.append(f"  \\topcaption{{{caption.strip()}}}")
     variant = table_variant(table.kind, table.unweighted, eff)
@@ -432,7 +477,7 @@ def format_latex(table: CutflowTable, *, era: str, lumi: float, year: str,
     lines.append("      " + " & ".join(header) + r" \\")
     lines.append(r"      \hline")
     for i, cut in enumerate(table.cuts):
-        cells = [cut_label(cut, "table")]
+        cells = [cut_label(cut, "table", table.topology)]
         cells += [fmt(_cells(c.cutflow.values, eff)[i]) for c in table.backgrounds]
         cells.append(fmt(total[i]))
         if has_data:

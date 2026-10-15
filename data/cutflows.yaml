@@ -21,7 +21,8 @@ data_stream:
 # cutflow plots (matplotlib mathtext).  Unknown keys fall back to the key itself.
 labels:
   # resolved
-  no_cuts:                {table: 'No cuts (after event filters)', plot: 'No cuts'}
+  # the events of the skims (two leptons, and two AK4 jets or one AK8 jet) that pass the event filters
+  no_cuts:                {table: 'Skim preselection and event filters', plot: 'Skim + filters'}
   min_two_ak4_jets_pteta: {table: '$\geq$2 AK4 jets ($p_T > 40$, $|\eta| < 2.4$)', plot: '$\geq$2 jets ($p_T$, $\eta$)'}
   min_two_ak4_jets_id:    {table: '$\geq$2 AK4 jets ($p_T$, $|\eta|$, tight ID w/ lepton veto)', plot: '$\geq$2 jets ($p_T$, $\eta$, ID)'}   # pT/eta and ID together since 2026-10-14
   two_pteta_electrons:    {table: '$\geq$2 electrons ($p_T > 53$, $|\eta| < 2.5$)', plot: '$\geq$2 e ($p_T$, $\eta$)'}
@@ -46,8 +47,10 @@ labels:
   mlljj_gt800:            {table: '$m(\ell\ell jj) > 800$ GeV', plot: '$m_{\ell\ell jj} > 800$'}
   mll_gt200:              {table: '$m(\ell\ell) > 200$ GeV', plot: '$m_{\ell\ell} > 200$'}
   mll_gt400:              {table: '$m(\ell\ell) > 400$ GeV', plot: '$m_{\ell\ell} > 400$'}
-  # the last row of a complete chain (resolved and boosted): the last cut with the region's lepton and LSF SFs
+  # the last row of a complete chain: the last cut with the region's SFs, lepton and (boosted) LSF;
+  # <cut>_<topology> overrides a label for one topology (cutflow.cut_label)
   with_region_sfs:        {table: 'With lepton and LSF scale factors', plot: 'with lepton, LSF SFs'}
+  with_region_sfs_resolved: {table: 'With lepton scale factors', plot: 'with lepton SFs'}
   # boosted
   boosted_tag:                    {table: 'Boosted tag', plot: 'Boosted tag'}
   lead_is_electron:               {table: 'Leading lepton is $e$', plot: 'Leading $\ell$ = e'}
@@ -65,3 +68,10 @@ labels:
   of_lepton_in_ak8:               {table: 'Loose OF lepton in AK8 jet', plot: 'OF $\ell$ in AK8'}
   mll_gt200_boosted:              {table: '$m(\ell\ell) > 200$ GeV', plot: '$m_{\ell\ell} > 200$'}
   mlj_gt800_boosted:              {table: '$m(\ell J) > 800$ GeV', plot: '$m_{\ell J} > 800$'}
+
+# Rows of cuts that only some eras apply (WrCoffea config.yaml), shown only for those eras or a
+# combination containing one: elsewhere the analyzer fills them as a pass-through.
+era_only:
+  hem_veto: [RunIISummer20UL18]
+  hem_veto_boosted_sr: [RunIISummer20UL18]
+  hem_veto_boosted_cr: [RunIISummer20UL18]

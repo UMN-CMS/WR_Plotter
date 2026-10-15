@@ -38,9 +38,9 @@ def _title(table: CutflowTable, era: str, what: str) -> str:
             f"Cutflow ({table.kind})\n{what}\n{era_label(era)}")
 
 
-def _cut_axis(ax, cuts) -> None:
+def _cut_axis(ax, cuts, topology: str | None = None) -> None:
     ax.set_xticks(np.arange(len(cuts)))
-    ax.set_xticklabels([cut_label(c, "plot") for c in cuts], rotation=45, ha="right", rotation_mode="anchor",
+    ax.set_xticklabels([cut_label(c, "plot", topology) for c in cuts], rotation=45, ha="right", rotation_mode="anchor",
                        fontsize=FONT_SIZE_MIN)
     ax.set_xlim(-0.5, len(cuts) - 0.5)
     ax.tick_params(axis="x", which="minor", bottom=False, top=False)
@@ -62,7 +62,7 @@ def _shade_blinded(axes, blinded: np.ndarray, *, label_ax=None) -> None:
     for ax in axes:
         ax.axvspan(lo, hi, color="0.85", hatch="xx", alpha=0.5, zorder=0, lw=0)
     if label_ax is not None:
-        label_ax.text(0.5 * (lo + hi), 0.5, "Blinded", transform=label_ax.get_xaxis_transform(),
+        label_ax.text(0.5 * (lo + hi), 0.3, "Blinded", transform=label_ax.get_xaxis_transform(),   # under the legend
                       ha="center", va="center", fontsize=FONT_SIZE_MIN, fontweight="bold", color="red",
                       rotation=90 if hi - lo < 2.5 else 0)
 
@@ -140,11 +140,11 @@ def plot_yields(table: CutflowTable, *, era: str, lumi: float, com: float = 13.6
         rax.axhline(1.0, ls="--", color="k")
         rax.set_ylim(0.0, 2.0)
         rax.set_ylabel("Data / Bkg.")
-        _cut_axis(rax, table.cuts)
+        _cut_axis(rax, table.cuts, table.topology)
         ax.set_xlabel("")
         _shade_blinded([ax, rax], table.blinded, label_ax=rax)
     else:
-        _cut_axis(ax, table.cuts)
+        _cut_axis(ax, table.cuts, table.topology)
         _shade_blinded([ax], table.blinded, label_ax=ax)
     fit_header(ax)
     return fig
@@ -183,7 +183,7 @@ def plot_efficiency(table: CutflowTable, mode: str, *, era: str, lumi: float,
         ax.set_ylim(log_ylim(drawn, pad_high=1e3, floor=1e-7)[0], 1e3)
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(custom_log_formatter))
     ax.set_ylabel(EFFICIENCY_YLABEL[label_key])
-    _cut_axis(ax, table.cuts)
+    _cut_axis(ax, table.cuts, table.topology)
     _shade_blinded([ax], table.blinded, label_ax=ax)
     weighting = "Unweighted" if table.unweighted else "Weighted"
     cms_label(ax, lumi, com, data=table.data is not None,
