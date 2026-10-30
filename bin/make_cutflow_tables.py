@@ -1,38 +1,36 @@
 #!/usr/bin/env python3
-"""Write analyzer cutflow histograms comparing EGamma vs Muon as LaTeX tables."""
+"""
+Generate region-based cutflow LaTeX tables combining all MC samples (2024)
+and Data samples (2025).
+"""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
-
+import numpy as np
 import uproot
-
-
-ERA_DETAILS = {
-    "RunIISummer20UL18": ("RunII", "2018"),
-    "Run3Summer22": ("Run3", "2022"),
-    "Run3Summer22EE": ("Run3", "2022"),
-    "Run3Summer23": ("Run3", "2023"),
-    "Run3Summer23BPix": ("Run3", "2023"),
-    "RunIII2024Summer24": ("Run3", "2024"),
-    "RunIII2025": ("Run3", "2025"),
-}
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--era", required=True, choices=sorted(ERA_DETAILS))
     parser.add_argument(
-        "--dir",
-        default="",
-        help="Read ROOT files from an additional era subdirectory.",
+        "--mc-dir",
+        type=Path,
+        default=Path("rootfiles/Run3/2024/RunIII2024Summer24"),
+        help="Path to 2024 MC ROOT files directory",
+    )
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=Path("rootfiles/Run3/2025/RunIII2025/unskimmed"),
+        help="Path to 2025 Data ROOT files directory",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=None,
-        help="Directory for LaTeX files (default: WR_Plotter/cutflows/<era path>).",
+        default=Path("cutflows/2025_Data_vs_2024_MC"),
+        help="Output directory for generated LaTeX files",
     )
     return parser.parse_args()
 
@@ -50,172 +48,162 @@ def latex_escape(value: str) -> str:
     return "".join(replacements.get(char, char) for char in value)
 
 
-def cut_labels(histogram) -> list[str]:
-    axis = histogram.axis(0)
-    return [str(label) for label in axis.labels()]
-
-
-def histogram_values(root_file, path: str):
+def get_hist_data(root_file, path: str):
+    """Retrieve cut labels and values array for a given histogram path."""
     try:
-        histogram = root_file[path]
+        hist = root_file[path]
+        labels = [str(lbl) for lbl in hist.axis(0).labels()]
+        values = hist.values(flow=False)
+        return labels, np.array(values, dtype=float)
     except (KeyError, uproot.KeyInFileError):
-        return None
-    return histogram, cut_labels(histogram), histogram.values(flow=False)
+        return None, None
 
 
-def table_for_comparison(
-    title: str,
-    egamma_data,
-    muon_data,
-    value_type: str,
-) -> str:
-    _, labels, egamma_values = egamma_data
-    _, _, muon_values = muon_data
+def read_and_sum_histograms(file_paths: list[Path], hist_subpath: str):
+    """
+    Sum histogram bin contents across multiple ROOT files.
+    Returns (labels, total_values_array, dict_of_individual_contributions).
+    """
+    total_values = None
+    common_labels = None
+    individual_contribs = {}
+
+    for filepath in file_paths:
+        if not filepath.exists():
+            continue
+        
+        sample_name = filepath.stem.replace("WRAnalyzer_", "")
+        with uproot.open(filepath) as f:
+            labels, values = get_hist_data(f, hist_subpath)
+            if values is None:
+                continue
+
+            individual_contribs[sample_name] = values
+            if total_values is None:
+                total_values = np.zeros_like(values)
+                common_labels = labels
+            
+            total_values += values
+
+    return common_labels, total_values, individual_contribs
+
+
+def make_latex_table(region_name: str, labels: list[str], mc_contribs: dict, mc_total: np.ndarray, data_total: np.ndarray, mode: str) -> str:
+    """Format individual MC processes, total MC, and Data into a LaTeX table."""
+    mc_samples = sorted(mc_contribs.keys())
     
+    # Headers
+    headers = ["Cut"] + ["Total MC (2024)", "Data (2025)"]
+    col_align = "l" + "r" * (len(headers) - 1)
+
     lines = [
-        rf"\begin{{table}}[htbp]",
-        rf"\centering",
-        rf"\caption{{{latex_escape(title)} ({value_type.capitalize()})}}",
-        rf"\begin{{tabular}}{{lrr}}",
-        rf"\hline",
-        rf"Cut & EGamma & Muon \\",
-        rf"\hline",
+        r"\begin{table}[htbp]",
+        r"\centering",
+        rf"\caption{{Cutflow for {latex_escape(region_name)} ({mode.capitalize()})}}",
+        rf"\begin{{tabular}}{{{col_align}}}",
+        r"\hline",
+        " & ".join(headers) + r" \\",
+        r"\hline",
     ]
-    for label, val_eg, val_mu in zip(labels, egamma_values, muon_values):
-        lines.append(
-            f"{latex_escape(label)} & {val_eg:.6g} & {val_mu:.6g} \\\\"
-        )
+
+    for i, label in enumerate(labels):
+        row_vals = []
+        # for s in mc_samples:
+        #     row_vals.append(f"{mc_contribs[s][i]:.6g}")
+        row_vals.append(f"{mc_total[i]:.6g}")
+        
+        data_val_str = f"{data_total[i]:.6g}" if data_total is not None else "N/A"
+        row_vals.append(data_val_str)
+
+        row_str = f"{latex_escape(label)} & " + " & ".join(row_vals) + r" \\"
+        lines.append(row_str)
+
     lines.extend([
-        rf"\hline",
-        rf"\end{{tabular}}",
-        rf"\end{{table}}",
+        r"\hline",
+        r"\end{tabular}",
+        r"\end{table}",
         "",
     ])
+
     return "\n".join(lines)
 
 
-def process_stream_pair(
-    egamma_root_path: Path,
-    muon_root_path: Path,
-    output_dir: Path,
-    sample_tag: str,
-) -> bool:
-    weighted_sections = []
-    unweighted_sections = []
+def process_topology(mc_files: list[Path], data_files: list[Path], topology: str, output_dir: Path):
+    """Process resolved or boosted topology and produce LaTeX document."""
+    
+    # Discover available regions from any valid MC file
+    sample_mc = next((p for p in mc_files if p.exists()), None)
+    if not sample_mc:
+        print(f"No MC ROOT files found for topology: {topology}")
+        return
 
-    with uproot.open(egamma_root_path) as file_eg, uproot.open(muon_root_path) as file_mu:
-        for topology in ("resolved", "boosted"):
-            prefix = f"cutflow_{topology}"
-            if prefix not in file_eg or prefix not in file_mu:
+    by_region_path = f"cutflow_{topology}/by_region"
+    with uproot.open(sample_mc) as f:
+        if by_region_path not in f:
+            print(f"Path '{by_region_path}' not found in {sample_mc.name}")
+            return
+        regions = [k.split(";")[0] for k in f[by_region_path].keys(cycle=False)]
+
+    for mode in ["cumulative", "cumulative_unweighted"]:
+        tables = []
+        for region in sorted(set(regions)):
+            hist_subpath = f"{by_region_path}/{region}/{mode}"
+
+            labels, mc_total, mc_contribs = read_and_sum_histograms(mc_files, hist_subpath)
+            _, data_total, _ = read_and_sum_histograms(data_files, hist_subpath)
+
+            if labels is None or mc_total is None:
                 continue
 
-            for flavor in ("ee", "mumu", "em"):
-                base = f"{prefix}/{flavor}"
+            table_tex = make_latex_table(
+                region_name=region,
+                labels=labels,
+                mc_contribs=mc_contribs,
+                mc_total=mc_total,
+                data_total=data_total,
+                mode="weighted" if mode == "cumulative" else "unweighted",
+            )
+            tables.append(table_tex)
 
-                # 1. Weighted Comparison
-                weighted_eg = histogram_values(file_eg, f"{base}/cumulative")
-                weighted_mu = histogram_values(file_mu, f"{base}/cumulative")
-                if weighted_eg is not None and weighted_mu is not None:
-                    weighted_sections.append(
-                        table_for_comparison(
-                            f"{sample_tag}: {topology} {flavor}",
-                            weighted_eg,
-                            weighted_mu,
-                            "weighted",
-                        )
-                    )
-
-                # 2. Unweighted Comparison
-                unweighted_eg = histogram_values(file_eg, f"{base}/cumulative_unweighted")
-                unweighted_mu = histogram_values(file_mu, f"{base}/cumulative_unweighted")
-                if unweighted_eg is not None and unweighted_mu is not None:
-                    unweighted_sections.append(
-                        table_for_comparison(
-                            f"{sample_tag}: {topology} {flavor}",
-                            unweighted_eg,
-                            unweighted_mu,
-                            "unweighted",
-                        )
-                    )
-
-    if not weighted_sections and not unweighted_sections:
-        return False
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Write separate output files for weighted and unweighted tables
-    for mode, sections in [("weighted", weighted_sections), ("unweighted", unweighted_sections)]:
-        if not sections:
-            continue
-        output_path = output_dir / f"{sample_tag}_EGamma_vs_Muon_cutflows_{mode}.tex"
-        document = [
-            r"\documentclass{article}",
-            r"\usepackage[margin=1in]{geometry}",
-            r"\begin{document}",
-            "",
-            *sections,
-            r"\end{document}",
-            "",
-        ]
-        output_path.write_text("\n".join(document), encoding="utf-8")
-
-    return True
-
-
-def run_for_directory(input_dir: Path, output_dir: Path) -> int:
-    """Matches corresponding EGamma and Muon files in an input directory."""
-    egamma_files = sorted(input_dir.glob("WRAnalyzer_EGamma*.root"))
-    if not egamma_files:
-        return 0
-
-    written = 0
-    for eg_path in egamma_files:
-        # Match EGamma file with its corresponding Muon dataset counter-part
-        muon_filename = eg_path.name.replace("EGamma", "Muon", 1)
-        if muon_filename == eg_path.name:
-            muon_filename = eg_path.name.replace("EGamma", "SingleMuon", 1)
+        if tables:
+            mode_suffix = "weighted" if mode == "cumulative" else "unweighted"
+            output_file = output_dir / f"cutflow_{topology}_{mode_suffix}_unskimmed.tex"
             
-        mu_path = input_dir / muon_filename
-        if not mu_path.exists():
-            print(f"Skipping {eg_path.name}: matching Muon file {muon_filename} not found in {input_dir}")
-            continue
+            tex_doc = [
+                r"\documentclass{article}",
+                r"\usepackage[margin=0.5in]{geometry}",
+                r"\usepackage{booktabs}",
+                r"\begin{document}",
+                f"\\section*{{Cutflow Tables - {topology.capitalize()} ({mode_suffix.capitalize()})}}",
+                "",
+                *tables,
+                r"\end{document}",
+            ]
+            output_file.write_text("\n".join(tex_doc), encoding="utf-8")
+            print(f"Generated: {output_file}")
 
-        sample_tag = eg_path.stem.replace("EGamma_", "").replace("WRAnalyzer_", "")
-        if process_stream_pair(eg_path, mu_path, output_dir, sample_tag):
-            print(f"Wrote EGamma vs Muon cutflow tables for {sample_tag} ({output_dir.name})")
-            written += 1
 
-    return written
-
-
-def main() -> None:
+def main():
     args = parse_args()
-    run, year = ERA_DETAILS[args.era]
-    plotter_dir = Path(__file__).resolve().parents[1]
 
-    base_input_dir = plotter_dir / "rootfiles" / run / year / args.era
-    if args.dir:
-        base_input_dir /= args.dir
+    # Define file paths based on directory structure
+    mc_files = [
+        args.mc_dir / "WRAnalyzer_DYJets.root",
+        args.mc_dir / "WRAnalyzer_Nonprompt.root",
+        args.mc_dir / "WRAnalyzer_Other.root",
+        args.mc_dir / "WRAnalyzer_tt_tW.root",
+    ]
 
-    base_output_dir = args.output_dir or (
-        plotter_dir / "cutflows" / run / year / args.era / (args.dir or "")
-    )
+    data_files = [
+        args.data_dir / "WRAnalyzer_EGamma.root",
+        args.data_dir / "WRAnalyzer_Muon.root",
+    ]
 
-    total_written = 0
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Process Skimmed directory -> outputs to 'skimmed' folder
-    skimmed_input = base_input_dir
-    skimmed_output = base_output_dir / "skimmed"
-    total_written += run_for_directory(skimmed_input, skimmed_output)
-
-    # 2. Process Unskimmed directory -> outputs to 'unskimmed' folder
-    unskimmed_input = base_input_dir / "unskimmed"
-    if unskimmed_input.exists():
-        unskimmed_output = base_output_dir / "unskimmed"
-        total_written += run_for_directory(unskimmed_input, unskimmed_output)
-
-    if not total_written:
-        raise SystemExit("No cutflow tables were produced")
+    # Generate tables for both boosted and resolved
+    for topology in ["resolved", "boosted"]:
+        process_topology(mc_files, data_files, topology, args.output_dir)
 
 
 if __name__ == "__main__":
