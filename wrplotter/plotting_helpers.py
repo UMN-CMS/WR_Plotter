@@ -243,12 +243,13 @@ def plot_stack(
                      label="Data", xerr=data_xerr, color="k",
                      histtype="errorbar", ax=ax, flow="hint")
 
-    # --- Signal overlays ---
+    # --- Signal overlays: plain lines (no MC error bars, as in the W_R paper's figures), thick
+    # enough that the dotted third one (m(W_R) = 6 TeV by default) still reads at 0.45\textwidth
     for idx, (sig_name, sig_hist) in enumerate(signal_hists.items()):
         hep.histplot(for_drawing(sig_hist), label=signal_label(sig_name),
                      color=SIGNAL_COLORS[idx % len(SIGNAL_COLORS)],
                      linestyle=SIGNAL_STYLES[idx % len(SIGNAL_STYLES)],
-                     histtype="step", linewidth=2, ax=ax,
+                     histtype="step", linewidth=3, yerr=False, ax=ax,
                      flow="hint")
 
     # --- stat + syst uncertainties ---
@@ -343,6 +344,8 @@ def stack_ylim(ylim, edges, xlim, tot, data, signals, *, per_unit: bool = False)
     tails, whose shape the fit uses, stay in view.  A flat
     distribution with hundreds of events per bin thus starts at 10, not 0.1; a layer far below
     the total (e.g. nonprompt in the DY CRs) may then fall under the axis, as on any log stack.
+    The bottom also goes a decade below the lowest signal peak, so a small signal (a few events
+    at m(W_R) = 6 TeV) shows its shape, not only its tip, whatever the configured bottom.
     Top: 10 x the highest bin drawn (stack + its errors, data + upper errors, signals);
     fit_header then raises it only as far as the CMS label, region text and legend need.
     The configured top is used only when nothing is drawn."""
@@ -363,6 +366,10 @@ def stack_ylim(ylim, edges, xlim, tot, data, signals, *, per_unit: bool = False)
     lows = [v[v > 0] for v in lows]
     lowest = min((float(v.min()) for v in lows if v.size), default=0.0)
     bottom = max(floor, 10.0 ** (np.floor(np.log10(lowest)) - 1)) if lowest > 0 else floor
+    peaks = [float(np.max(s.values()[shown])) for s in signals]
+    peaks = [p for p in peaks if p > 0]
+    if peaks:
+        bottom = min(bottom, 10.0 ** (np.floor(np.log10(min(peaks))) - 1))
     return bottom, 10.0 * top
 
 

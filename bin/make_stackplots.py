@@ -9,9 +9,10 @@ analyzer's default sample), each in its own folder:
 Every variable is drawn in uniform bins (data/plot_settings).  --run2-binning draws
 the m(W_R) observables in the Run 2 fit bins instead, into stack_dy_<tag>_run2_binning/.
 
-Signal regions show the background stack with signal overlays.  Their data
-is blinded by the analyzer; it appears only if the data files were made with
-the analyzer's --unblind (Run 2 only).
+Signal regions show the background stack with signal overlays: by default the era's three
+reference points at m(W_R) = 2, 4 and 6 TeV (data/lumi.yaml cutflow_signals_<topology>, the
+points of the cutflow and signal plots).  Their data is blinded by the analyzer; it appears
+only if the data files were made with the analyzer's --unblind (Run 2 only).
 
 Examples:
     python bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --local-plots
@@ -57,7 +58,8 @@ def parse_args() -> argparse.Namespace:
                         help="YAML with rebin/xlim/ylim per (region, variable); default: the era's.")
     parser.add_argument("--signal", "-s", dest="signal", action="append", default=None,
                         help="Signal sample(s) overlaid in signal regions, e.g. signal_WR4000_N2100. "
-                             "Default: per era and topology (data/lumi.yaml).")
+                             "Default: the era's 2, 4 and 6 TeV reference points per topology "
+                             "(data/lumi.yaml cutflow_signals_<topology>).")
     parser.add_argument("--run2-binning", action="store_true",
                         help="Draw the m(W_R) observables in the Run 2 fit bins (rebin_variable) instead of "
                              "uniform bins; plots go to stack_dy_<tag>_run2_binning/.")
@@ -139,7 +141,8 @@ def main():
             axes = axis_config(vcfg, variable_rebin=args.run2_binning, density=args.per_gev)
             signals = []
             if region.is_signal_region:
-                signals = args.signal or default_signals(info, boosted=region.is_boosted)
+                signals = args.signal or [f"signal_{p}" for p in
+                                          default_signals(info, boosted=region.is_boosted, for_cutflow=True)]
             stack = build_stack(region, variable.name, inputs=inputs, groups=groups,
                                 binning=axes.binning, signals=signals,
                                 systematics=systematics)

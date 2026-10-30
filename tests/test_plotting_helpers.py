@@ -386,6 +386,14 @@ class TestStackYlim:
         sig = _make_weighted_hist(np.full(10, 50.0))
         assert stack_ylim((0.1, 1e6), mc.axes[0].edges, (0, 1000), mc, None, [sig])[1] == 500.0
 
+    def test_a_small_signal_peak_sits_a_decade_above_the_bottom(self):
+        from wrplotter.plotting_helpers import stack_ylim
+        mc = _make_weighted_hist(np.full(10, 100.0))
+        big = _make_weighted_hist(np.full(10, 500.0))
+        small = _make_weighted_hist(np.array([0.0] * 8 + [0.03, 0.2]))   # a few events at 6 TeV
+        lo, _ = stack_ylim((0.1, 1e7), mc.axes[0].edges, (0, 1000), mc, None, [big, small])
+        assert lo == 0.01                         # below the configured 0.1: the peak 0.2 -> 0.01
+
 
 class TestLegendPlacement:
 
