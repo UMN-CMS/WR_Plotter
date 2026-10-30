@@ -51,13 +51,24 @@ labels:
   # <cut>_<topology> overrides a label for one topology (cutflow.cut_label)
   with_region_sfs:        {table: 'With lepton and LSF scale factors', plot: 'with lepton, LSF SFs'}
   with_region_sfs_resolved: {table: 'With lepton scale factors', plot: 'with lepton SFs'}
-  # boosted
+  # boosted.  Object rows (files since 2026-10-19): the AK8 jet and the chain's tight-lepton flavour, one
+  # requirement at a time, then the LSF requirement alone and the loose partner before its in-jet row.
+  min_one_ak8_jet_pteta:          {table: '$\geq$1 AK8 jet ($p_T > 200$, $|\eta| < 2.4$)', plot: '$\geq$1 AK8 ($p_T$, $\eta$)'}
+  min_one_ak8_jet_msd:            {table: '$\geq$1 AK8 jet ($p_T$, $|\eta|$, $m_{\mathrm{SD}} > 40$)', plot: '$\geq$1 AK8 ($p_T$, $\eta$, $m_{\mathrm{SD}}$)'}
+  min_one_ak8_jet_id:             {table: '$\geq$1 AK8 jet ($p_T$, $|\eta|$, $m_{\mathrm{SD}}$, tight ID)', plot: '$\geq$1 AK8 ($p_T$, $\eta$, $m_{\mathrm{SD}}$, ID)'}
+  one_pteta_electron:             {table: '$\geq$1 electron ($p_T > 53$, $|\eta| < 2.5$)', plot: '$\geq$1 e ($p_T$, $\eta$)'}
+  one_pteta_muon:                 {table: '$\geq$1 muon ($p_T > 53$, $|\eta| < 2.4$)', plot: '$\geq$1 $\mu$ ($p_T$, $\eta$)'}
+  one_id_electron:                {table: '$\geq$1 electron ($p_T$, $\eta$, HEEP ID)', plot: '$\geq$1 e ($p_T$, $\eta$, HEEP)'}
+  one_id_muon:                    {table: '$\geq$1 muon ($p_T$, $\eta$, high-$p_T$ ID)', plot: '$\geq$1 $\mu$ ($p_T$, $\eta$, ID)'}
+  min_one_ak8_jet_lsf:            {table: '$\geq$1 AK8 jet with LSF $> 0.75$', plot: '$\geq$1 AK8 with LSF'}
+  sf_loose_lepton:                {table: '$\geq$1 additional loose SF lepton', plot: '$\geq$1 loose SF $\ell$'}
+  of_loose_lepton:                {table: '$\geq$1 loose OF lepton', plot: '$\geq$1 loose OF $\ell$'}
   boosted_tag:                    {table: 'Boosted tag', plot: 'Boosted tag'}
   lead_is_electron:               {table: 'Leading lepton is $e$', plot: 'Leading $\ell$ = e'}
   lead_is_muon:                   {table: 'Leading lepton is $\mu$', plot: 'Leading $\ell$ = $\mu$'}
   lead_tight_lepton_pt60_boosted: {table: 'Leading tight lepton $p_T > 60$ GeV', plot: '$p_T^{\ell_1} > 60$'}
   no_dy_pair:                     {table: 'No $60 < m(\ell\ell) < 150$ GeV pair', plot: 'No DY pair'}
-  ak8_jets_with_lsf:              {table: 'AK8 jet with LSF $> 0.75$, $|\Delta\phi| > 2$', plot: 'AK8 jet with LSF'}
+  ak8_jets_with_lsf:              {table: 'AK8 jet with LSF $> 0.75$ and $|\Delta\phi(\ell, J)| > 2$', plot: 'LSF AK8, $|\Delta\phi| > 2$'}
   no_extra_tight_sr:              {table: 'No extra tight lepton', plot: 'No extra tight $\ell$'}
   no_extra_tight_cr:              {table: 'No extra tight lepton', plot: 'No extra tight $\ell$'}
   sf_lepton_in_ak8:               {table: 'Loose SF lepton in AK8 jet', plot: 'SF $\ell$ in AK8'}
