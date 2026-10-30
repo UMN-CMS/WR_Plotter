@@ -112,7 +112,8 @@ def plot_dy_overlay(
     if extra_label:
         text += f"\n{extra_label}"
     fig = _finish(fig, ax, rax, region, variable, entries[0][1], xlim=xlim,
-                  ylim=log_ylim(shown, pad_high=1e3), ratio_ylim=ratio_ylim,
+                  ylim=log_ylim(shown, pad_high=1e3, floor=1e-7 if normalize else 1e-3),
+                  ratio_ylim=ratio_ylim,
                   rlabel="Ratio to ref.",
                   lumi=lumi, com=com, text=text, data=False, per_unit=binning.per_gev)
     if normalize:
