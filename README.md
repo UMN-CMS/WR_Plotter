@@ -675,7 +675,7 @@ git submodule update --init --recursive
 ```
 Or clone with `--recursive`:
 ```bash
-git clone --recursive git@github.com:UMN-CMS/WrCoffea.git
+git clone --recursive https://github.com/UMN-CMS/WrCoffea.git
 ```
 
 Create a branch in the submodule:

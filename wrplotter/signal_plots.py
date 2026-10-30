@@ -15,7 +15,7 @@ Signal in the control regions
     these next to the signal-region curves).
 Cross sections
     sigma(LO) and sigma(LO) x k(NLO) of every point from the analyzer's signal
-    config (the k-factor derivation in docs/studies/signal_kfactor.md), and k
+    config (the k-factor derivation in the analyzer's scripts/signal_kfactor/), and k
     itself, against m_N per m_WR.
 Shapes
     The signal-region mass of several points at one m_WR (and of several m_WR

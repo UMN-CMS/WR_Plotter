@@ -76,8 +76,7 @@ cd WR_Plotter
   frame, right (`plotting_helpers.cms_label`, then `fit_header` last). Data come first in the legend,
   with Garwood (Poisson) errors and horizontal bars only on variable-width bins; the uncertainty band is
   "Sim. stat. (+ syst.) unc." ("MC" is not used as a noun). Backgrounds and signal overlays use the
-  CMS (Petroff) palette; the limit plots in `signal_fitting/` use the CAT band colours, #228b22 (68 %)
-  and #ffcc00 (95 %). Two things to fix before a plot goes into the AN or the thesis:
+  CMS (Petroff) palette; limit plots use the CAT band colours, #228b22 (68 %) and #ffcc00 (95 %). Two things to fix before a plot goes into the AN or the thesis:
   the event-weight (13 pt) and cutflow (14 pt) legends would fall below half the body-text size at
   half a text width, so enlarge them; and the caption of a variable-bin plot (m_lljj, m_lJ in the Run 2
   fit bins) must say that the horizontal bars show the bin widths.
@@ -85,4 +84,4 @@ cd WR_Plotter
 `scripts/plot_jet_veto_maps.py` draws the jet veto maps of the analyzer's `data/jsonpog/` payloads
 into `WR_Plotter/plots/jet_veto_maps/<era>.pdf`, one CMS-style figure per era.
 
-Tests: `cd WR_Plotter && ../.venv/bin/python -m pytest tests -q` (350 tests, offline, about 20 seconds).
+Tests: `cd WR_Plotter && ../.venv/bin/python -m pytest tests -q` (offline, under a minute).
