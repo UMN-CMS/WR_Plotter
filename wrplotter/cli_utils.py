@@ -17,11 +17,11 @@ def add_era_args(parser, *, required: bool = True):
     parser.add_argument(
         "--era", dest="era", type=str, choices=list_eras(),
         required=required,
-        help="Specify the era",
+        help="Era, or a combination of eras from data/lumi.yaml (2022, 2023, 2024, Run3).",
     )
     parser.add_argument(
         "--dir", dest="dir", type=str, default="",
-        help="Optional subdirectory under the input & default EOS output paths",
+        help="The analyzer's --dir tag: the production under rootfiles/<Run>/<Year>/<Era>/<dir>/.",
     )
     parser.add_argument(
         "--verbose", dest="verbose", action="store_true", default=False,
