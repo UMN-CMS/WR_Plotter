@@ -38,6 +38,8 @@ cd WR_Plotter
 ../.venv/bin/python bin/emu_transfer_factor.py      --era Run3 --dir <tag> --local-plots
 ../.venv/bin/python bin/make_signal_plots.py        --era RunIII2024Summer24 --dir <tag> --local-plots
 ../.venv/bin/python bin/compare_signal_eras.py      --era RunIII2024Summer24 --era 2022 --era 2023 --dir <tag> --local-plots
+../.venv/bin/python bin/signal_event_plots.py       fill --era RunIII2024Summer24 --point WR4000_N2100 --flavour El --out <hists>
+../.venv/bin/python bin/signal_event_plots.py       plot --out <hists> --era RunIII2024Summer24 --dir <tag> --local-plots
 ```
 
 | Command | Makes | Output |
@@ -53,6 +55,7 @@ cd WR_Plotter
 | `plot_dy_zpt_reweight.py` | the DY Z-pT payload and, with `--dir`, the reweighted over the unreweighted DY in the DY CRs' pT(ll) | `plots/.../dy_zpt_reweight/` |
 | `emu_transfer_factor.py` | the eμ transfer factor SR / flavour CR on tt̄ and its closure below 800 GeV | `plots/<...>/<dir>/emu_transfer_factor_*.pdf`, `tables/<...>/<dir>/emu_transfer_factor_*.tex` |
 | `compare_signal_eras.py` | signal efficiencies and shapes across eras | `plots/<...>/<ref dir>/signal_outputs/signal_compare/` |
+| `signal_event_plots.py` | event-level signal plots that need generator particles or objects before a cut (the AN-19-083 Figs. 3-5, 10-12, 83-87 analogues): `fill` runs one mass point and flavour through the analyzer's corrections and object selection, `plot` draws every filled point; needs the analyzer checkout (`wrcoffea`, its configs and filesets) | `plots/<...>/<dir>/signal_outputs/event_level/` |
 
 ## Stack plots
 
@@ -119,7 +122,7 @@ Every signal output of a production sits in `<dir>/signal_outputs/<part>/`:
 |---|---|
 | `signal_plots/` | `make_signal_plots.py`: `efficiency/<channel>_WR<m>.pdf` (A × ε vs m_N: resolved, boosted, sum), `efficiency_map/`, `cr_fraction/` (signal in the DY and flavour CRs over σ × L), `xsec/`, `kfactor/`, `mass/`, `resolution/` (median / m_WR and σ_eff / median), `kinematics/<region>/`, `cutflow/`; tables `efficiency.csv`, `latex/signal_eff_<channel>_WR<m>.tex` |
 | `signal_theory/` | `plot_signal_theory_uncertainties.py`: `<topology>_<channel>_mN100.pdf` and `_mNhalf.pdf` (the lightest m_N at each m_WR, and m_N ≈ m_WR / 2), `theory_uncertainties.csv` |
-| `event_level/` | WrCoffea `scripts/signal_event_plots.py plot --era <era> --dir <dir>` |
+| `event_level/` | `signal_event_plots.py plot --era <era> --dir <dir>` |
 | `signal_cutflows/` | `make_signal_cutflows.py` |
 | `signal_compare/<era>_vs_<era>.../` | `compare_signal_eras.py`: `efficiency/`, `resolution/`, `mass/<region>/`, `cutflow/`, `kinematics/`; tables `efficiency.csv`, `scale_factors.csv`, `cutflow.csv`, `summary.txt`, `efficiency_tables.txt`, `latex/` |
 
