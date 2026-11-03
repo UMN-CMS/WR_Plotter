@@ -127,6 +127,23 @@ RunIII2024Summer24:
   plot_settings: RunIII2024Summer24
   <<: *run3_signals
 
+RunIII2025Summer25:
+  label: "2025"
+  run: Run3
+  year: "2025"
+  lumi: 110.62   # processed luminosity of the skims_v2 data, preliminary normtag_BRIL (see WrCoffea wrcoffea/config.yaml)
+  com: 13.6
+  plot_settings: RunIII2024Summer24
+  <<: *run3_signals
+
+"2025":
+  run: Run3
+  year: "2025"
+  com: 13.6
+  sub_eras: [RunIII2025Summer25]
+  plot_settings: RunIII2024Summer24
+  <<: *run3_signals
+
 Run3:
   run: Run3
   year: "2022-2024"
