@@ -19,9 +19,9 @@ The payload defaults to the one config.yaml (dy_reshape) maps for the era; --pay
 another one, --tag names its outputs.
 
 Examples:
-    python bin/plot_dy_reshape.py --era RunIII2024Summer24 --dir 20261013_skims_v2 --local-plots
+    python bin/plot_dy_reshape.py --era RunIII2024Summer24 --dir 20261013_skims_v2
     python bin/plot_dy_reshape.py --era RunIII2024Summer24 --dir 20261013_dycr_split \\
-        --after 20261013_dycr_split_cr1reshape --payload <cr1 payload.json> --tag cr1 --local-plots
+        --after 20261013_dycr_split_cr1reshape --payload <cr1 payload.json> --tag cr1
 """
 
 import argparse
@@ -135,7 +135,7 @@ def main():
     setup_logging(args.verbose)
     info = load_lumi(args.era)
     run, year, lumi, com = info["run"], info["year"], info["lumi"], float(info.get("com", 13.6))
-    base = plots_base(run, year, args.era, args.dir or None, local=args.local_plots) / "dy_reshape"
+    base = plots_base(run, year, args.era, args.dir or None, eos=args.eos) / "dy_reshape"
 
     payload_path = Path(args.payload) if args.payload else default_payload(args.era)
     payload = json.loads(payload_path.read_text())

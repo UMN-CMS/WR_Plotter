@@ -15,9 +15,9 @@ points of the cutflow and signal plots).  Their data is blinded by the analyzer;
 only if the data files were made with the analyzer's --unblind (Run 2 only).
 
 Examples:
-    python bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --local-plots
-    python bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc --local-plots
-    python bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -r resolved_dy_cr -v mass_fourobject --local-plots
+    python bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2
+    python bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc
+    python bin/make_stackplots.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -r resolved_dy_cr -v mass_fourobject
 """
 
 import argparse
@@ -129,7 +129,7 @@ def main():
     groups, order = load_sample_groups()
     groups = [groups[k] for k in order]
     systematics = [] if args.no_syst else load_systematics()
-    base = plots_base(run, year, args.era, args.dir or None, local=args.local_plots)
+    base = plots_base(run, year, args.era, args.dir or None, eos=args.eos)
     logging.info("Era %s (%s %s, %.2f fb^-1 @ %.1f TeV); %d plot(s) x %d DY sample(s) -> %s",
                  args.era, run, year, lumi, com, len(plan), len(inputs_list), base)
 

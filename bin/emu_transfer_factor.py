@@ -9,8 +9,8 @@ Only tt+tW MC is read (WRAnalyzer_tt_tW.root, or the file given with
 (2022, 2023, 2024) or Run3: a combination adds the histograms of its eras
 (data/lumi.yaml sub_eras), each read from rootfiles/<Run>/<Year>/<era>/<dir>.
 
-Outputs (<plots> is plots/ with --local-plots, else EOS, or outputs/ when EOS
-is not mounted; [_tf] in --tf-study mode, which also adds _lowzoom views):
+Outputs (<plots> is plots/, or EOS with --eos; [_tf] in --tf-study mode, which
+also adds _lowzoom views):
     <plots>/<Run>/<Year>/<Era>/<dir>/emu_transfer_factor_{resolved,boosted}[_tf]_<Era>.pdf
     <plots>/<Run>/<Year>/<Era>/<dir>/emu_transfer_factor_boosted_{ejet,mujet}[_tf]_<Era>.pdf
     tables/<Run>/<Year>/<Era>/<dir>/emu_transfer_factor_{resolved,boosted}[_tf].tex
@@ -19,10 +19,10 @@ is not mounted; [_tf] in --tf-study mode, which also adds _lowzoom views):
 
 Usage:
     # Resolved + boosted (nominal SR / flavor CR, m > 800 GeV):
-    python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --local-plots
+    python3 bin/emu_transfer_factor.py --era RunIII2024Summer24 --dir 20261008_skims_v2
 
     # A year or all of Run 3, resolved only:
-    python3 bin/emu_transfer_factor.py --era Run3 --dir 20261008_skims_v2 --resolved --local-plots
+    python3 bin/emu_transfer_factor.py --era Run3 --dir 20261008_skims_v2 --resolved
 
     # Transfer-factor study (AN-19-083 App. J closure): read the ``_nomass``
     # regions written by ``run_analysis.py --study transfer-factor
@@ -755,7 +755,7 @@ def main(argv=None):
 
     info = load_lumi(args.era)
     run, year = info["run"], str(info["year"])
-    plot_dir = plots_base(run, year, args.era, args.dir or None, local=args.local_plots)
+    plot_dir = plots_base(run, year, args.era, args.dir or None, eos=args.eos)
     table_dir = repo_root() / "tables" / run / year / args.era / args.dir
 
     # Determine topologies

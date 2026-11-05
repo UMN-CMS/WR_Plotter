@@ -47,11 +47,11 @@ refused.  A comparison with a sample that cannot be found is skipped and
 reported; the others are still drawn.
 
 Examples:
-    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261013_skims_v2 --local-plots
-    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261013_skims_v2 --comparison all --local-plots
-    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --comparison lo,lo_ht_vs_nlo --plots all --local-plots
-    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261011_skims_v2 --comparison lo --dy lo_ht=20261008_skims_v2,lo_ht_zpt_reshape=20261011_skims_v2 --local-plots
-    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --dy lo_ht,lo_inc,nlo_inc -r resolved_dy_cr -v mass_fourobject --local-plots
+    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261013_skims_v2
+    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261013_skims_v2 --comparison all
+    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --comparison lo,lo_ht_vs_nlo --plots all
+    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261011_skims_v2 --comparison lo --dy lo_ht=20261008_skims_v2,lo_ht_zpt_reshape=20261011_skims_v2
+    python bin/compare_dy.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --dy lo_ht,lo_inc,nlo_inc -r resolved_dy_cr -v mass_fourobject
 """
 
 import argparse
@@ -240,7 +240,7 @@ def main():
 
     groups, order = load_sample_groups()
     groups = [groups[k] for k in order]
-    top = (plots_base(run, year, args.era, args.dir or None, local=args.local_plots)
+    top = (plots_base(run, year, args.era, args.dir or None, eos=args.eos)
            / ("dy_compare_run2_binning" if args.run2_binning else "dy_compare"))
     logging.info("Era %s (%s %s, %.2f fb^-1 @ %.1f TeV); plot set %s, %d (region, variable) pair(s)",
                  args.era, run, year, lumi, com, args.plots, len(plan))

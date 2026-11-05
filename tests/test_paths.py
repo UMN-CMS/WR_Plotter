@@ -13,6 +13,7 @@ from wrplotter.paths import (
     is_eos_path,
     eos_mkdir_p,
     eos_upload,
+    plots_base,
 )
 
 
@@ -195,3 +196,22 @@ class TestEosUpload:
         import pytest
         with pytest.raises(RuntimeError, match="failed"):
             eos_upload("/tmp/f.pdf", "/eos/dest.pdf", _runner=_failed)
+
+
+class TestPlotsBase:
+    """Plots go under plots/ in the repository; --eos sends them to /eos/user/<seg>/."""
+
+    def test_local_by_default(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("wrplotter.paths.repo_root", lambda: tmp_path)
+        out = plots_base("Run3", "2024", "RunIII2024Summer24", "20261104")
+        assert out == tmp_path / "plots" / "Run3" / "2024" / "RunIII2024Summer24" / "20261104"
+        assert out.is_dir()
+        assert plots_base("Run3", "2024", "RunIII2024Summer24") == tmp_path / "plots" / "Run3" / "2024" / "RunIII2024Summer24"
+
+    def test_eos_on_request(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("wrplotter.paths.repo_root", lambda: tmp_path)
+        monkeypatch.setenv("EOSUSER_PATH", "w/wijackso")
+        monkeypatch.delenv("EOS_BASE", raising=False)
+        out = plots_base("Run3", "2024", "RunIII2024Summer24", "20261104", eos=True)
+        assert out == Path("/eos/user/w/wijackso/Run3/2024/RunIII2024Summer24/20261104")
+        assert not (tmp_path / "plots").exists()

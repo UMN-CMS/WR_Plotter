@@ -25,8 +25,8 @@ wrplotter/signal_plots.py).  Only the signal files are read, so a signal-only di
 data/lumi.yaml; "all" = every point); --max-shapes limits the curves of each mass plot.
 
 Examples:
-    python bin/make_signal_plots.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --local-plots
-    python bin/make_signal_plots.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --points WR4000_N2100 WR6000_N100 --local-plots
+    python bin/make_signal_plots.py --era RunIII2024Summer24 --dir 20261012_skims_v2
+    python bin/make_signal_plots.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --points WR4000_N2100 WR6000_N100
 """
 from __future__ import annotations
 
@@ -111,7 +111,7 @@ def main(argv=None) -> int:
         plots = Path(args.out) / "plots"
         tables = Path(args.out) / "tables"
     else:
-        plots = (plots_base(info["run"], info["year"], args.era, args.dir or None, local=args.local_plots)
+        plots = (plots_base(info["run"], info["year"], args.era, args.dir or None, eos=args.eos)
                  / SIGNAL_OUTPUTS / "signal_plots")
         tables = (repo_root() / "tables" / info["run"] / info["year"] / args.era / (args.dir or "")
                   / SIGNAL_OUTPUTS / "signal_plots")

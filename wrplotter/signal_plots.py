@@ -103,12 +103,12 @@ VARIABLE_LABELS = {
 # Inputs and output folders
 # ---------------------------------------------------------------------------
 
-def signal_output_dirs(era: str, dir_name: str, part: str, *, local_plots: bool = False) -> tuple[Path, Path]:
+def signal_output_dirs(era: str, dir_name: str, part: str, *, eos: bool = False) -> tuple[Path, Path]:
     """(plots, tables) folders of one part of a production's signal outputs:
-    ``<plots>/<Run>/<Year>/<Era>/<dir>/signal_outputs/<part>`` (EOS, ``plots/`` or ``outputs/``, as
+    ``<plots>/<Run>/<Year>/<Era>/<dir>/signal_outputs/<part>`` (``plots/``, or EOS with *eos*, as
     :func:`wrplotter.paths.plots_base`) and ``tables/<Run>/<Year>/<Era>/<dir>/signal_outputs/<part>``."""
     info = load_lumi(era)
-    plots = plots_base(info["run"], info["year"], era, dir_name or None, local=local_plots) / SIGNAL_OUTPUTS / part
+    plots = plots_base(info["run"], info["year"], era, dir_name or None, eos=eos) / SIGNAL_OUTPUTS / part
     tables = repo_root() / "tables" / info["run"] / info["year"] / era
     tables = (tables / dir_name if dir_name else tables) / SIGNAL_OUTPUTS / part
     return plots, tables

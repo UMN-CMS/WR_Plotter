@@ -22,7 +22,7 @@ its skimmed file, reads the generator particles of the unskimmed file, and write
 to ``<out>/hists/<point>_<flavour>.pkl``.  ``plot`` draws every point found there.
 
     ../.venv/bin/python bin/signal_event_plots.py fill --era RunIII2024Summer24 --point WR4000_N2100 --flavour El --out DIR
-    ../.venv/bin/python bin/signal_event_plots.py plot --out DIR --era RunIII2024Summer24 --dir 20261013_skims_v2 --local-plots
+    ../.venv/bin/python bin/signal_event_plots.py plot --out DIR --era RunIII2024Summer24 --dir 20261013_skims_v2
 
 Runs with the analyzer's environment: ``wrcoffea`` is imported from the checkout the plotter is a submodule of.
 
@@ -665,7 +665,8 @@ def main(argv=None) -> None:
     p.add_argument("--out", required=True, type=Path, help="the fill step's --out (the histograms)")
     p.add_argument("--era", default=None, help="with --dir: write into that production's signal_outputs/event_level")
     p.add_argument("--dir", default=None, help="production (--dir of run_analysis.py) whose signal outputs get the plots")
-    p.add_argument("--local-plots", action="store_true", help="plots/ instead of EOS")
+    p.add_argument("--eos", action="store_true", help="EOS instead of plots/ in the repository")
+    p.add_argument("--local-plots", action="store_true", help=argparse.SUPPRESS)   # the default
     p.add_argument("--com", type=float, default=None, help="centre-of-mass energy label (default: the era's)")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -685,7 +686,7 @@ def main(argv=None) -> None:
                 parser.error("--dir needs --era")
             from wrplotter.config import load_lumi
             from wrplotter.signal_plots import signal_output_dirs
-            plots_dir, tables_dir = signal_output_dirs(args.era, args.dir, "event_level", local_plots=args.local_plots)
+            plots_dir, tables_dir = signal_output_dirs(args.era, args.dir, "event_level", eos=args.eos)
             com = args.com or float(load_lumi(args.era).get("com", 13.6))
         plot(args.out, com, plots_dir=plots_dir, tables_dir=tables_dir)
 

@@ -147,7 +147,7 @@ def test_signal_output_dirs(tmp_path, monkeypatch):
     """Every signal output of a production goes under <dir>/signal_outputs/<part>, for plots and tables alike."""
     monkeypatch.setattr(sp, "repo_root", lambda: tmp_path)
     monkeypatch.setattr(sp, "plots_base",
-                        lambda run, year, era, subdir, local=False: tmp_path / "plots" / run / year / era / (subdir or ""))
+                        lambda run, year, era, subdir, eos=False: tmp_path / "plots" / run / year / era / (subdir or ""))
     plots, tables = sp.signal_output_dirs(ERA, "prod", "event_level")
     assert plots == tmp_path / "plots" / "Run3" / "2024" / ERA / "prod" / "signal_outputs" / "event_level"
     assert tables == tmp_path / "tables" / "Run3" / "2024" / ERA / "prod" / "signal_outputs" / "event_level"

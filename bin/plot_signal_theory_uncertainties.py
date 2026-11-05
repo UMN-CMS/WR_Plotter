@@ -38,7 +38,7 @@ relative and barely move, but the csv's nominal column comes from this set, not 
 
 Example:
     python bin/plot_signal_theory_uncertainties.py --era RunIII2024Summer24 --dir 20261013_skims_v2 \
-        --theory-dir 20261013_signal_theory --local-plots
+        --theory-dir 20261013_signal_theory
 """
 from __future__ import annotations
 
@@ -136,7 +136,7 @@ def main(argv=None) -> int:
     if args.out:
         plots, tables = Path(args.out) / "plots", Path(args.out) / "tables"
     else:
-        plots = (plots_base(info["run"], info["year"], args.era, args.dir or None, local=args.local_plots)
+        plots = (plots_base(info["run"], info["year"], args.era, args.dir or None, eos=args.eos)
                  / SIGNAL_OUTPUTS / "signal_theory")
         tables = (repo_root() / "tables" / info["run"] / info["year"] / args.era / (args.dir or "")
                   / SIGNAL_OUTPUTS / "signal_theory")

@@ -20,9 +20,9 @@ The histograms are written by the analyzer for MC only (event_weights/ in the
 ROOT files); files made before that need an analyzer rerun.
 
 Examples:
-    python bin/plot_event_weights.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --local-plots
-    python bin/plot_event_weights.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc --local-plots
-    python bin/plot_event_weights.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -r resolved_sr --no-components --local-plots
+    python bin/plot_event_weights.py --era RunIII2024Summer24 --dir 20261008_skims_v2
+    python bin/plot_event_weights.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_ht,lo_inc
+    python bin/plot_event_weights.py --era RunIII2024Summer24 --dir 20261008_skims_v2 -r resolved_sr --no-components
 """
 
 import argparse
@@ -149,7 +149,7 @@ def main():
                       ", ".join(str(d) for d in main_inputs.dirs))
         sys.exit(2)
 
-    base = plots_base(run, year, args.era, args.dir or None, local=args.local_plots) / "event_weights"
+    base = plots_base(run, year, args.era, args.dir or None, eos=args.eos) / "event_weights"
     tables = repo_root() / "tables" / run / year / args.era
     tables = (tables / args.dir if args.dir else tables) / "event_weights"
     tables.mkdir(parents=True, exist_ok=True)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import argparse
 import logging
 
 from .config import list_eras
@@ -72,10 +73,11 @@ def add_selection_args(parser):
 
 
 def add_output_args(parser):
-    """Add --local-plots."""
-    parser.add_argument("--local-plots", action="store_true",
-                        help="Save plots under plots/ in the repository instead of EOS "
-                             "(outputs/ when EOS is not available).")
+    """Add --eos; --local-plots, the default, is still accepted."""
+    parser.add_argument("--eos", action="store_true",
+                        help="Save plots to EOS, /eos/user/<you>/<Run>/<Year>/<Era>/<dir>/ (wrplotter/paths.py: "
+                             "EOSUSER, EOSUSER_PATH, EOS_BASE, EOS_ENDPOINT), instead of plots/ in the repository.")
+    parser.add_argument("--local-plots", action="store_true", help=argparse.SUPPRESS)   # the default
 
 
 def select_regions(era: str, requested):

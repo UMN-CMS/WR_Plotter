@@ -22,9 +22,9 @@ analyzer: rows a data cutflow lacks are shown as blinded, and data files made
 before analyzer-side blinding give no data column (with a note).
 
 Examples:
-    python bin/make_cutflows.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --local-plots
+    python bin/make_cutflows.py --era RunIII2024Summer24 --dir 20261008_skims_v2
     python bin/make_cutflows.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --dy lo_inc --no-plots
-    python bin/make_cutflows.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --topology resolved --channel mumu --signal WR4000_N2100 --local-plots
+    python bin/make_cutflows.py --era RunIII2024Summer24 --dir 20261008_skims_v2 --topology resolved --channel mumu --signal WR4000_N2100
 """
 
 import argparse
@@ -171,7 +171,7 @@ def main():
                 logging.info("pdflatex not found; preview.tex not compiled.")
 
     if not args.no_plots:
-        base = plots_base(run, year, args.era, args.dir or None, local=args.local_plots) / subdir
+        base = plots_base(run, year, args.era, args.dir or None, eos=args.eos) / subdir
         n_saved = 0
         for table, mode in entries:
             variant = table_variant(table.kind, table.unweighted, mode)

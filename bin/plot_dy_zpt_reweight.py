@@ -16,15 +16,15 @@ Outputs under <plots>/<Run>/<Year>/<Era>/[<dir>/]dy_zpt_reweight/:
                               (--dy before,after; default lo_ht,lo_ht_zpt)
 
 The before/after pT(ll) stack plots of AN-19-083 Figs. 15-18 are make_stackplots.py's:
-    python bin/make_stackplots.py --era E --dir D --dy lo_ht,lo_ht_zpt -r resolved_dy_cr,boosted_dy_cr -v pt_dilepton --local-plots
+    python bin/make_stackplots.py --era E --dir D --dy lo_ht,lo_ht_zpt -r resolved_dy_cr,boosted_dy_cr -v pt_dilepton
 
 The payload defaults to the one config.yaml (dy_zpt_reweight) maps for the era, the Run 2
 reference to the converted Run 2 payload the EW correction was copied from.
 
 Examples:
-    python bin/plot_dy_zpt_reweight.py --era RunIII2024Summer24 --local-plots
-    python bin/plot_dy_zpt_reweight.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --dy lo_ht,lo_ht_zpt --local-plots
-    python bin/plot_dy_zpt_reweight.py --era RunIISummer20UL18 --payload ../data/reweights/RunII/2018/RunIISummer20UL18/dy_zpt_reweight_ul_20261011.json --reference none --local-plots
+    python bin/plot_dy_zpt_reweight.py --era RunIII2024Summer24
+    python bin/plot_dy_zpt_reweight.py --era RunIII2024Summer24 --dir 20261012_skims_v2 --dy lo_ht,lo_ht_zpt
+    python bin/plot_dy_zpt_reweight.py --era RunIISummer20UL18 --payload ../data/reweights/RunII/2018/RunIISummer20UL18/dy_zpt_reweight_ul_20261011.json --reference none
 """
 
 import argparse
@@ -117,7 +117,7 @@ def main():
             raise SystemExit(f"reference payload not found: {args.reference}")
         else:
             logging.info("No Run 2 reference payload found for the overlay (--reference).")
-    base = plots_base(run, year, args.era, args.dir or None, local=args.local_plots) / "dy_zpt_reweight"
+    base = plots_base(run, year, args.era, args.dir or None, eos=args.eos) / "dy_zpt_reweight"
     logging.info("Era %s: payload %s (derived %s), reference %s -> %s", args.era, payload.era,
                  payload.provenance.get("derived_on", "?"), reference.era if reference else "none", base)
 

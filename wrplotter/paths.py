@@ -76,8 +76,6 @@ def input_dirs_for_era(era: str, working_dir: str | Path,
 #   EOSUSER        – CERN username if it differs from $USER, e.g. "wijackso"
 #                    (builds segment as first-char/username)
 #   EOS_BASE       – override the entire /eos/user/<seg> root
-#   FORCE_EOS      – set to 1 to use EOS even if /eos is not mounted
-#   FORCE_LOCAL    – set to 1 to always write locally instead of EOS
 
 def eos_endpoint() -> str:
     """Hostname for xrdfs/xrdcp (override via $EOS_ENDPOINT)."""
@@ -166,17 +164,6 @@ def eos_upload(local_file: str | Path, eos_dest: str | Path, *,
         ) from exc
 
 
-# ── Output location (EOS vs local) ─────────────────────────────────────────────
-
-def _eos_available() -> bool:
-    if os.environ.get("FORCE_LOCAL"):
-        return False
-    if os.environ.get("FORCE_EOS"):
-        return True
-    base_override = os.environ.get("EOS_BASE")
-    probe = Path(base_override) if base_override else Path("/eos")
-    return probe.exists()
-
 # ── Save helpers ───────────────────────────────────────────────────────────────
 
 def ensure_local_dir(path: str | Path) -> None:
@@ -204,16 +191,16 @@ def save_figure(fig, dest_path: str | Path, *, force_local: bool = False, fmt: s
 
 
 def plots_base(run: str, year: str, era: str, subdir: Optional[str] = None, *,
-               local: bool = False) -> Path:
+               eos: bool = False) -> Path:
     """Root of a script's plot output, ``<root>/<run>/<year>/<era>[/<subdir>]``.
 
-    The root is ``plots/`` in the repository when *local*, else EOS when it is
-    mounted (or FORCE_EOS=1), else ``outputs/`` in the repository.  Local
-    directories are created; EOS directories are made on demand by save_figure().
+    The root is ``plots/`` in the repository, or ``/eos/user/<seg>`` with *eos*
+    (``--eos``).  Local directories are created; EOS directories are made on
+    demand by save_figure(), which uploads with xrdcp.
     """
-    if not local and _eos_available():
+    if eos:
         return eos_base(run, year, era, subdir or None)
-    base = repo_root() / ("plots" if local else "outputs") / run / year / era
+    base = repo_root() / "plots" / run / year / era
     out = base / subdir if subdir else base
     out.mkdir(parents=True, exist_ok=True)
     return out

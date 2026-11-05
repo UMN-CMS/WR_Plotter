@@ -39,9 +39,9 @@ labels.  --points picks the points of the cutflow and kinematics plots
 every common point).  -o DIR writes the plots and tables there instead.
 
 Examples:
-    python bin/compare_signal_eras.py --era RunIII2024Summer24 --era 2022 --era 2023 --dir 20261008_signals --local-plots
-    python bin/compare_signal_eras.py --era RunIISummer20UL18 --era 2022 --era 2023 --era 2024 --dir 20261008_signals --local-plots
-    python bin/compare_signal_eras.py --era 2024=20261008_signals --era 2024=20261008_skims_v2 --points WR4000_N2100 --local-plots
+    python bin/compare_signal_eras.py --era RunIII2024Summer24 --era 2022 --era 2023 --dir 20261008_signals
+    python bin/compare_signal_eras.py --era RunIISummer20UL18 --era 2022 --era 2023 --era 2024 --dir 20261008_signals
+    python bin/compare_signal_eras.py --era 2024=20261008_signals --era 2024=20261008_skims_v2 --points WR4000_N2100
 """
 
 import argparse
@@ -583,7 +583,7 @@ def main():
         base = tables = args.output_dir
     else:
         base = plots_base(info["run"], info["year"], ref.era, ref.dir_name or None,
-                          local=args.local_plots) / SIGNAL_OUTPUTS / "signal_compare" / tag
+                          eos=args.eos) / SIGNAL_OUTPUTS / "signal_compare" / tag
         tables = repo_root() / "tables" / info["run"] / info["year"] / ref.era
         tables = (tables / ref.dir_name if ref.dir_name else tables) / SIGNAL_OUTPUTS / "signal_compare" / tag
     tables.mkdir(parents=True, exist_ok=True)

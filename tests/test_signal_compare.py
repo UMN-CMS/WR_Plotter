@@ -398,10 +398,10 @@ def test_labels_name_and_efficiency_tables(script, sets, analyzer, tmp_path, mon
     monkeypatch.setattr(sys, "argv", ["compare_signal_eras.py", "--era", f"RunIII2024Summer24={DIR}", "--era", "2022",
                                       "--dir", DIR, "--analyzer-root", str(analyzer), "--label", "2024 private",
                                       "--label", "2022 (both eras)", "--name", "my_comparison", "--no-kinematics",
-                                      "--no-pdf", "--local-plots"])
+                                      "--no-pdf"])
     monkeypatch.setitem(script["main"].__globals__, "repo_root", lambda: tmp_path)
     monkeypatch.setitem(script["main"].__globals__, "plots_base",
-                        lambda run, year, era, subdir, local: tmp_path / "plots")
+                        lambda run, year, era, subdir, eos: tmp_path / "plots")
     script["main"]()
     tables = (tmp_path / "tables" / "Run3" / "2024" / "RunIII2024Summer24" / DIR / "signal_outputs" / "signal_compare"
               / "my_comparison")
