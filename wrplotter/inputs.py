@@ -238,8 +238,8 @@ def resolve_dy(era: str, dir_name: str, spec: str | None = None,
         raise FileNotFoundError(
             f"No {fname} for DY sample '{tag}': {', '.join(missing)}"
             + (f" (nor {plain} in the old-layout {', '.join(old)})" if old else "")
-            + f". Run the analyzer with {run} --dir {explicit or dir_name}, or point to it with "
-            f"--dy {tag}=<dir>."
+            + f". Run the analyzer with {run} --dir {explicit or dir_name or '<tag>'}, or point to it with "
+            f"--dy {tag}=<dir>." + _sets_hint(dirs, explicit or dir_name)
         )
     for f in files:
         found = detect_dy_tag(f)
@@ -269,6 +269,26 @@ def resolve_dy(era: str, dir_name: str, spec: str | None = None,
 # ---------------------------------------------------------------------------
 # Analysis set
 # ---------------------------------------------------------------------------
+
+def analysis_sets(era_dir: Path) -> list[str]:
+    """The ``--dir`` tags under an era's rootfiles directory: its sub-directories that hold analyzer
+    files (``run_production.py`` names them by its date, ``YYYYMMDD``)."""
+    if not era_dir.is_dir():
+        return []
+    return sorted(d.name for d in era_dir.iterdir() if d.is_dir() and any(d.glob("WRAnalyzer_*.root")))
+
+
+def _sets_hint(dirs: Sequence[Path], dir_name: str) -> str:
+    """For a missing-file error: the sets with analyzer files under each era directory (the directory
+    itself when no ``--dir`` was given), so the reader sees which ``--dir`` to pass."""
+    parts = []
+    for d in dirs:
+        era_dir = d.parent if dir_name else d
+        sets = analysis_sets(era_dir)
+        if sets:
+            parts.append(f"{era_dir}: {', '.join(sets)}")
+    return (" Sets with analyzer files, for --dir: " + "; ".join(parts) + ".") if parts else ""
+
 
 @dataclass(frozen=True)
 class Inputs:
@@ -340,7 +360,7 @@ def make_inputs(era: str, dir_name: str = "", dy_specs: Sequence[str] | None = N
     dirs, _ = input_dirs_for_era(era, working_dir or repo_root(), dir_name)
     absent = [str(d) for d in dirs if not d.is_dir()]
     if absent:
-        raise FileNotFoundError(f"Input directory not found: {', '.join(absent)}")
+        raise FileNotFoundError(f"Input directory not found: {', '.join(absent)}." + _sets_hint(dirs, dir_name))
     if not with_dy:
         if dy_specs:
             raise ValueError("DY samples requested with with_dy=False.")

@@ -32,8 +32,13 @@ cd WR_Plotter
 ../.venv/bin/python bin/emu_transfer_factor.py      --era Run3 --dir <tag> --local-plots
 ```
 
-- `--dir` is the analyzer's `--dir`. `--era` takes one era or a combination (`2022`, `2023`, `2024`,
-  `Run3`), which sums the eras' histograms; every era then needs the same `--dir`.
+- `--dir` is the analyzer's `--dir`: the directory under `rootfiles/<Run>/<Year>/<Era>/` that holds
+  the files. `run_production.py` without `--dir` names it by its date, `YYYYMMDD`; a missing file
+  lists the sets present. `--era` takes one era or a combination (`2022`, `2023`, `2024`, `Run3`),
+  which sums the eras' histograms; every era then needs the same `--dir`.
+- `--dy <variant>` picks a DY variant file of the set, `WRAnalyzer_DYJets_<variant>.root` (`lo_inc`,
+  `nlo_inc`, `nlo_mll`, `nlo_njet`, `lo_ht_zpt`, `lo_ht_zpt_reshape`); without it the stack uses the
+  default LO HT-binned DY, `WRAnalyzer_DYJets.root`. Several at once: `--dy lo_ht,nlo_inc`.
 - `--local-plots` writes under `plots/`; without it plots go to EOS (`/eos/user/<i>/<user>/...`) when
   `/eos` is mounted, else to `outputs/`. Tables always go to `tables/`.
 - `-r` and `-v` pick regions and variables; `--list-eras`, `--list-regions`, `--list-variables` print

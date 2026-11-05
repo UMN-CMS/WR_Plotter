@@ -7,7 +7,7 @@ page lists the ones that change what is produced.
 | Option | Meaning |
 | --- | --- |
 | `--era` | one era, or a combination from `data/lumi.yaml` (`2022`, `2023`, `2024`, `Run3`): the eras' histograms are added and the luminosities summed; every era is read from its own `rootfiles/.../<dir>`, so all need the same `--dir`. A sample or histogram missing from some eras is reported. |
-| `--dir` | the analyzer's `--dir` tag |
+| `--dir` | the analyzer's `--dir` tag: the directory under `rootfiles/<Run>/<Year>/<Era>/` that holds the files (`run_production.py` without `--dir` names it by its date, `YYYYMMDD`); a missing file lists the sets present |
 | `--local-plots` | plots under `plots/`; without it they go to EOS when `/eos` is mounted, else to `outputs/` (`wrplotter/paths.py` reads `EOSUSER`, `EOS_BASE`, `FORCE_LOCAL`). Tables always go to `tables/`. |
 | `-r`, `-v`, `-s` | regions, variables, signal samples; repeat or comma-separate. `--list-regions`, `--list-variables`, `--list-eras` print the choices. |
 | `--dy TAG[=DIR]` | the Drell-Yan sample, next section |

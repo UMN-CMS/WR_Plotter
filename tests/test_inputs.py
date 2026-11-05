@@ -124,6 +124,14 @@ class TestDYResolution:
         with pytest.raises(FileNotFoundError, match=f"WRAnalyzer_DYJets_nlo_mll.root.*--dy nlo_mll --dir {DIR}"):
             make_inputs(ERA, DIR, ["nlo_mll"], working_dir=analysis_set)
 
+    def test_missing_file_names_the_sets_of_the_era(self, analysis_set):
+        """Without --dir the plotter reads the era directory itself; the error names the sets below
+        it (run_production.py's dated directories) so the reader knows which --dir to pass."""
+        with pytest.raises(FileNotFoundError, match=f"for --dir: .*{ERA}: {DIR}"):
+            make_inputs(ERA, "", ["lo_ht"], working_dir=analysis_set)
+        with pytest.raises(FileNotFoundError, match=f"Input directory not found.*for --dir: .*{DIR}"):
+            make_inputs(ERA, "nonesuch", ["lo_ht"], working_dir=analysis_set)
+
     def test_mislabelled_file_refused(self, analysis_set):
         _write_dy(_era_dir(analysis_set, DIR), "nlo_inc", datasets=LO_INC)
         with pytest.raises(ValueError, match="holds the 'lo_inc' DY sample"):
