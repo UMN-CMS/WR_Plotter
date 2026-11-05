@@ -8,7 +8,7 @@ page lists the ones that change what is produced.
 | --- | --- |
 | `--era` | one era, or a combination from `data/lumi.yaml` (`2022`, `2023`, `2024`, `Run3`): the eras' histograms are added and the luminosities summed; every era is read from its own `rootfiles/.../<dir>`, so all need the same `--dir`. A sample or histogram missing from some eras is reported. |
 | `--dir` | the analyzer's `--dir` tag: the directory under `rootfiles/<Run>/<Year>/<Era>/` that holds the files (`run_production.py` without `--dir` names it by its date, `YYYYMMDD`); a missing file lists the sets present |
-| `--local-plots` | plots under `plots/`; without it they go to EOS when `/eos` is mounted, else to `outputs/` (`wrplotter/paths.py` reads `EOSUSER`, `EOS_BASE`, `FORCE_LOCAL`). Tables always go to `tables/`. |
+| `--eos` | plots to EOS, `/eos/user/<you>/<Run>/<Year>/<Era>/<dir>/` (`wrplotter/paths.py` reads `EOSUSER`, `EOSUSER_PATH`, `EOS_BASE`, `EOS_ENDPOINT`); without it they go under `plots/`. Tables always go to `tables/`. |
 | `-r`, `-v`, `-s` | regions, variables, signal samples; repeat or comma-separate. `--list-regions`, `--list-variables`, `--list-eras` print the choices. |
 | `--dy TAG[=DIR]` | the Drell-Yan sample, next section |
 
@@ -42,7 +42,7 @@ not match its tag is refused. `nlo_ptll` is unstitched slices, not a prediction.
 ### Stack plots
 
 ```bash
-../.venv/bin/python bin/make_stackplots.py --era RunIII2024Summer24 --dir <tag> --local-plots
+../.venv/bin/python bin/make_stackplots.py --era RunIII2024Summer24 --dir <tag>
 ```
 
 Data over the stacked backgrounds for every region and variable, signal overlays in the signal
@@ -58,7 +58,7 @@ regions, the systematic band. Output: `plots/<...>/<dir>/stack_dy_<tag>/<region>
 ### Cutflows
 
 ```bash
-../.venv/bin/python bin/make_cutflows.py --era RunIII2024Summer24 --dir <tag> --local-plots
+../.venv/bin/python bin/make_cutflows.py --era RunIII2024Summer24 --dir <tag>
 ```
 
 Per topology and channel: cumulative and one-cut yields, weighted and raw, with running and relative
@@ -85,7 +85,7 @@ Yields and efficiencies per (m_WR, m_N) point, from every `WRAnalyzer_signal_WR<
 ### Signal plots
 
 ```bash
-../.venv/bin/python bin/make_signal_plots.py --era RunIII2024Summer24 --dir <tag> --local-plots
+../.venv/bin/python bin/make_signal_plots.py --era RunIII2024Summer24 --dir <tag>
 ```
 
 One era's signal: A × ε against m_N and over the grid, the signal in the control regions, σ and k,
@@ -100,7 +100,7 @@ tables `tables/<...>/<dir>/signal_outputs/signal_plots/efficiency.csv` and `late
 ### Signal across eras
 
 ```bash
-../.venv/bin/python bin/compare_signal_eras.py --era RunIII2024Summer24 --era 2022 --era 2023 --dir <tag> --local-plots
+../.venv/bin/python bin/compare_signal_eras.py --era RunIII2024Summer24 --era 2022 --era 2023 --dir <tag>
 ```
 
 Signal efficiencies and shapes across eras; each `--era ERA[=DIR]` is one set, the first the
@@ -114,7 +114,7 @@ tables `efficiency.csv`, `scale_factors.csv`, `cutflow.csv`, `summary.txt`, `eff
 ### Signal theory uncertainties
 
 ```bash
-../.venv/bin/python bin/plot_signal_theory_uncertainties.py --era RunIII2024Summer24 --dir <tag> --theory-dir <systs tag> --local-plots
+../.venv/bin/python bin/plot_signal_theory_uncertainties.py --era RunIII2024Summer24 --dir <tag> --theory-dir <systs tag>
 ```
 
 Scale, PDF, α_S and parton-shower changes of the signal-region yields against m_WR, from a signal set
@@ -125,7 +125,7 @@ made with `--systs scale pdf ps` (`--theory-dir`, default `--dir`). Output:
 
 ```bash
 ../.venv/bin/python bin/signal_event_plots.py fill --era RunIII2024Summer24 --point WR4000_N2100 --flavour El --out <hists>
-../.venv/bin/python bin/signal_event_plots.py plot --out <hists> --era RunIII2024Summer24 --dir <tag> --local-plots
+../.venv/bin/python bin/signal_event_plots.py plot --out <hists> --era RunIII2024Summer24 --dir <tag>
 ```
 
 The signal plots that need generator particles or objects before a cut (the AN-19-083 Figs. 3-5,
@@ -150,7 +150,7 @@ and `systematics.{txt,md,csv}` for all regions.
 ### Drell-Yan comparisons
 
 ```bash
-../.venv/bin/python bin/compare_dy.py --era RunIII2024Summer24 --dir <tag> --local-plots
+../.venv/bin/python bin/compare_dy.py --era RunIII2024Summer24 --dir <tag>
 ```
 
 The DY samples alone and inside the total background, the first sample of each comparison the
@@ -176,7 +176,7 @@ reference. Output: `plots/<...>/<dir>/dy_compare/[<comparison>/]{abs,shape,stat,
 ### Drell-Yan Z-pT reweight
 
 ```bash
-../.venv/bin/python bin/plot_dy_zpt_reweight.py --era RunIII2024Summer24 --dir <tag> --dy lo_ht,lo_ht_zpt --local-plots
+../.venv/bin/python bin/plot_dy_zpt_reweight.py --era RunIII2024Summer24 --dir <tag> --dy lo_ht,lo_ht_zpt
 ```
 
 The era's Z-pT payload (`config.yaml` `dy_zpt_reweight`; `--payload` another, `--reference` the
@@ -187,7 +187,7 @@ and `applied/<region>.pdf`.
 ### Drell-Yan jet-pT reshape
 
 ```bash
-../.venv/bin/python bin/plot_dy_reshape.py --era RunIII2024Summer24 --dir <tag> --local-plots
+../.venv/bin/python bin/plot_dy_reshape.py --era RunIII2024Summer24 --dir <tag>
 ```
 
 The era's reshape payload (`config.yaml` `dy_reshape`; `--payload` another, `--tag` names its
@@ -200,7 +200,7 @@ and `cr2_closure/<region>/<variable>_<region>_{before,after}.pdf`.
 ### Event weights
 
 ```bash
-../.venv/bin/python bin/plot_event_weights.py --era RunIII2024Summer24 --dir <tag> --local-plots
+../.venv/bin/python bin/plot_event_weights.py --era RunIII2024Summer24 --dir <tag>
 ```
 
 The MC event-weight distributions per region: log₁₀|w| per group (w > 0 solid, w < 0 dashed; N,
@@ -213,7 +213,7 @@ with several `--dy`; `tables/<...>/<dir>/event_weights/<region>.txt`.
 ### eμ transfer factor
 
 ```bash
-../.venv/bin/python bin/emu_transfer_factor.py --era Run3 --dir <tag> --local-plots
+../.venv/bin/python bin/emu_transfer_factor.py --era Run3 --dir <tag>
 ```
 
 The eμ transfer factor, signal region over flavour control region on tt̄+tW
