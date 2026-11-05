@@ -187,10 +187,12 @@ def common_points(sets: Sequence[EraSet]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def signal_config_path(era: str, analyzer_root: str | Path | None = None) -> Path:
-    """The analyzer's dataset config of an era's signal (WrCoffea data/configs)."""
-    info = load_lumi(era)
+    """The analyzer's dataset config of an era's signal (WrCoffea data/configs).  A data-only era
+    (``mc_alias`` in data/lumi.yaml) reads the config of the era whose MC it runs."""
+    mc_era = load_lumi(era).get("mc_alias") or era
+    info = load_lumi(mc_era)
     root = Path(analyzer_root) if analyzer_root else repo_root().parent
-    return root / "data" / "configs" / str(info["run"]) / str(info["year"]) / era / f"{era}_signal.json"
+    return root / "data" / "configs" / str(info["run"]) / str(info["year"]) / mc_era / f"{mc_era}_signal.json"
 
 
 @lru_cache(maxsize=None)

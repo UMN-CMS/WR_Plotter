@@ -134,6 +134,7 @@ RunIII2025Summer25:
   lumi: 110.62   # processed luminosity of the skims_v2 data, preliminary normtag_BRIL (see WrCoffea wrcoffea/config.yaml)
   com: 13.6
   plot_settings: RunIII2024Summer24
+  mc_alias: RunIII2024Summer24   # data-only era: its MC, signal configs and mass points are the 2024 ones
   <<: *run3_signals
 
 "2025":

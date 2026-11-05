@@ -95,6 +95,14 @@ def test_cross_sections_from_the_config(era_set, analyzer, tmp_path):
     assert xs["WR4000_N2100"]["mumu"]["k"] == pytest.approx(1.3)
 
 
+def test_signal_config_of_a_data_only_era_is_its_mc_eras(tmp_path):
+    """2025 runs the 2024 MC (mc_alias in data/lumi.yaml): its cross sections are in the 2024 signal config."""
+    assert sc.signal_config_path("RunIII2025Summer25", tmp_path) == \
+        tmp_path / "data/configs/Run3/2024/RunIII2024Summer24/RunIII2024Summer24_signal.json"
+    assert sc.signal_config_path("RunIII2024Summer24", tmp_path) == \
+        tmp_path / "data/configs/Run3/2024/RunIII2024Summer24/RunIII2024Summer24_signal.json"
+
+
 def test_efficiency_rows_and_latex(era_set, analyzer):
     summaries = [sp.summarize_point(era_set, p, analyzer_root=analyzer) for p in POINTS]
     rows = sp.efficiency_rows(era_set, summaries)
