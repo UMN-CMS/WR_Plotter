@@ -20,3 +20,8 @@ __pycache__/
 # Build metadata and EOS-fallback outputs
 wrplotter.egg-info/
 outputs/
+
+# background_fit outputs
+background_fit/results*/
+background_fit/MATRIX*.md
+background_fit/EXPO2*.md
