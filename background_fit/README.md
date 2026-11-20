@@ -3,19 +3,62 @@
 The background of the signal + background fit is an analytic function fitted to the data. These scripts choose
 and test that function on simulation, in the resolved SR (m_lljj) and the boosted SR (m_lJ), ee and mumu.
 
-Run every command from `WR_Plotter/`, in a Python environment that has ROOT (PyROOT) and the plotter installed
-(`pip install -e .`).
+## Setup
+
+1. A Python environment that has ROOT (PyROOT), with the plotter installed in it.
+
+   ```bash
+   cd WR_Plotter && pip install -e .
+   ```
+
+2. The analyzer's histograms under `rootfiles/`, one directory per era. `<dir>` is the name given to the analyzer
+   with `--dir`, the same in every era.
+
+   ```text
+   rootfiles/Run3/2022/Run3Summer22/<dir>/
+   rootfiles/Run3/2022/Run3Summer22EE/<dir>/
+   rootfiles/Run3/2023/Run3Summer23/<dir>/
+   rootfiles/Run3/2023/Run3Summer23BPix/<dir>/
+   rootfiles/Run3/2024/RunIII2024Summer24/<dir>/
+   ```
+
+   Each holds `WRAnalyzer_DYJets.root`, `WRAnalyzer_tt_tW.root`, `WRAnalyzer_Nonprompt.root` and
+   `WRAnalyzer_Other.root`.
+
+3. Name the directory and the dataset. Every command below runs from `WR_Plotter/`.
+
+   ```bash
+   export FIT_DIR=<dir> FIT_DATASET=run3
+   ```
+
+## First run: the fitted background parameters of every window
+
+Store the background the fits run on, the simulation as it is.
+
+```bash
+python background_fit/3_truths.py --truths raw --variants lo_ht
+```
+
+Fit each function in the window of every signal mass and write its parameters to a table.
+
+```bash
+python background_fit/26_window_params.py
+```
+
+The table is `background_fit/results_run3/<channel>/26_window_params/window_params_k5_lo1200.csv`. One row per
+background, function and signal mass: the window, the expected events in it, the function's formula and pivot, its
+parameters with errors and covariance, and the outcome of the fit. `--help` lists the options (functions, window
+width, floor, masses).
+
+## Settings
 
 | Variable | Values | Default |
 | --- | --- | --- |
-| `FIT_DATASET` | `2024`, `run3` (2022-2025 summed), `run3_scaled` (2024 simulation at the Run 3 luminosity) | `2024` |
+| `FIT_DATASET` | `2024` (that era only), `run3` (2022 to 2024 summed, 2024 scaled up to cover 2025), `run3_scaled` (2024 alone at the Run 3 luminosity) | `2024` |
 | `FIT_TOPOLOGY` | `resolved`, `boosted` | `resolved` |
+| `FIT_DIR` | the histogram directory of step 2 | `20261015_skims_v2` |
 
-```bash
-FIT_DATASET=run3 python background_fit/1_spectrum.py
-```
-
-- Inputs: the analyzer histograms under `rootfiles/`. `config.py` names the production and holds every setting.
+- `config.py` holds every other setting.
 - Outputs: `background_fit/results*/<channel>/<script>/`, one tree per dataset and topology.
 - Every script takes `--help`.
 
@@ -70,15 +113,6 @@ Compare the full-range fits of step 4 with the window fits of step 6 (`WINDOWS.m
 
 ```bash
 python background_fit/7_compare_windows.py
-```
-
-## Window fit parameters
-
-Write the fitted background parameters of every window to a table: per signal mass, the window and each
-function's parameters with errors and covariance, from the fit to the expected spectrum (needs step 3).
-
-```bash
-FIT_DATASET=run3 python background_fit/26_window_params.py
 ```
 
 ## Figures and tables from the stored toys

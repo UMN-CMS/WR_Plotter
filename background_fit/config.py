@@ -16,26 +16,29 @@ REPO = HERE.parent                                   # WR_Plotter
 # The dataset: FIT_DATASET=2024 (default) or run3.  Every era of a dataset enters the spectrum
 # through spectrum.load_components as (rootfiles subpath, histogram dir, split-process dir, weight):
 # values x weight, variances x weight^2 (a scaled copy of the same MC events adds no statistics).
-DIR = "20261015_skims_v2"      # the production set that holds every DY variant in every era (the
+# FIT_DIR=<name> reads another production directory (the analyzer's --dir), FIT_SPLIT_DIR another split-process one.
+DIR = os.environ.get("FIT_DIR", "20261015_skims_v2")   # the production set that holds every DY variant in every era (the
                                # 2024 20261019 rerun, cutflow bookkeeping, agrees with it on the
                                # resolved SR yields to < 0.1 % and has no variants)
+_SPLIT_2024 = os.environ.get("FIT_SPLIT_DIR", "20261018_split_bkgs")
+_SPLIT_2223 = os.environ.get("FIT_SPLIT_DIR", "20261027_split_bkgs")
 _LUMI_2024, _LUMI_2025 = 109.70, 110.63             # fb-1, WR_Plotter/data/lumi.yaml (2025 preliminary)
 DATASETS = {
     "2024": dict(label="RunIII2024Summer24", year="2024", lumi=_LUMI_2024, results="results",
-                 eras=[("Run3/2024/RunIII2024Summer24", DIR, "20261018_split_bkgs", 1.0)]),
+                 eras=[("Run3/2024/RunIII2024Summer24", DIR, _SPLIT_2024, 1.0)]),
     # all of Run 3: 2022-2024 as produced; 2025 (data only, MC aliased to 2024) as the 2024 MC scaled to the
     # 2025 luminosity, so 2024 enters with weight 1 + L(2025)/L(2024)
     "run3": dict(label="Run3_2022-2025", year="2022-2025", lumi=8.08 + 26.64 + 18.59 + 9.675 + _LUMI_2024 + _LUMI_2025,
                  results="results_run3",
-                 eras=[("Run3/2022/Run3Summer22", DIR, "20261027_split_bkgs", 1.0),
-                       ("Run3/2022/Run3Summer22EE", DIR, "20261027_split_bkgs", 1.0),
-                       ("Run3/2023/Run3Summer23", DIR, "20261027_split_bkgs", 1.0),
-                       ("Run3/2023/Run3Summer23BPix", DIR, "20261027_split_bkgs", 1.0),
-                       ("Run3/2024/RunIII2024Summer24", DIR, "20261018_split_bkgs", 1.0 + _LUMI_2025 / _LUMI_2024)]),
+                 eras=[("Run3/2022/Run3Summer22", DIR, _SPLIT_2223, 1.0),
+                       ("Run3/2022/Run3Summer22EE", DIR, _SPLIT_2223, 1.0),
+                       ("Run3/2023/Run3Summer23", DIR, _SPLIT_2223, 1.0),
+                       ("Run3/2023/Run3Summer23BPix", DIR, _SPLIT_2223, 1.0),
+                       ("Run3/2024/RunIII2024Summer24", DIR, _SPLIT_2024, 1.0 + _LUMI_2025 / _LUMI_2024)]),
     # the same luminosity from the 2024 MC alone (x 2.58): separates the statistics from the 2022/2023 shapes
     "run3_scaled": dict(label="RunIII2024Summer24_x2.58", year=r"2024 MC $\times$ 2.58", results="results_run3scaled",
                         lumi=8.08 + 26.64 + 18.59 + 9.675 + _LUMI_2024 + _LUMI_2025,
-                        eras=[("Run3/2024/RunIII2024Summer24", DIR, "20261018_split_bkgs",
+                        eras=[("Run3/2024/RunIII2024Summer24", DIR, _SPLIT_2024,
                                (8.08 + 26.64 + 18.59 + 9.675 + _LUMI_2024 + _LUMI_2025) / _LUMI_2024)]),
 }
 _RENAMED = sorted(k for k in os.environ if k.startswith("FITV3_"))
