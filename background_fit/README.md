@@ -72,6 +72,15 @@ Compare the full-range fits of step 4 with the window fits of step 6 (`WINDOWS.m
 python background_fit/7_compare_windows.py
 ```
 
+## Window fit parameters
+
+Write the fitted background parameters of every window to a table: per signal mass, the window and each
+function's parameters with errors and covariance, from the fit to the expected spectrum (needs step 3).
+
+```bash
+FIT_DATASET=run3 python background_fit/26_window_params.py
+```
+
 ## Figures and tables from the stored toys
 
 These read the toys of steps 4 and 6. `--help` shows which folder each one reads.
