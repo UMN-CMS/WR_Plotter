@@ -5,10 +5,11 @@ and test that function on simulation, in the resolved SR (m_lljj) and the booste
 
 ## Setup
 
-1. A Python environment that has ROOT (PyROOT), with the plotter installed in it.
+1. A Python that has ROOT (PyROOT), numpy, uproot, matplotlib and mplhep. Nothing is installed from
+   `WR_Plotter/`. At the LPC, in a new shell with no other environment active:
 
    ```bash
-   cd WR_Plotter && pip install -e .
+   source /cvmfs/sft.cern.ch/lcg/views/LCG_108/x86_64-el9-gcc13-opt/setup.sh
    ```
 
 2. The analyzer's histograms under `rootfiles/`, one directory per era. `<dir>` is the name given to the analyzer
@@ -45,10 +46,41 @@ Fit each function in the window of every signal mass and write its parameters to
 python background_fit/26_window_params.py
 ```
 
-The table is `background_fit/results_run3/<channel>/26_window_params/window_params_k5_lo1200.csv`. One row per
-background, function and signal mass: the window, the expected events in it, the function's formula and pivot, its
-parameters with errors and covariance, and the outcome of the fit. `--help` lists the options (functions, window
-width, floor, masses).
+The table is `background_fit/results_run3/<channel>/26_window_params/window_params_k5_lo1200.csv` (`results/` for
+`FIT_DATASET=2024`), one row per background, function and signal mass. `--help` lists the options (functions,
+window width, floor, masses).
+
+| Column | Meaning |
+| --- | --- |
+| `channel` | `ee` or `mumu` |
+| `dataset`, `lumi` | the `FIT_DATASET` and its luminosity in fb^-1 |
+| `variant` | the DY sample of the background (`lo_ht`: LO, HT-binned) |
+| `background` | the spectrum that is fitted: `raw`, the simulation as it is, or `kde9`, the RooKeysPdf of the nine processes |
+| `function` | the function's name: `expo`, `powexp`, ... |
+| `k` | the window's half-width in units of `sigma` |
+| `mass` | the signal mass m_WR of this row, GeV |
+| `mu`, `sigma` | mean and width of the signal peak at this mass, GeV |
+| `lo`, `hi` | the fit window, GeV: `mu` -+ `k` x `sigma`, clipped at the floor and at 8000 |
+| `n_window` | expected background events in the window |
+| `n_core` | expected background events within +-2 `sigma` of `mu` |
+| `formula` | the function in ROOT TF1 syntax: `x` in GeV, `[i]` is `p<i>`, the value is events per bin |
+| `pivot` | the mass in the formula at which the normalisation is defined, GeV |
+| `bin_width` | the width of a bin, GeV |
+| `par_names` | the parameters' names, in the order `p0`, `p1`, ... |
+| `outcome` | `pass`, or the first check the background-only fit fails: `no valid minimum`, `covariance incomplete`, `parameter at a bound`, `not falling` (`no fit`: too few populated bins) |
+| `p<i>`, `p<i>_err` | parameter `i` of the background-only fit and its error, for a dataset of this luminosity |
+| `cov<i><j>` | covariance of `p<i>` and `p<j>` |
+| `outcome_sb` | the same verdict for the signal + background fit |
+| `nsig_sb`, `nsig_sb_err` | the signal yield of the signal + background fit and its error, in events |
+| `p<i>_sb` | parameter `i` of the background in the signal + background fit |
+
+Both fits are to the expected spectrum, without statistical fluctuation. The two default functions, with
+u = (x - 2000) / 1000:
+
+| Function | Formula | `p0` | `p1` | `p2` |
+| --- | --- | --- | --- | --- |
+| `expo` | exp(p0 + p1 u) | log of the events per bin at 2000 GeV | slope per TeV | |
+| `powexp` | exp(p0 + p2 u) (x / 2000)^p1 | log of the events per bin at 2000 GeV | power | slope per TeV |
 
 ## Settings
 

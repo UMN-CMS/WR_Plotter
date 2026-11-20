@@ -7,10 +7,12 @@ and validate the function. ee and mumu, resolved and boosted SR.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent                                   # WR_Plotter
+sys.path.insert(0, str(REPO))                        # the plotter package (wrplotter) needs no install
 
 # ---- inputs ------------------------------------------------------------------------------
 # The dataset: FIT_DATASET=2024 (default) or run3.  Every era of a dataset enters the spectrum
