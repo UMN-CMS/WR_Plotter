@@ -9,7 +9,7 @@ and test that function on simulation, in the resolved SR (m_lljj) and the booste
    `WR_Plotter/`. At the LPC, in a new shell with no other environment active:
 
    ```bash
-   source /cvmfs/sft.cern.ch/lcg/views/LCG_108/x86_64-el9-gcc13-opt/setup.sh
+   source /cvmfs/sft.cern.ch/lcg/views/LCG_109/x86_64-el9-gcc13-opt/setup.sh
    ```
 
 2. The analyzer's histograms under `rootfiles/`, one directory per era. `<dir>` is the name given to the analyzer
